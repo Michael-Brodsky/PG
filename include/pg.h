@@ -7,7 +7,7 @@
  *
  *	File: pg.h
  *	Date: August 14, 2021
- *	Version: 0.99
+ *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
  *	Copyright (c) 2012-2021 Michael Brodsky 
