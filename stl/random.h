@@ -318,8 +318,6 @@ namespace std
             // Advances the engine's state and returns the generated value.
             result_type operator()()
             {
-                // TODO: Needs a circular iterator for better performance.
-
                 const result_type x = *++it_, w = *(it_ - 1), t = (x ^ (x << 11));
                 return (*it_ = (w ^ (w >> 19)) ^ (t ^ (t >> 8)));
             }
@@ -348,7 +346,6 @@ namespace std
 
         private:
             state_buffer_type   buf_; // The internal state buffer.
-            //size_type           n_;   // The current state buffer index.
             circular_iterator<state_buffer_type>  it_;
         };
 
