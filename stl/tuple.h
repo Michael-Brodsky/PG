@@ -6,7 +6,7 @@
  *
  *	File: tuple.h
  *	Date: September 2, 2021
- *	Version: 0.99
+ *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
  *	Copyright (c) 2012-2021 Michael Brodsky
@@ -120,7 +120,7 @@ namespace std
         tuple<Ts...> rest;  // The rest of the tuple elements.
     };
 
-    // Type capable to hold a collection of heterogeneous elements.
+    // Type capable of holding a collection of heterogeneous elements.
     template <class T>
     class tuple<T> {
         template <std::size_t N>
