@@ -6,7 +6,7 @@
  *
  *	File: random.h
  *	Date: September 5, 2021
- *	Version: 1.0
+ *	Version: 0.99
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
  *	Copyright (c) 2012-2021 Michael Brodsky
@@ -198,7 +198,7 @@ namespace std
         // Constructs the engine using seeds in range [first, last).
         template<class OutpuIt>
         xorshift128_engine(OutpuIt first, OutpuIt last) : buf_(first, last), n_() 
-        { /*assert(std::accumulate(buf_.begin(), buf_.end(), 0) != 0);*/ }
+        { assert(std::accumulate(buf_.begin(), buf_.end(), 0) != 0); }
         // Copy constructor.
         xorshift128_engine(const xorshift128_engine& other) = default;
 
@@ -296,7 +296,7 @@ namespace std
             template<class OutpuIt>
             xorshift128_engine(OutpuIt first, OutpuIt last) : buf_(first, last), it_(buf_) 
             {
-                //assert(std::accumulate(buf_.begin(), buf_.end(), 0) != 0);
+                assert(std::accumulate(buf_.begin(), buf_.end(), 0) != 0);
             }
             // Copy constructor.
             xorshift128_engine(const xorshift128_engine& other) = default;
