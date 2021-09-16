@@ -31,7 +31,7 @@
  *	Description:
  *
  *		This file defines objects in the <chrono> header of the C++ Standard
- *		Library implementation - to the extent they are supported by the
+ *		Library implementation - to the extent they are supported by the 
  *		Arduino implementation. The objects behave according to the 
  *		ISO/IEC 14882 Standards, except as noted.
  *
@@ -40,7 +40,6 @@
 #if !defined __PG_CHRONO_
 # define __PG_CHRONO_ 20210817L
 
-//# include "limits"	// Needed by std::chrono::duration_values.
 # include "ratio"	// std::ratio and related types needed by std::chrono::duration_values.
 # include "ctime"	// std::time_t type and time-related functions.
 
