@@ -38,7 +38,7 @@
  *		std::initializer_list is used to access the values in a C++ 
  *		initialization list, which is a list of elements of type const T. 
  *		Objects of this type are automatically constructed by the compiler 
- *		from initialization list declarations, whixh are lists of comma-
+ *		from initialization list declarations, which are lists of comma-
  *		separated elements enclosed in braces. The std::initializer_list class 
  *		template is not implicitly defined and this header <initializer_list> 
  *		must be included to access it, even if the type is used implicitly. 
