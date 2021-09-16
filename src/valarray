@@ -51,10 +51,25 @@
  *		behave according to the ISO C++ Standard with respect to the the 
  *		size(), resize(), std::begin() and std::end() functions while using 
  *		a static memory allocator.
+ * 	
+ *		User defined allocators must fit the definition of `Container' and 
+ *		have the same prototype as std::array:
  * 
- *		The vallaray and associated classes require improvemnts and further 
- *		testing with respect to allocators and type conversion, e.g. 
- *		std::valarray<int, N, Alloc> -> std::valarray<bool, N, Alloc>.
+ *			allocator<class T, size_t N>, 
+ * 
+ *		where T is the type of object stored and N is the allocator's 
+ *		capacity in elements of type T.
+ * 
+ *		A valarray having a user-defined allocator is instantiated with:
+ * 
+ *			std::valarray<T, N, allocator> v;
+ * 
+ *		Valarrays with different allocators are different types and cannot be 
+ *		interchanged:
+ * 
+ *			std::valarray<T, N,> v;
+ *			std::valarray<T, N, allocator> w;
+ *			v = w; // error, different types.
  *
  *	**************************************************************************/
 
@@ -72,21 +87,44 @@
 
 namespace std
 {
-	// A class for representing and manipulating arrays of values.
-	template<class T, size_t N, class Alloc> 
+	template < class _Clos, typename _Tp>
+	class _Expr;
+
+	template < typename _Tp1, typename _Tp2>
+	class _ValArray;
+
+	template < class _Oper, template<class, class> class _Meta, class _Dom>
+	struct _UnClos;
+
+	template < class _Oper,
+	template<class, class> class _Meta1,
+	template<class, class> class _Meta2,
+	class _Dom1, class _Dom2>
+	class _BinClos;
+
+	template < template<class, class> class _Meta, class _Dom>
+	class _SClos;
+
+	template < template<class, class> class _Meta, class _Dom>
+	class _GClos;
+#pragma region forward_decls
+
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	class valarray; 
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	T* begin(valarray<T, N, Alloc>&);
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	T* begin(const valarray<T, N, Alloc>&);
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	T* end(valarray<T, N, Alloc>&);
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	T* end(const valarray<T, N, Alloc>&);
+
+#pragma endregion
 
 	//BLAS-like slice of a valarray.
 	class slice
@@ -123,7 +161,7 @@ namespace std
 	};
 
 	// Proxy to a subset of a valarray after applying a slice.
-	template<class T, size_t N, class Alloc = std::array<T, N>>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc = std::array>
 	class slice_array
 	{
 		friend class std::valarray<T, N, Alloc>;
@@ -226,45 +264,45 @@ namespace std
 	};
 
 	// Generalized slice of a valarray
-	template<size_t N, class Alloc = std::array<size_t, N>>
-	class gslice 
+	template<size_t N, template<class = size_t, size_t = N> typename Alloc = std::array>
+	class gslice
 	{
 	public:
 		// Default constructor, allows construction of arrays of slices.
 		gslice() : start_(), size_(), stride_() {}
 		// Constructs a new slice with parameters start, sizes, strides.
-		gslice(size_t start, const valarray<size_t, N, Alloc>& sizes, const valarray<size_t, N, Alloc>& strides) : 
+		gslice(size_t start, const valarray<size_t, N, Alloc>& sizes, const valarray<size_t, N, Alloc>& strides) :
 			start_(start), size_(sizes), stride_(strides)
 		{}
 		// Copy constructor.
-		gslice(const gslice& other) : 
+		gslice(const gslice& other) :
 			start_(other.start_), size_(other.size_), stride_(other.stride_)
 		{}
 
 	public:
-		size_t start() const 
+		size_t start() const
 		{
 			return start_;
 		}
 
-		valarray<size_t, N, Alloc> size() const 
+		valarray<size_t, N, Alloc> size() const
 		{
 			return size_;
 		}
 
-		valarray<size_t, N, Alloc> stride() const 
+		valarray<size_t, N, Alloc> stride() const
 		{
 			return stride_;
 		}
 
 	private:
-		size_t						start_;
+		size_t						start_;		
 		valarray<size_t, N, Alloc>	size_;
 		valarray<size_t, N, Alloc>	stride_;
 	};
 
 	// Proxy to a subset of a valarray after applying a gslice.
-	template<class T, size_t N, class Alloc = std::array<T, N>> 
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc = std::array>
 	class gslice_array
 	{
 		friend class std::valarray<T, N, Alloc>;
@@ -294,7 +332,7 @@ namespace std
 	};
 
 	// Proxy to a subset of a valarray after applying a boolean mask operator[].
-	template<class T, size_t N, class Alloc = std::array<T, N>>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc = std::array>
 	class mask_array
 	{
 		friend class std::valarray<T, N, Alloc>;
@@ -324,7 +362,7 @@ namespace std
 	};
 
 	// Proxy to a subset of a valarray after applying indirect operator[]
-	template<class T, size_t N, class Alloc = std::array<T, N>>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc = std::array>
 	class indirect_array
 	{
 		friend class std::valarray<T, N, Alloc>;
@@ -354,11 +392,11 @@ namespace std
 	};
 
 	// A class for representing and manipulating arrays of values.
-	template<class T, size_t N, class Alloc = std::array<T, N>>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc = std::array>
 	class valarray
 	{
 	private:
-		using allocator_type = Alloc;
+		using allocator_type = Alloc<T, N>;
 
 	public:
 		using value_type = T;
@@ -400,10 +438,16 @@ namespace std
 		T& operator[](std::size_t pos);
 		std::valarray<T, N, Alloc> operator[](std::slice slicearr) const;
 		std::slice_array<T, N, Alloc> operator[](std::slice slicearr);
+		valarray<T, N, Alloc> operator[](const std::gslice<N>& gslicearr) const;
+		std::gslice_array<T, N, Alloc> operator[](const std::gslice<N>& gslicearr);
+		std::valarray<T, N, Alloc> operator[](const valarray<bool, N, Alloc>& boolarr) const;
+		std::mask_array<T, N, Alloc> operator[](const valarray<bool, N, Alloc>& boolarr);
+		std::valarray<T, N, Alloc> operator[](const valarray<std::size_t, N, Alloc>& indarr) const;
+		std::indirect_array<T, N, Alloc> operator[](const valarray<std::size_t, N, Alloc>& indarr);
 		valarray<T, N, Alloc> operator+() const;
 		valarray<T, N, Alloc> operator-() const;
 		valarray<T, N, Alloc> operator~() const;
-		valarray<bool, N> operator!() const;
+		valarray<bool, N, Alloc> operator!() const;
 		valarray<T, N, Alloc>& operator+=(const valarray<T, N, Alloc>& v);
 		valarray<T, N, Alloc>& operator-=(const valarray<T, N, Alloc>& v);
 		valarray<T, N, Alloc>& operator*=(const valarray<T, N, Alloc>& v);
@@ -442,49 +486,49 @@ namespace std
 
 #pragma region ctors
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>::valarray() :
 		allocator_(), size_()
 	{
 		
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>::valarray(std::size_t n) :
 		allocator_(), size_(n)
 	{
 		std::fill_n(std::begin(allocator_), n, T());
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>::valarray(const T& val, size_t n) :
 		allocator_(), size_(n)
 	{
 		std::fill_n(std::begin(allocator_), n, val);
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>::valarray(const T* vals, size_t n) :
 		allocator_(), size_(n)
 	{
 		std::copy_n(vals, n, std::begin(allocator_));
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>::valarray(const valarray& other) :
 		allocator_(other.allocator_), size_(other.size())
 	{
 		
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>::valarray(valarray&& other) :
 		allocator_(), size_()
 	{
 		swap(other);
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>::valarray(const slice_array<T, N, Alloc>& sa) :
 		allocator_(), size_(sa.slice_.size())
 	{
@@ -492,7 +536,7 @@ namespace std
 			allocator_[i] = sa.array_->allocator_[sa.slice_.start() + i * sa.slice_.stride()];
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>::valarray(std::initializer_list<T> ilist) :
 		allocator_(), size_(ilist.size())
 	{
@@ -505,7 +549,7 @@ namespace std
 #pragma endregion
 #pragma region member_functions
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator=(const valarray<T, N, Alloc>& other)
 	{
 		std::copy(std::begin(other.allocator_), std::begin(other.allocator_) + other.size(), std::begin(allocator_));
@@ -514,7 +558,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator=(valarray<T, N, Alloc>&& other)
 	{
 		std::fill(std::begin(allocator_), std::end(allocator_), T());
@@ -523,7 +567,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator=(const T& val)
 	{
 		std::fill(std::begin(allocator_), std::end(allocator_), val);
@@ -531,7 +575,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator=(std::initializer_list<T> ilist)
 	{
 		assert(ilist.size() <= N);
@@ -544,19 +588,19 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	const T& valarray<T, N, Alloc>::operator[](std::size_t pos) const
 	{
 		return allocator_[pos];
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	T& valarray<T, N, Alloc>::operator[](std::size_t pos)
 	{
 		return allocator_[pos];
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> std::valarray<T, N, Alloc>::operator[](std::slice slicearr) const
 	{
 		std::valarray<T, N, Alloc> ret(slicearr.size());
@@ -567,7 +611,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::slice_array<T, N, Alloc> std::valarray<T, N, Alloc>::operator[](std::slice slicearr)
 	{
 		std::slice_array<T, N, Alloc> ret;
@@ -578,7 +622,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc> valarray<T, N, Alloc>::operator+() const
 	{
 		valarray<T, N, Alloc> ret(*this);
@@ -589,7 +633,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc> valarray<T, N, Alloc>::operator-() const
 	{
 		valarray<T, N, Alloc> ret(*this);
@@ -600,7 +644,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc> valarray<T, N, Alloc>::operator~() const
 	{
 		valarray<T, N, Alloc> ret(*this);
@@ -611,10 +655,10 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> valarray<T, N, Alloc>::operator!() const
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> valarray<T, N, Alloc>::operator!() const
 	{
-		valarray<bool, N> ret;
+		valarray<bool, N, Alloc> ret;
 
 		for (size_t i = 0; i < N; ++i)
 			ret[i] = !allocator_[i];
@@ -622,7 +666,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator+=(const valarray<T, N, Alloc>& v)
 	{
 
@@ -632,7 +676,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator-=(const valarray<T, N, Alloc>& v)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -641,7 +685,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator*=(const valarray<T, N, Alloc>& v)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -650,7 +694,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator/=(const valarray<T, N, Alloc>& v)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -659,7 +703,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator%=(const valarray<T, N, Alloc>& v)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -668,7 +712,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator&=(const valarray<T, N, Alloc>& v)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -677,7 +721,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator|=(const valarray<T, N, Alloc>& v)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -686,7 +730,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator^=(const valarray<T, N, Alloc>& v)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -695,7 +739,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator<<=(const valarray<T, N, Alloc>& v)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -704,7 +748,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator>>=(const valarray<T, N, Alloc>& v)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -713,7 +757,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator+=(const T& val)
 	{
 
@@ -723,7 +767,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator-=(const T& val)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -732,7 +776,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator*=(const T& val)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -741,7 +785,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator/=(const T& val)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -750,7 +794,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator%=(const T& val)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -759,7 +803,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator&=(const T& val)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -768,7 +812,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator|=(const T& val)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -777,7 +821,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator^=(const T& val)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -786,7 +830,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator<<=(const T& val)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -795,7 +839,7 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc>& valarray<T, N, Alloc>::operator>>=(const T& val)
 	{
 		for (size_t i = 0; i < N; ++i)
@@ -804,13 +848,13 @@ namespace std
 		return *this;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::size_t valarray<T, N, Alloc>::size() const
 	{
 		return size_;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	void valarray<T, N, Alloc>::resize(std::size_t n, T value)
 	{
 		assert(n <= N);
@@ -818,32 +862,32 @@ namespace std
 		size_ = n;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	void valarray<T, N, Alloc>::swap(valarray<T, N, Alloc>& other)
 	{
 		std::swap(allocator_, other.allocator_);
 		std::swap(size_, other.size_);
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	T valarray<T, N, Alloc>::sum() const
 	{
 		return std::accumulate(std::begin(allocator_), std::begin(allocator_) + size_, 0);
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	T valarray<T, N, Alloc>::min() const
 	{
 		return *std::min_element(std::begin(allocator_), std::begin(allocator_) + size_);
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	T valarray<T, N, Alloc>::max() const
 	{
 		return *std::max_element(std::begin(allocator_), std::begin(allocator_) + size_);
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc> valarray<T, N, Alloc>::shift(int n) const
 	{
 		valarray<T, N, Alloc> ret(size() + n);
@@ -854,7 +898,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc> valarray<T, N, Alloc>::cshift(int count) const
 	{
 		valarray<T, N, Alloc> ret(*this);
@@ -862,7 +906,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc> valarray<T, N, Alloc>::apply(T func(T)) const
 	{
 		valarray<T, N, Alloc> ret(*this);
@@ -873,7 +917,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	valarray<T, N, Alloc> valarray<T, N, Alloc>::apply(T func(const T&)) const
 	{
 		valarray<T, N, Alloc> ret(*this);
@@ -888,37 +932,37 @@ namespace std
 #pragma endregion
 #pragma region non-members
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	T* begin(valarray<T, N, Alloc>& va)
 	{
 		return std::addressof(va[0]);
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	T* begin(const valarray<T, N, Alloc>& va)
 	{
 		return std::addressof(va[0]);
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	T* end(valarray<T, N, Alloc>& va)
 	{
 		return std::addressof(va[0]) + va.size();
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	T* end(const valarray<T, N, Alloc>& va)
 	{
 		return std::addressof(va[0]) + va.size();
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	void swap(std::valarray<T, N, Alloc>& lhs, std::valarray<T, N, Alloc>& rhs) noexcept
 	{
 		lhs.swap(rhs);
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator+(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
@@ -930,7 +974,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator-(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
@@ -942,7 +986,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator*(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
@@ -954,7 +998,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator/(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
@@ -966,7 +1010,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator%(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
@@ -978,7 +1022,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator&(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
@@ -990,7 +1034,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator|(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
@@ -1002,7 +1046,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator^(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
@@ -1014,7 +1058,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator<<(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
@@ -1026,7 +1070,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator>>(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
@@ -1038,11 +1082,11 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	std::valarray<bool, N> operator&&(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	std::valarray<bool, N, Alloc> operator&&(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
-		std::valarray<bool, N> ret(lhs.size());
+		std::valarray<bool, N, Alloc> ret(lhs.size());
 
 		for (size_t i = 0; i < lhs.size(); ++i)
 			ret[i] = lhs[i] && rhs[i];
@@ -1050,11 +1094,11 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	std::valarray<bool, N> operator||(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	std::valarray<bool, N, Alloc> operator||(const std::valarray<T, N, Alloc>& lhs, const std::valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
-		std::valarray<bool, N> ret(lhs.size());
+		std::valarray<bool, N, Alloc> ret(lhs.size());
 
 		for (size_t i = 0; i < lhs.size(); ++i)
 			ret[i] = lhs[i] || rhs[i];
@@ -1062,7 +1106,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator+ (const typename std::valarray<T, N, Alloc>::value_type& val,
 		const std::valarray<T, N, Alloc>& rhs)
 	{
@@ -1074,7 +1118,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator- (const typename std::valarray<T, N, Alloc>::value_type& val,
 		const std::valarray<T, N, Alloc>& rhs)
 	{
@@ -1086,7 +1130,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator* (const typename std::valarray<T, N, Alloc>::value_type& val,
 		const std::valarray<T, N, Alloc>& rhs)
 	{
@@ -1098,7 +1142,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator/ (const typename std::valarray<T, N, Alloc>::value_type& val,
 		const std::valarray<T, N, Alloc>& rhs)
 	{
@@ -1110,7 +1154,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator% (const typename std::valarray<T, N, Alloc>::value_type& val,
 		const std::valarray<T, N, Alloc>& rhs)
 	{
@@ -1122,7 +1166,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator& (const typename std::valarray<T, N, Alloc>::value_type& val,
 		const std::valarray<T, N, Alloc>& rhs)
 	{
@@ -1134,7 +1178,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator| (const typename std::valarray<T, N, Alloc>::value_type& val,
 		const std::valarray<T, N, Alloc>& rhs)
 	{
@@ -1146,7 +1190,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator^ (const typename std::valarray<T, N, Alloc>::value_type& val,
 		const std::valarray<T, N, Alloc>& rhs)
 	{
@@ -1158,7 +1202,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator<<(const typename std::valarray<T, N, Alloc>::value_type& val,
 		const std::valarray<T, N, Alloc>& rhs)
 	{
@@ -1170,7 +1214,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator>>(const typename std::valarray<T, N, Alloc>::value_type& val,
 		const std::valarray<T, N, Alloc>& rhs)
 	{
@@ -1182,11 +1226,11 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	std::valarray<bool, N> operator&&(const typename std::valarray<T, N, Alloc>::value_type& val,
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	std::valarray<bool, N, Alloc> operator&&(const typename std::valarray<T, N, Alloc>::value_type& val,
 		const std::valarray<T, N, Alloc>& rhs)
 	{
-		std::valarray<bool, N> ret(rhs.size());
+		std::valarray<bool, N, Alloc> ret(rhs.size());
 
 		for (size_t i = 0; i < rhs.size(); ++i)
 			ret[i] = rhs[i] && val;
@@ -1194,11 +1238,11 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	std::valarray<bool, N> operator||(const typename std::valarray<T, N, Alloc>::value_type& val,
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	std::valarray<bool, N, Alloc> operator||(const typename std::valarray<T, N, Alloc>::value_type& val,
 		const std::valarray<T, N, Alloc>& rhs)
 	{
-		std::valarray<bool, N> ret(rhs.size());
+		std::valarray<bool, N, Alloc> ret(rhs.size());
 
 		for (size_t i = 0; i < rhs.size(); ++i)
 			ret[i] = rhs[i] || val;
@@ -1206,9 +1250,7 @@ namespace std
 		return ret;
 	}
 
-
-
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator+ (const std::valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
@@ -1220,7 +1262,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator- (const std::valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
@@ -1232,7 +1274,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator* (const std::valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
@@ -1244,7 +1286,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator/ (const std::valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
@@ -1256,7 +1298,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator% (const std::valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
@@ -1268,7 +1310,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator& (const std::valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
@@ -1280,7 +1322,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator| (const std::valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 
@@ -1293,7 +1335,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator^ (const std::valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
@@ -1305,7 +1347,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator<<(const std::valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
@@ -1317,7 +1359,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> operator>>(const std::valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
@@ -1329,11 +1371,11 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	std::valarray<bool, N> operator&&(const std::valarray<T, N, Alloc>& lhs,
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	std::valarray<bool, N, Alloc> operator&&(const std::valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
-		std::valarray<bool, N> ret(lhs.size());
+		std::valarray<bool, N, Alloc> ret(lhs.size());
 
 		for (size_t i = 0; i < lhs.size(); ++i)
 			ret[i] = lhs[i] && val;
@@ -1341,11 +1383,11 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	std::valarray<bool, N> operator||(const std::valarray<T, N, Alloc>& lhs,
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	std::valarray<bool, N, Alloc> operator||(const std::valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
-		std::valarray<bool, N> ret(lhs.size());
+		std::valarray<bool, N, Alloc> ret(lhs.size());
 
 		for (size_t i = 0; i < lhs.size(); ++i)
 			ret[i] = lhs[i] || val;
@@ -1353,11 +1395,11 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc> 
-	valarray<bool, N> operator==(const valarray<T, N, Alloc>& lhs, const valarray<T, N, Alloc>& rhs)
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc> 
+	valarray<bool, N, Alloc> operator==(const valarray<T, N, Alloc>& lhs, const valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
-		std::valarray <bool, N> ret(lhs.size());
+		std::valarray<bool, N, Alloc> ret(lhs.size());
 
 		for (size_t i = 0; i < lhs.size(); ++i)
 			ret[i] = lhs[i] == rhs[i];
@@ -1365,11 +1407,11 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc> 
-	valarray<bool, N> operator==(const typename std::valarray<T, N, Alloc>::value_type& val, 
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc> 
+	valarray<bool, N, Alloc> operator==(const typename std::valarray<T, N, Alloc>::value_type& val, 
 		const valarray<T, N, Alloc>& rhs)
 	{
-		std::valarray<bool, N> ret(rhs.size());
+		std::valarray<bool, N, Alloc> ret(rhs.size());
 
 		for (size_t i = 0; i < rhs.size(); ++i)
 			ret[i] = rhs[i] == val;
@@ -1377,11 +1419,11 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc> 
-	valarray<bool, N> operator==(const valarray<T, N, Alloc>& lhs, 
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc> 
+	valarray<bool, N, Alloc> operator==(const valarray<T, N, Alloc>& lhs, 
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
-		std::valarray<bool, N> ret(lhs.size());
+		std::valarray<bool, N, Alloc> ret(lhs.size());
 
 		for (size_t i = 0; i < lhs.size(); ++i)
 			ret[i] = lhs[i] == val;
@@ -1389,31 +1431,31 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator!=(const valarray<T, N, Alloc>& lhs, const valarray<T, N, Alloc>& rhs)
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator!=(const valarray<T, N, Alloc>& lhs, const valarray<T, N, Alloc>& rhs)
 	{
 		return !(lhs == rhs);
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator!=(const typename std::valarray<T, N, Alloc>::value_type& val, 
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator!=(const typename std::valarray<T, N, Alloc>::value_type& val, 
 		const valarray<T, N, Alloc>& rhs)
 	{
 		return !(rhs == val);
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator!=(const valarray<T, N, Alloc>& lhs, 
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator!=(const valarray<T, N, Alloc>& lhs, 
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
 		return !(lhs == val);
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator<(const valarray<T, N, Alloc>& lhs, const valarray<T, N, Alloc>& rhs)
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator<(const valarray<T, N, Alloc>& lhs, const valarray<T, N, Alloc>& rhs)
 	{
 		assert(lhs.size() == rhs.size());
-		std::valarray <bool, N> ret(lhs.size());
+		std::valarray <bool, N, Alloc> ret(lhs.size());
 
 		for (size_t i = 0; i < lhs.size(); ++i)
 			ret[i] = lhs[i] < rhs[i];
@@ -1421,11 +1463,11 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator<(const typename std::valarray<T, N, Alloc>::value_type& val,
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator<(const typename std::valarray<T, N, Alloc>::value_type& val,
 		const valarray<T, N, Alloc>& rhs)
 	{
-		std::valarray<bool, N> ret(rhs.size());
+		std::valarray<bool, N, Alloc> ret(rhs.size());
 
 		for (size_t i = 0; i < rhs.size(); ++i)
 			ret[i] = rhs[i] < val;
@@ -1433,11 +1475,11 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator<(const valarray<T, N, Alloc>& lhs,
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator<(const valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
-		std::valarray<bool, N> ret(lhs.size());
+		std::valarray<bool, N, Alloc> ret(lhs.size());
 
 		for (size_t i = 0; i < lhs.size(); ++i)
 			ret[i] = lhs[i] < val;
@@ -1445,71 +1487,72 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator>(const valarray<T, N, Alloc>& lhs, const valarray<T, N, Alloc>& rhs)
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator>(const valarray<T, N, Alloc>& lhs, const valarray<T, N, Alloc>& rhs)
 	{
 		return (rhs < lhs);
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator>(const typename std::valarray<T, N, Alloc>::value_type& val,
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator>(const typename std::valarray<T, N, Alloc>::value_type& val,
 		const valarray<T, N, Alloc>& rhs)
 	{
 		return (rhs < val);
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator>(const valarray<T, N, Alloc>& lhs,
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator>(const valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
 		return (val < lhs);
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator<=(const valarray<T, N, Alloc>& lhs, const valarray<T, N, Alloc>& rhs)
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator<=(const valarray<T, N, Alloc>& lhs, const valarray<T, N, Alloc>& rhs)
 	{
 		return !(rhs < lhs);
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator<=(const typename std::valarray<T, N, Alloc>::value_type& val,
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator<=(const typename std::valarray<T, N, Alloc>::value_type& val,
 		const valarray<T, N, Alloc>& rhs)
 	{
 		return !(rhs < val);
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator<=(const valarray<T, N, Alloc>& lhs,
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator<=(const valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
 		return !(val < lhs);
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator>=(const valarray<T, N, Alloc>& lhs, const valarray<T, N, Alloc>& rhs)
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator>=(const valarray<T, N, Alloc>& lhs, const valarray<T, N, Alloc>& rhs)
 	{
 		return !(lhs < rhs);
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator>=(const typename std::valarray<T, N, Alloc>::value_type& val,
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator>=(const typename std::valarray<T, N, Alloc>::value_type& val,
 		const valarray<T, N, Alloc>& rhs)
 	{
 		return !(val < rhs);
 	}
 
-	template<class T, std::size_t N, class Alloc>
-	valarray<bool, N> operator>=(const valarray<T, N, Alloc>& lhs,
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
+	valarray<bool, N, Alloc> operator>=(const valarray<T, N, Alloc>& lhs,
 		const typename std::valarray<T, N, Alloc>::value_type& val)
 	{
 		return !(lhs < val);
 	}
+
 	/*
 	 * Math functions. Note: only a few functions are implemented in the 
 	 * Arduino math library, so many of the following are for compatibility.
 	 */
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> abs(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1520,7 +1563,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> exp(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1531,7 +1574,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> log(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1542,7 +1585,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> log10(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1553,7 +1596,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> pow(const std::valarray<T, N, Alloc>& base, const std::valarray<T, N, Alloc>& exp)
 	{
 		assert(base.size() == exp.size());
@@ -1565,7 +1608,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> pow(const std::valarray<T, N, Alloc>& base,
 		const typename std::valarray<T, N, Alloc>::value_type& vexp)
 	{
@@ -1577,7 +1620,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> pow(const typename std::valarray<T, N, Alloc>::value_type& vbase,
 		const std::valarray<T, N, Alloc>& exp)
 	{
@@ -1589,7 +1632,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> sqrt(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1600,7 +1643,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> sin(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1611,7 +1654,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> cos(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1622,7 +1665,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> tan(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1633,7 +1676,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> asin(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1644,7 +1687,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> acos(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1655,7 +1698,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> atan(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1666,7 +1709,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> atan2(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1677,7 +1720,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> sinh(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1688,7 +1731,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> cosh(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
@@ -1699,7 +1742,7 @@ namespace std
 		return ret;
 	}
 
-	template<class T, std::size_t N, class Alloc>
+	template<class T, size_t N, template<class = T, size_t = N> typename Alloc>
 	std::valarray<T, N, Alloc> tanh(const std::valarray<T, N, Alloc>& va)
 	{
 		std::valarray<T, N, Alloc> ret(va.size());
