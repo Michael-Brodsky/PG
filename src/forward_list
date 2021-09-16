@@ -46,8 +46,8 @@
  *		Container elements are arranged as a singly-linked list:
  * 
  *			before_begin -> [X][ ][ ][ ][ ][ ][ ][ ][ ][ ][X] <- end
- *								^
- *								begin
+ *                              ^
+ *                              begin
  * 
  *		Accessible elements are stored in the allocator. The placeholder 
  *		element `before_begin' is not stored in the allocator and attempts to 
