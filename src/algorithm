@@ -54,6 +54,8 @@
 
 namespace std
 {
+#pragma region forward_decls
+
 	template <class ForwardIt>
 	ForwardIt min_element(ForwardIt first, ForwardIt last);
 	template<class ForwardIt, class Compare>
@@ -62,8 +64,9 @@ namespace std
 	ForwardIt max_element(ForwardIt first, ForwardIt last);
 	template<class ForwardIt, class Compare>
 	ForwardIt max_element(ForwardIt first, ForwardIt last, Compare comp);
-
-# pragma region non-modifying_sequence_operations
+	
+#pragma endregion
+#pragma region non-modifying_sequence_operations
 
 template<class InputIt, class Function>
 Function for_each(InputIt first, InputIt last, Function fn)
