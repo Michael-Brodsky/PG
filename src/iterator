@@ -29,8 +29,8 @@
  * 
  *	Description:
  * 
- *		This file defines objects in the <iterator> header of a C++ Standard 
- *		Library - to the extent they are supported by the Arduino 
+ *		This file defines objects in the <iterator> header of the C++ 
+ *		Standard Library - to the extent they are supported by the Arduino 
  *		implementation. The objects behave according to the C++ ISO/IEC 14882
  *		Standards, except as noted.
  *
