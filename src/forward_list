@@ -1,0 +1,1000 @@
+/*
+ *	This file defines the C++ Standard Library singly-linked container class 
+ *	associated functions.
+ *
+ *  ***************************************************************************
+ *
+ *	File: forward_list
+ *	Date: September 1, 2021
+ *	Version: 1.0
+ *	Author: Michael Brodsky
+ *	Email: mbrodskiis@gmail.com
+ *	Copyright (c) 2012-2021 Michael Brodsky
+ *
+ *	***************************************************************************
+ *
+ *  This file is part of "Pretty Good" (Pg). "Pg" is free software:
+ *	you can redistribute it and/or modify it under the terms of the
+ *	GNU General Public License as published by the Free Software Foundation,
+ *	either version 3 of the License, or (at your option) any later version.
+ *
+ *  This file is distributed in the hope that it will be useful, but
+ *	WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	**************************************************************************
+ *
+ *	Description:
+ *
+ *		This file defines objects in the <forward_list> header of the C++
+ *		Standard Library - to the extent they are supported by the Arduino
+ *		implementation. The objects behave according to the C++ ISO/IEC 14882
+ *		Standards, except as noted.
+ *
+ *	Notes:
+ * 
+ *		The forward_list container is implemented using an underlying static 
+ *		memory allocator. List capacity is determined at compile-time and 
+ *		cannot be resized. Attempting to access elements beyond a container's 
+ *		maximum capacity results in undefined behavior. The default allocator 
+ *		for list elements is std::array.
+ * 
+ *		Container elements are arranged as a singly-linked list:
+ * 
+ *			before_begin -> [X][ ][ ][ ][ ][ ][ ][ ][ ][ ][X] <- end
+ *								^
+ *								begin
+ * 
+ *		Accessible elements are stored in the allocator. The placeholder 
+ *		element `before_begin' is not stored in the allocator and attempts to 
+ *		access it result in undefined behavior. All iterators are forward-only.
+ * 
+ *		List elements (nodes) contain two fields:
+ * 
+ *			data_: the element value or payload, 
+ *			next_: pointer to the next node in the list.
+ * 
+ *		A null value in the next_ field indicates the end of the list. A value 
+ *		of -1 is used to mark an unallocated (available) node for puposes of 
+ *		memory managment, which is handled by the private member functions in 
+ *		the forward_list class.
+ *
+ *	**************************************************************************/
+
+#if !defined __PG_FORWARD_LIST_
+# define __PG_FORWARD_LIST_ 20210901L
+
+# include "initializer_list"	// List-initialization support.
+# include "array"				// Default list allocator type.
+
+# if defined __PG_HAS_NAMESPACES
+
+namespace std
+{
+#pragma region fwd-decls
+
+	template<class T>
+	struct _foward_list_node;
+
+	template<class T>
+	class _foward_list_const_iterator;
+
+	template<class T>
+	class _foward_list_iterator;
+
+	template<class T, std::size_t N, class Alloc>
+	class forward_list;
+
+	//template<class T>
+	static int _unallocated_node = -1;
+
+#pragma endregion
+
+	// Singly-linked list node type.
+	template<class T>
+	struct _foward_list_node
+	{
+		//static constexpr const intptr_t Unallocated = -1; // Value indicating an unallocated node.
+
+		T					data_;	// Node data.
+		_foward_list_node*	next_;	// Pointer to next node in the list or -1 if unallocated.
+
+		_foward_list_node() 
+			: data_(), next_(reinterpret_cast<_foward_list_node<T>*>(&_unallocated_node))
+		{}
+		explicit _foward_list_node(T data, _foward_list_node* next = reinterpret_cast<_foward_list_node<T>*>(&_unallocated_node)) :
+			data_(data), next_(next) 
+		{}
+
+		/* Nodes are compared on the data_ field. */
+
+		bool operator==(const _foward_list_node& other) const { return data_ == other.data_; }
+		bool operator!=(const _foward_list_node& other) const { return !(*this == other); }
+		bool operator<(const _foward_list_node& other) const { return data_ < other.data_; }
+		bool operator>(const _foward_list_node& other) const { return (other < *this); }
+		bool operator<=(const _foward_list_node& other) const { return !(other < *this); }
+		bool operator>=(const _foward_list_node& other) const { return !(*this < other); }
+	};
+
+	// Iterator type for immutable singly-linked lists.
+	template<class T>
+	class _foward_list_const_iterator : public std::iterator<std::forward_iterator_tag, T>
+	{
+		template<class U, std::size_t N, class Alloc>
+		friend class forward_list; // Needed by forward_list to access private member node_;
+	public:
+		using self_type = _foward_list_const_iterator<T>;
+		using node_type = _foward_list_node<T>;
+		using value_type = T;
+		using reference = T&;
+		using pointer = T*;
+		using difference_type = std::ptrdiff_t;
+
+	public:
+		_foward_list_const_iterator() = default;
+		explicit _foward_list_const_iterator(node_type* node) : node_(node) {}
+
+	public:
+		reference operator*() const { return node_->data_; }
+		pointer operator->() const { return std::addressof(node_->data_); }
+		self_type& operator++() { node_ = node_->next_; return *this; }
+		self_type operator++(int) { self_type it(*this); ++* this; return it; }
+		bool operator==(const self_type& other) const { return node_ == other.node_; }
+		bool operator!=(const self_type& other) const { return !(*this == other); }
+		self_type next() const { return node_ ? self_type(node_->next_) : self_type(); }
+
+	protected:
+		node_type* node_; // Referenced node.
+	};
+
+	// Iterator type for mutable singly-linked lists.
+	template<class T>
+	class _foward_list_iterator : public std::_foward_list_const_iterator<T> 
+	{
+		template<class U, std::size_t N, class Alloc>
+		friend class forward_list; // Needed by forward_list to access private member node_;
+	public:
+		using self_type = _foward_list_iterator<T>;
+		using base_type = _foward_list_const_iterator<T>;
+		using node_type = _foward_list_node<T>;
+		using value_type = T;
+		using reference = T&;
+		using pointer = T*;
+		using difference_type = std::ptrdiff_t;
+
+	public:
+		_foward_list_iterator() = default;
+		explicit _foward_list_iterator(node_type* node) : base_type(node) {} 
+
+	public:
+		self_type& operator++() { base_type::operator++(); return *this; }
+		self_type operator++(int) { self_type it(*this); ++* this; return it; }
+		self_type next() const { return base_type::node_ ? self_type(base_type::node_->next_) : self_type(); }
+	};
+
+	// Singly-linked list container type.
+	template<class T, std::size_t N, class Alloc = std::array<_foward_list_node<T>, N>>
+	class forward_list
+	{
+	public:
+		using allocator_type = Alloc;
+		using node_type = _foward_list_node<T>;
+		using self_type = forward_list<T, N, Alloc>;
+		using value_type = T;
+		using size_type = typename allocator_type::size_type;
+		using difference_type = std::ptrdiff_t;
+		using reference = value_type&;
+		using const_reference = const value_type&;
+		using pointer = value_type*;
+		using const_pointer = const value_type*;
+		using iterator = _foward_list_iterator<T>;
+		using const_iterator = _foward_list_const_iterator<T>;
+
+	public:
+		// Constructs an empty list.
+		forward_list();
+		// Constructs an empty list using using the underlying memory allocator alloc.
+		explicit forward_list(const Alloc& alloc);
+		// Constructs a list filled with count elements of value.
+		forward_list(size_type count, const T& value, const Alloc& alloc = Alloc());
+		// Constructs a list filled with count elements of default-constructed type T().
+		explicit forward_list(size_type count);
+		// Constructs a list from the range [first, last) and allocator alloc.
+		template<class InputIt>
+		forward_list(InputIt first, InputIt last, const Alloc& alloc = Alloc());
+		// Copy constructor with allocator alloc.
+		forward_list(const forward_list& other, const Alloc& alloc = Alloc());
+		// Move constructor with allocator alloc.
+		forward_list(forward_list&& other, const Alloc& alloc = Alloc());
+		// Constructs a list from an initializer list and allocator alloc.
+		forward_list(std::initializer_list<T> ilist, const Alloc& alloc = Alloc());
+
+	public:
+		// Copy assignment operator.
+		forward_list&	operator=(const forward_list&) = default;
+		// Move assignment operator.
+		forward_list&	operator=(forward_list&&);
+		// Copy assignment operator from an initializer list.
+		forward_list&	operator=(std::initializer_list<T>);
+		// Replaces the contents with count copies of value value.
+		void			assign(size_type, const T&);
+		// Replaces the contents with copies of those in the range [first, last).
+		template<class InputIt>
+		void			assign(InputIt, InputIt);
+		// Replaces the contents with elements from the initializer list ilist.
+		void			assign(std::initializer_list<T>);
+		// Returns the allocator associated with the container.
+		allocator_type	get_allocator() const noexcept;
+		// Returns a mutable iterator to the element before the first element of the container.
+		iterator		before_begin() noexcept;
+		// Returns an immutable iterator to the element before the first element of the container.
+		const_iterator	before_begin() const noexcept;
+		// Returns an immutable iterator to the element before the first element of the container.
+		const_iterator	cbefore_begin() const noexcept;
+		// Returns a mutable iterator to the first element of the list.
+		iterator		begin() noexcept;
+		// Returns an immutable iterator to the first element of the list.
+		const_iterator	begin() const noexcept;
+		// Returns an immutable iterator to the first element of the list.
+		const_iterator	cbegin() const noexcept;
+		// Returns a mutable iterator to the element following the last element of the list.
+		iterator		end() noexcept;
+		// Returns an immutable iterator to the element following the last element of the list.
+		const_iterator	end() const noexcept;
+		// Returns an immutable iterator to the element following the last element of the list.
+		const_iterator	cend() const noexcept;
+		// Checks if the container has no elements, i.e. whether begin() == end().
+		bool			empty() const noexcept;
+		// Returns the maximum number of elements the container is able to hold.
+		size_type		max_size() const noexcept;
+		// Erases all elements from the container.
+		void			clear() noexcept;
+		// Returns a mutable reference to the first element in the container.
+		reference		front();
+		// Returns an immutable reference to the first element in the container.
+		const_reference	front() const;
+		// Prepends the given element value to the beginning of the container.
+		void			push_front(const T&);
+		// Prepends the given element value to the beginning of the container.
+		void			push_front(T&&);
+		// Removes the first element of the container.
+		void			pop_front();
+		// Inserts an element after the specified position in the container.
+		iterator		insert_after(const_iterator, const T&);
+		// Inserts an element after the specified position in the container.
+		iterator		insert_after(const_iterator, T&&);
+		// Inserts multiple elements of the same value after the specified position in the container.
+		iterator		insert_after(const_iterator, size_type, const T&);
+		// Inserts elements from a range after the specified position in the container.
+		template<class InputIt>
+		iterator		insert_after(const_iterator, InputIt, InputIt);
+		// Inserts elements from an initializer list after the specified position in the container.
+		iterator		insert_after(const_iterator, std::initializer_list<T>);
+		// Removes an element after the specified position from the container.
+		iterator		erase_after(const_iterator);
+		// Removes a range elements after the specified position from the container.
+		iterator		erase_after(const_iterator, const_iterator);
+		// Exchanges the contents of the container with those of another container.
+		void			swap(forward_list&);
+		// Moves all elements from another list to this list after the specified position.
+		void			splice_after(const_iterator, forward_list&);
+		// Moves all elements from another list to this list after the specified position.
+		void			splice_after(const_iterator, forward_list&&);
+		// Moves an element from another list to this list after the specified position.
+		void			splice_after(const_iterator, forward_list&, const_iterator);
+		// Moves an element from another list to this list after the specified position.
+		void			splice_after(const_iterator, forward_list&&, const_iterator);
+		// Moves a range of elements from another list to this list after the specified position.
+		void			splice_after(const_iterator, forward_list&, const_iterator, const_iterator);
+		// Moves a range of elements from another list to this list after the specified position.
+		void			splice_after(const_iterator, forward_list&&, const_iterator, const_iterator);
+		// Sorts the list elements in ascending order using operator<. 
+		void			sort();
+		// Sorts the list elements in ascending order using a specified comparison operator. 
+		template<class Compare>
+		void			sort(Compare);
+		// Removes all consecutive duplicate elements from the container using operator==.
+		void			unique();
+		// Removes all consecutive duplicate elements from the container using a specified comparison operator.
+		template<class BinaryPredicate>
+		void			unique(BinaryPredicate);
+		// Reverses the order of the elements in the container.
+		void			reverse() noexcept;
+		// Removes all elements equal to a specified value.
+		void			remove(const T&);
+		// Removes all elements satisfying specific criteria.
+		template<class UnaryPredicate>
+		void			remove_if(UnaryPredicate);
+		// Merges two sorted lists into one.
+		void			merge(forward_list&);
+
+	private:
+		// Allocates a new node.
+		node_type*	new_node();
+		// Frees an allocated node.
+		void		delete_node(node_type*);
+		// Inserts a new node at the beginning of the list.
+		node_type*	add_front(const value_type&);
+		// Inserts a new node after a specified node.
+		node_type*	add_after(node_type*, const value_type&);
+		// Removes and deallocates the node at the beginning of the list.
+		node_type*	remove_front();
+		// Removes and deallocates a node after a specified node.
+		node_type*	remove_after(node_type*);
+
+	private:
+		allocator_type	allocator_;	// Underlying static memory allocator.
+		node_type		head_;		// Node before the first node in the list.
+		node_type*		begin_;		// Pointer to first node in the list.
+		size_type		size_;		// Current size of the list in nodes.
+	};
+
+#pragma region forward_list_ctors
+
+	template<class T, std::size_t N, class Alloc>
+	forward_list<T, N, Alloc>::forward_list() : 
+		allocator_(), begin_(), head_( T(), begin_), size_()
+	{
+		
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	forward_list<T, N, Alloc>::forward_list(const Alloc& alloc) : 
+		allocator_(alloc), begin_(), head_(T(), begin_), size_()
+	{
+
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	forward_list<T, N, Alloc>::forward_list(const forward_list& other, const Alloc& alloc) :
+		allocator_(other.allocator_), begin_(other.begin_),
+		head_(other.head_), size_(other.size_)
+	{
+
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	forward_list<T, N, Alloc>::forward_list(size_type count, const T& value, const Alloc& alloc) : 
+		allocator_(alloc), begin_(), head_(T(), begin_), size_()
+	{
+		while (count--)
+			push_front(value);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	forward_list<T, N, Alloc>::forward_list(size_type count) : 
+		allocator_(), begin_(), head_(T(), begin_), size_()
+	{
+		while (count--)
+			push_front(T());
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	template<class InputIt>
+	forward_list<T, N, Alloc>::forward_list(InputIt first, InputIt last, const Alloc& alloc) :
+		allocator_(alloc), begin_(), head_(T(), begin_), size_()
+	{
+		iterator it = before_begin();
+
+		for (; first != last; ++first)
+			it = insert_after(it, *first);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	forward_list<T, N, Alloc>::forward_list(forward_list&& other, const Alloc& alloc) :
+		allocator_(alloc), begin_(), head_(T(), begin_), size_() 
+	{
+		swap(other);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	forward_list<T, N, Alloc>::forward_list(std::initializer_list<T> ilist, const Alloc& alloc) :
+		allocator_(alloc), begin_(), head_(T(), begin_), size_()
+	{
+		iterator it = before_begin(); 
+
+		for (auto& jt : ilist) 
+			it = insert_after(it, jt);
+	}
+
+#pragma endregion
+#pragma region forward_list_public
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::self_type&
+		forward_list<T, N, Alloc>::operator=(forward_list&& other)
+	{
+		clear();
+		swap(other);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::self_type& 
+		forward_list<T, N, Alloc>::operator=(std::initializer_list<T> ilist)
+	{
+		iterator it = before_begin();
+
+		clear();
+		for (auto& jt : ilist)
+			it = insert_after(it, jt);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::assign(size_type count, const T& value)
+	{
+		clear();
+		while (count--)
+			push_front(value);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	template<class InputIt>
+	void forward_list<T, N, Alloc>::assign(InputIt first, InputIt last)
+	{
+		clear();
+		while (first != last)
+			insert_after(before_begin(), *first++);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::assign(std::initializer_list<T> ilist)
+	{
+		iterator it = before_begin();
+
+		clear();
+		for (auto& jt : ilist)
+			it = insert_after(it, jt);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::allocator_type	
+		forward_list<T, N, Alloc>::get_allocator() const
+	{
+		return allocator_;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::iterator 
+		forward_list<T, N, Alloc>::before_begin()
+	{
+		return iterator(&head_);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::const_iterator
+		forward_list<T, N, Alloc>::before_begin() const
+	{
+		return const_iterator(const_cast<node_type*>(&head_));
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::const_iterator
+		forward_list<T, N, Alloc>::cbefore_begin() const
+	{
+		return static_cast<const self_type*>(this)->before_begin();
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::iterator
+		forward_list<T, N, Alloc>::begin()
+	{
+		return iterator(begin_);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::const_iterator
+		forward_list<T, N, Alloc>::begin() const
+	{
+		return const_iterator(begin_);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::const_iterator
+		forward_list<T, N, Alloc>::cbegin() const
+	{
+		return static_cast<const self_type*>(this)->begin();
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::iterator
+		forward_list<T, N, Alloc>::end()
+	{
+		return iterator();
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::const_iterator
+		forward_list<T, N, Alloc>::end() const
+	{
+		return const_iterator();
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::const_iterator
+		forward_list<T, N, Alloc>::cend() const
+	{
+		return static_cast<const self_type*>(this)->end();
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	bool forward_list<T, N, Alloc>::empty() const
+	{
+		return !begin_;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::size_type 
+		forward_list<T, N, Alloc>::max_size() const
+	{
+		return N;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::clear()
+	{
+		while (size_)
+			pop_front();
+		begin_ = nullptr;
+		head_.next_ = begin_;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::reference 
+		forward_list<T, N, Alloc>::front()
+	{
+		return begin_->data_;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::const_reference 
+		forward_list<T, N, Alloc>::front() const
+	{
+		return begin_->data_;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::push_front(const value_type& data)
+	{
+		add_front(data);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::push_front(value_type&& data)
+	{
+		add_front(std::move(data));
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::pop_front()
+	{
+		remove_front();
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::iterator
+		forward_list<T, N, Alloc>::insert_after(const_iterator pos, const T& data)
+	{
+		return iterator(pos == cbefore_begin() 
+			? add_front(data) 
+			: add_after(pos.node_, data));
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::iterator
+		forward_list<T, N, Alloc>::insert_after(const_iterator pos, T&& data)
+	{
+		return iterator(pos == cbefore_begin() 
+			? add_front(std::move(data)) 
+			: add_after(pos.node_, std::move(data)));
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::iterator
+		forward_list<T, N, Alloc>::insert_after(const_iterator pos, size_type count, const T& data)
+	{
+		iterator it(pos.node_);
+
+		while (count--)
+			it = insert_after(it, data);
+
+		return it;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	template<class InputIt>
+	typename forward_list<T, N, Alloc>::iterator
+		forward_list<T, N, Alloc>::insert_after(const_iterator pos, InputIt first, InputIt last)
+	{
+		iterator it(pos.node_);
+		
+		for (; first != last; ++first)
+			it = insert_after(it, *first);
+
+		return it;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::iterator
+		forward_list<T, N, Alloc>::insert_after(const_iterator pos, std::initializer_list<T> ilist)
+	{
+		iterator it(pos.node_);
+
+		for(auto& jt : ilist)
+			it = insert_after(it, jt);
+
+		return it;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::iterator 
+		forward_list<T, N, Alloc>::erase_after(const_iterator pos)
+	{
+		return iterator(pos == cbefore_begin()
+			? remove_front()
+			: remove_after(pos.node_));
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::iterator
+		forward_list<T, N, Alloc>::erase_after(const_iterator first, const_iterator last)
+	{
+		while (erase_after(first) != last);
+
+		return iterator(last.node_);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::swap(forward_list& other)
+	{
+		std::swap(begin_, other.begin_);
+		std::swap(head_, other.head_);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::splice_after(const_iterator pos, forward_list& other)
+	{
+		splice_after(pos, std::move(other));
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::splice_after(const_iterator pos, forward_list&& other)
+	{
+		if (!other.empty())
+		{
+			insert_after(pos, other.begin(), other.end());
+			other.clear();
+		}
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::splice_after(const_iterator pos, forward_list& other, const_iterator it)
+	{
+		splice_after(pos, std::move(other), it);		
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::splice_after(const_iterator pos, forward_list&& other, const_iterator it)
+	{
+		const_iterator jt = it;
+
+		insert_after(pos, *++it);
+		other.erase_after(jt);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::splice_after(
+		const_iterator pos, forward_list& other, const_iterator first, const_iterator last)
+	{
+		splice_after(pos, std::move(other), first, last);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::splice_after(
+		const_iterator pos, forward_list&& other, const_iterator first, const_iterator last)
+	{
+		const_iterator it(first.node_);
+
+		insert_after(pos, ++it, last);
+		other.erase_after(first, last);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::sort()
+	{
+		value_type data[N]; // Temp storage for list data.
+		size_type n = 0;
+
+		// Make a copy of each allocated node's data_ field.
+		for (auto i = begin(); i != end(); ++i)
+			data[n++] = *i;
+		// Only sort the data.
+		std::sort(data, data + n);
+		// Copy the sorted data back to the list, thus preserving the list links.
+		n = 0;
+		for (auto i = begin(); i != end(); ++i)
+			*i = data[n++];
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	template<class Compare>
+	void forward_list<T, N, Alloc>::sort(Compare comp)
+	{
+		value_type data[N];
+		size_type n = 0;
+
+		for (auto i = begin(); i != end(); ++i)
+			data[n++] = *i;
+		std::sort(data, data + n, comp);
+		n = 0;
+		for (auto i = begin(); i != end(); ++i)
+			*i = data[n++];
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::unique()
+	{
+		for (auto it = begin(); it.next() != end(); ++it) 
+			if (*it == *it.next())
+				erase_after(it);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	template<class BinaryPredicate>
+	void forward_list<T, N, Alloc>::unique(BinaryPredicate pred)
+	{
+		for (auto it = begin(); it.next() != end(); ++it)
+			if (pred(*it, *it.next()))
+				erase_after(it);
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::reverse() noexcept
+	{
+		typename allocator_type::iterator first = allocator_.begin();
+		typename allocator_type::reverse_iterator second = allocator_.rbegin();
+		while (std::distance<typename allocator_type::iterator>(first, second.base()) > 0)
+		{
+			std::swap(first->data_, second->data_);
+			++first;
+			++second;
+		}
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::remove(const T& value)
+	{
+		for (auto it = before_begin(); it.next() != end(); ++it)
+		{
+			if (*it.next() == value)
+				erase_after(it);
+		}
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	template<class UnaryPredicate>
+	void forward_list<T, N, Alloc>::remove_if(UnaryPredicate pred)
+	{
+		for (auto it = before_begin(); it.next() != end(); ++it)
+		{
+			if (pred(*it.next()))
+				erase_after(it);
+		}
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::merge(forward_list& other)
+	{
+		iterator a = before_begin(), b = other.before_begin();
+
+		while (a.next().node_ && b.next().node_)
+		{
+			if (*(b.next()) < *(a.next()))
+			{
+				insert_after(a, *b.next());
+				other.erase_after(b);
+			}
+			++a;
+		}
+		if (b.next().node_)
+		{
+			a.next() = b.next();
+			delete_node(b.next().node_);
+		}
+	}
+
+#pragma endregion
+#pragma region forward_list_private
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::node_type*
+		forward_list<T, N, Alloc>::new_node()
+	{
+		assert(size_ < allocator_.max_size());
+		typename allocator_type::iterator it = allocator_.begin();
+
+		// Find the first unallocated node in the allocator.
+		for (; it != allocator_.end(); ++it)
+		{
+			//if (it->next_ == node_type::Unallocated)
+			if (it->next_ == (void*)&_unallocated_node)
+			{
+				it->next_ = nullptr; // Mark node as allocated.
+				size_++;
+				break;
+			}
+		}
+
+		return it != allocator_.end() ? it : nullptr;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	void forward_list<T, N, Alloc>::delete_node(node_type* node)
+	{
+		//assert(node && node->next_ != node_type::Unallocated);
+		assert(node && reinterpret_cast<void*>(node->next_) != reinterpret_cast<void*>(&_unallocated_node));
+		//node->next_ = node_type::Unallocated; // Mark node as free.
+		node->next_ = reinterpret_cast<node_type*>(&_unallocated_node); // Mark node as free.
+		--size_;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::node_type*
+		forward_list<T, N, Alloc>::add_front(const value_type& data)
+	{
+		node_type* node = new_node();
+
+		if (node)
+		{
+			node->data_ = data;
+			node->next_ = begin_;
+			begin_ = node;
+			head_.next_ = begin_;
+		}
+
+		return node;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::node_type* 
+		forward_list<T, N, Alloc>::add_after(node_type* after, const value_type& data)
+	{
+		node_type* node = new_node();
+
+		if (node)
+		{
+			node->data_ = data;
+			node->next_ = after->next_;
+			after->next_ = node;
+		}
+
+		return node;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::node_type*
+		forward_list<T, N, Alloc>::remove_front()
+	{
+		node_type* node = begin_;
+
+		begin_ = begin_->next_;
+		head_.next_ = begin_;
+		delete_node(node);
+
+		return begin_->next_;
+	}
+
+	template<class T, std::size_t N, class Alloc>
+	typename forward_list<T, N, Alloc>::node_type*
+		forward_list<T, N, Alloc>::remove_after(node_type* after)
+	{
+		node_type* node = after->next_;
+		
+		after->next_ = after->next_->next_;
+		delete_node(node);
+
+		return after->next_;
+	}
+
+#pragma endregion
+#pragma region non-member
+
+	// Checks if the contents of lhs and rhs have the same number of elements and each element in lhs 
+	// compares equal with the element in rhs at the same position.
+	template<class T, std::size_t N, class Alloc>
+	bool operator==(const std::forward_list<T, N, Alloc>& lhs,
+		const std::forward_list<T, N, Alloc>& rhs)
+	{
+		typename std::forward_list<T, N, Alloc>::const_iterator lit = lhs.cbegin(), rit = rhs.cbegin();
+
+		while (lit != lhs.cend())
+		{
+			if (*lit++ != *rit++)
+				break;
+		}
+
+		return lit == lhs.cend();
+	}
+
+	// Checks if the contents of lhs and rhs are not equal.
+	template<class T, std::size_t N, class Alloc>
+	bool operator!=(const std::forward_list<T, N, Alloc>& lhs,
+		const std::forward_list<T, N, Alloc>& rhs)
+	{
+		return !(lhs == rhs);
+	}
+
+	// Checks if the contents of lhs are lexicographically less than rhs.
+	template<class T, std::size_t N, class Alloc>
+	bool operator<(const std::forward_list<T, N, Alloc>& lhs,
+		const std::forward_list<T, N, Alloc>& rhs)
+	{
+		return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+	}
+
+	// Checks if the contents of lhs are lexicographically less than or equal to rhs.
+	template<class T, std::size_t N, class Alloc>
+	bool operator<=(const std::forward_list<T, N, Alloc>& lhs,
+		const std::forward_list<T, N, Alloc>& rhs)
+	{
+		return !(rhs < lhs);
+	}
+
+	// Checks if the contents of lhs are lexicographically greater than rhs.
+	template<class T, std::size_t N, class Alloc>
+	bool operator>(const std::forward_list<T, N, Alloc>& lhs,
+		const std::forward_list<T, N, Alloc>& rhs)
+	{
+		return (rhs < lhs);
+	}
+
+	// Checks if the contents of lhs are lexicographically greater than or equal to rhs.
+	template<class T, std::size_t N, class Alloc>
+	bool operator>=(const std::forward_list<T, N, Alloc>& lhs,
+		const std::forward_list<T, N, Alloc>& rhs)
+	{
+		return !(lhs < rhs);
+	}
+
+	// Specialization of std::swap for std::forward_list.
+	template<class T, std::size_t N, class Alloc>
+	void swap(std::forward_list<T, N, Alloc>& lhs,
+		std::forward_list<T, N, Alloc>& rhs)
+	{
+		lhs.swap(rhs);
+	}
+
+	// Specialization of std::size for std::forward_list.
+	template<class T, std::size_t N, class Alloc>
+	std::size_t size(std::forward_list<T, N, Alloc> list)
+	{
+		return std::distance(list.begin(), list.end());
+	}
+
+	/* Non-standard operators for lists of unequal size. */
+
+	template<class T, std::size_t N1, std::size_t N2, class Alloc1, class Alloc2>
+	bool operator==(const std::forward_list<T, N1, Alloc1>& lhs,
+		const std::forward_list<T, N2, Alloc2>& rhs)
+	{
+		return false;
+	}
+
+	template<class T, std::size_t N1, std::size_t N2, class Alloc1, class Alloc2>
+	bool operator!=(const std::forward_list<T, N1, Alloc1>& lhs,
+		const std::forward_list<T, N2, Alloc2>& rhs)
+	{
+		return true;
+	}
+
+#pragma endregion
+}
+
+# else // !defined __PG_HAS_NAMESPACES
+#  error Requires C++11 and namespace support.
+# endif // defined __PG_HAS_NAMESPACES
+
+#endif //  !defined __PG_FORWARD_LIST_

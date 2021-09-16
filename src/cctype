@@ -1,0 +1,86 @@
+/*
+ *	This file This header is part of the C++ Standard Library null-terminated 
+ *	byte strings library.
+ *
+ *	***************************************************************************
+ *
+ *	File: cctype
+ *	Date: September 8, 2021
+ *	Version: 1.0
+ *	Author: Michael Brodsky
+ *	Email: mbrodskiis@gmail.com
+ *	Copyright (c) 2012-2021 Michael Brodsky
+ *
+ *	***************************************************************************
+ *
+ *  This file is part of "Pretty Good" (Pg). "Pg" is free software:
+ *	you can redistribute it and/or modify it under the terms of the
+ *	GNU General Public License as published by the Free Software Foundation,
+ *	either version 3 of the License, or (at your option) any later version.
+ *
+ *  This file is distributed in the hope that it will be useful, but
+ *	WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	***************************************************************************
+ *
+ *	Description:
+ *
+ *		This file defines objects in the <cctype> header of the C++ Standard
+ *		Library, to the extent they are supported by the Arduino
+ *		implementation. The objects behave according to the C++ ISO/IEC 14882
+ *		Standards, except as noted.
+ * 
+ *	Notes:
+ * 
+ *		This header was originally in the C standard library as <ctype.h>. 
+ *		The behavior of these functions is undefined if the argument's value 
+ *		is neither representable as unsigned char nor equal to EOF. To use 
+ *		these functions safely with plain chars (or signed chars), the 
+ *		argument should first be converted to unsigned char. Similarly, they 
+ *		should not be directly used with standard algorithms when the 
+ *		iterator's value type is char or signed char, and should be converted  
+ *		to unsigned char first. 
+ * 
+ *  Credits:
+ * 
+ *		This file is based in part on the GNU ISO C++ Library, Copyright (C) 
+ *		1997-2017 Free Software Foundation, Inc.
+ *
+ *	**************************************************************************/
+
+#if !defined __PG_CCTYPE_
+# define __PG_CCTYPE_ 20210908L
+
+# include "pg.h"
+# include <ctype.h>
+
+# if defined __PG_HAS_NAMESPACES
+
+namespace std
+{
+	using ::isalnum;	// Checks if the given character is an alphanumeric character.
+	using ::isalpha;	// Checks if the given character is an alphabetic character.
+	using ::isblank;	// Checks if a character is a blank character.
+	using ::iscntrl;	// Checks if a character is a control character.
+	using ::isdigit;	// Checks if a character is a numeric digit.
+	using ::isgraph;	// Checks if a character is a graphical character.
+	using ::islower;	// Checks if a character is a lowercase character.
+	using ::isprint;	// checks if a character is a printable character.
+	using ::ispunct;	// Checks if a character is a punctuation character.
+	using ::isspace;	// Checks if a character is a space character.
+	using ::isupper;	// Checks if a character is an uppercase character.
+	using ::isxdigit;	// Checks if a character is a hexadecimal character.
+	using ::tolower;	// Converts a character to lowercase.
+	using ::toupper;	// Converts a character to uppercase.
+} // namespace std
+
+# else // !defined __PG_HAS_NAMESPACES
+#  error requires namespace support.
+# endif // defined __PG_HAS_NAMESPACES
+
+#endif // !defined __PG_CCTYPE_

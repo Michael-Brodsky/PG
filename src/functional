@@ -1,0 +1,256 @@
+/*
+ *	This file defines several C++ Standard Library functional algorithms.
+ *
+ *	***************************************************************************
+ *
+ *	File: functional
+ *	Date: August 19, 2021
+ *	Version: 1.0
+ *	Author: Michael Brodsky
+ *	Email: mbrodskiis@gmail.com
+ *	Copyright (c) 2012-2021 Michael Brodsky
+ *
+ *	***************************************************************************
+ *
+ *  This file is part of "Pretty Good" (Pg). "Pg" is free software:
+ *	you can redistribute it and/or modify it under the terms of the
+ *	GNU General Public License as published by the Free Software Foundation,
+ *	either version 3 of the License, or (at your option) any later version.
+ *
+ *  This file is distributed in the hope that it will be useful, but
+ *	WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *  ***************************************************************************
+ *
+ *	Description:
+ *
+ *		This file defines objects in the <functional> header of the C++
+ *		Standard Library - to the extent they are supported by the Arduino
+ *		implementation. The objects behave according to the C++ ISO/IEC 14882
+ *		Standards, except as noted.
+ *
+ *	**************************************************************************/
+
+#if !defined __PG_FUNCTIONAL_
+# define __PG_FUNCTIONAL_ 20210819L
+
+# include "pg.h"
+
+# if defined __PG_HAS_NAMESPACES 
+
+namespace std
+{
+#pragma region compare_functions
+
+	// Function object compares two objects of type T for equality using operator==.
+	template<class T>
+	struct equal_to
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs == rhs;
+		}
+	};
+
+	// Function object compares two objects of type T for inequality using operator!=.
+	template<class T>
+	struct not_equal_to
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs != rhs;
+		}
+	};
+
+	// Function object compares two objects of type T for greater-than using operator>.
+	template<class T>
+	struct greater
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs > rhs;
+		}
+	};
+
+	// Function object compares two objects of type T for greater-than-or-equal using operator>=.
+	template<class T>
+	struct greater_equal
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs >= rhs;
+		}
+	};
+
+	// Function object compares two objects of type T for less-than using operator<.
+	template<class T>
+	struct less
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs < rhs;
+		}
+	};
+
+	// Function object compares two objects of type T for less-than-or-equal using operator<=.
+	template<class T>
+	struct less_equal
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs <= rhs;
+		}
+	};
+
+#pragma endregion
+#pragma region logical_functions
+
+	// Function object performs logical AND operation on two objects of type T using operator&&.
+	template<class T>
+	struct logical_and
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs && rhs;
+		}
+	};
+
+	// Function object performs logical OR operation on two objects of type T using operator||.
+	template<class T>
+	struct logical_or
+	{
+		bool operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs || rhs;
+		}
+	};
+
+	// Function object performs logical NOT operation an object of type T using operator!.
+	template<class T>
+	struct logical_not
+	{
+		bool operator()(const T& arg) const
+		{
+			return !arg;
+		}
+	};
+
+	// Function object negates an object of type T using operator-.
+	template<class T>
+	struct negate
+	{
+		T operator()(const T& arg) const
+		{
+			return -arg;
+		}
+	};
+
+#pragma endregion
+#pragma region arithmetic_functions
+
+	// Function object adds two objects of type T using operator+.
+	template<class T>
+	struct plus
+	{
+		T operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs + rhs;
+		}
+	};
+
+	// Function object subtracts two objects of type T using operator-.
+	template<class T>
+	struct minus
+	{
+		T operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs - rhs;
+		}
+	};
+
+	// Function object multiplies two objects of type T using operator*.
+	template<class T>
+	struct multiplies
+	{
+		T operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs * rhs;
+		}
+	};
+
+	// Function object divides two objects of type T using operator/.
+	template<class T>
+	struct divides
+	{
+		T operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs / rhs;
+		}
+	};
+
+	// Function object computes remainders of divisions of two objects of type T using operator%.
+	template<class T>
+	struct modulus
+	{
+		T operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs % rhs;
+		}
+	};
+
+#pragma endregion
+#pragma region bit-wise_functions
+
+	// Function object performs bit-wise AND operation on two objects of type T using operator&.
+	template<class T>
+	struct bit_and
+	{
+		T operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs & rhs;
+		}
+	};
+
+	// Function object performs bit-wise OR operation on two objects of type T using operator|.
+	template<class T>
+	struct bit_or
+	{
+		T operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs | rhs;
+		}
+	};
+
+	// Function object performs bit-wise XOR operation on two objects of type T using operator^.
+	template<class T>
+	struct bit_xor
+	{
+		T operator()(const T& lhs, const T& rhs) const
+		{
+			return lhs ^ rhs;
+		}
+	};
+
+	// Function object performs bit-wise NOT operation on an object of type T using operator~.
+	template<class T>
+	struct bit_not
+	{
+		T operator()(const T& arg) const
+		{
+			return ~arg;
+		}
+	};
+
+#pragma endregion
+} // namespace std
+
+# else // !defined __PG_HAS_NAMESPACES
+#  error Requires C++11 and namespace support.
+# endif // defined __PG_HAS_NAMESPACES
+
+#endif // !defined __PG_FUNCTIONAL_

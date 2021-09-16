@@ -1,0 +1,700 @@
+/*
+ *	This file defines objects in C++ Standard Library iterator library.
+ *
+ *	***************************************************************************
+ *
+ *	File: iterator
+ *	Date: September 11, 2021
+ *	Version: 1.0
+ *	Author: Michael Brodsky
+ *	Email: mbrodskiis@gmail.com
+ *	Copyright (c) 2012-2021 Michael Brodsky
+ *
+ *	***************************************************************************
+ *
+ *  This file is part of "Pretty Good" (Pg). "Pg" is free software:
+ *	you can redistribute it and/or modify it under the terms of the
+ *	GNU General Public License as published by the Free Software Foundation,
+ *	either version 3 of the License, or (at your option) any later version.
+ *
+ *  This file is distributed in the hope that it will be useful, but
+ *	WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more detail.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ * 
+ *	***************************************************************************
+ * 
+ *	Description:
+ * 
+ *		This file defines objects in the <iterator> header of a C++ Standard 
+ *		Library - to the extent they are supported by the Arduino 
+ *		implementation. The objects behave according to the C++ ISO/IEC 14882
+ *		Standards, except as noted.
+ *
+ *	**************************************************************************/
+
+#if !defined __PG_ITERATOR_
+# define __PG_ITERATOR_ 20210911L 
+
+# include "pg.h"	// Pg environment.
+# include "utility"	// Type conversion & move semantics support.
+
+# if defined __PG_HAS_NAMESPACES 
+
+namespace std
+{
+# pragma region iterator_traits
+
+	// These empty types define the category of an iterator. For every iterator type,  
+	// a typedef std::iterator_traits<It>::iterator_category must be defined to be an 
+	// alias to one of these tag types, to indicate the most specific category that 
+	// the iterator is in.
+
+	struct input_iterator_tag {};
+	struct output_iterator_tag {};
+	struct forward_iterator_tag : public input_iterator_tag {};
+	struct bidirectional_iterator_tag : public forward_iterator_tag {};
+	struct random_access_iterator_tag : public bidirectional_iterator_tag {};
+
+	// iterator - iterator base type used to simplify definition of the 
+	// required types for iterators. All iterator classes should derive from
+	// this type.
+
+	// iterator base type.
+	template<class Category, class T, class Distance = std::ptrdiff_t, class Pointer = T*, class Reference = T&>
+	struct iterator 
+	{
+		typedef Category iterator_category;
+		typedef T value_type;
+		typedef Distance difference_type;
+		typedef Pointer pointer;
+		typedef Reference reference;
+	};
+
+	// Type trait class providing a uniform interface to 
+	// the properties of iterator types.
+	template<class It>			
+	struct iterator_traits				
+	{
+		typedef typename It::value_type value_type;
+		typedef typename It::difference_type difference_type;
+		typedef typename It::iterator_category iterator_category;
+		typedef typename It::pointer pointer;
+		typedef typename It::reference reference;
+	};
+
+	// iterator_traits specialization for pointer types.	
+	template<class T>
+	struct iterator_traits<T*>			
+	{
+		typedef T value_type;
+		typedef std::ptrdiff_t difference_type;
+		typedef random_access_iterator_tag iterator_category;
+		typedef T* pointer;
+		typedef T& reference;
+	};
+
+	// iterator_traits specialization for const pointer types.
+	template<class T>
+	struct iterator_traits<const T*>
+	{
+		typedef T value_type;
+		typedef std::ptrdiff_t difference_type;
+		typedef random_access_iterator_tag iterator_category;
+		typedef const T* pointer;
+		typedef const T& reference;
+	};
+
+#pragma endregion
+#pragma region iterator_related_functions
+
+	// Returns address of `val' even if the `address of' operator (&) is overridden.
+	template<class T> inline
+	T* addressof(T& val)
+	{
+		return (reinterpret_cast<T*>((&const_cast<char&>(reinterpret_cast<const volatile char&>(val)))));
+	}
+
+	// Returns the address of the data pointed to by iterator `it'.
+	template<class InputIt> inline
+	typename iterator_traits<InputIt>::pointer
+		address_of(InputIt it)
+	{
+		return addressof(*it);
+	}
+
+	// Returns `true' if iterator `it' is dereferencable, else returns `false'.
+	template<class InputIt> inline
+		bool is_dereferenceable(InputIt it)
+	{
+		return addressof(*it) != nullptr;
+	}
+
+	namespace detail
+	{
+		//  `distance()' specialization for random access iterators.
+		template<class InputIt> inline
+			typename iterator_traits<InputIt>::difference_type
+			distance_impl(InputIt first, InputIt last, random_access_iterator_tag)
+		{
+			return last - first;
+		}
+
+		//  `distance()' specialization for input, output, forward and bidirectional iterators.
+		template<class InputIt> inline
+			typename iterator_traits<InputIt>::difference_type
+			distance_impl(InputIt first, InputIt last, input_iterator_tag)
+		{
+			typename iterator_traits<InputIt>::difference_type d = 0;
+
+			for (; first != last; ++first, ++d);
+
+			return d;
+		}
+	}
+
+	// Returns the distance between two iterators `first' and `last'.
+	template<class InputIt> inline
+		typename iterator_traits<InputIt>::difference_type
+		distance(InputIt first, InputIt last)
+	{
+		return detail::distance_impl(
+			first, last, typename iterator_traits<InputIt>::iterator_category());
+	}
+
+	namespace detail
+	{
+		// `advance()' specialization for random access iterators.
+		template<class InputIt, class Distance>
+		inline void advance_impl(InputIt& it, Distance n, random_access_iterator_tag)
+		{
+			it += n;
+		}
+
+		// `advance()' specialization for bidirectional iterators.
+		template<class InputIt, class Distance>
+		inline void advance_impl(InputIt& it, Distance n, bidirectional_iterator_tag)
+		{
+			if (n < 0)
+				while (n++)
+					--it;
+			else
+				while (n--)
+					++it;
+		}
+
+		// `advance()' specialization for input, output and forward iterators.
+		template<class InputIt, class Distance>
+		inline void advance_impl(InputIt& it, Distance n, input_iterator_tag)
+		{
+			if (n < 0)
+				n = -n;
+			while (n--)
+				++it;
+		}
+	}
+
+	// Increments iterator `it' by `n' elements.
+	template<class InputIt, class Distance>
+	void advance(InputIt& it, Distance n)
+	{
+		detail::advance_impl(it, n, typename iterator_traits<InputIt>::iterator_category());
+	}
+
+	// Returns the `n-th' successor of iterator `it'.
+	template<class ForwardIt>
+	ForwardIt next(ForwardIt it, typename iterator_traits<ForwardIt>::difference_type n = 1)
+	{
+		advance(it, n);
+		return it;
+	}
+
+	// Returns the `n-th' predecessor of iterator `it'.
+	template<class BidirIt>
+	BidirIt prev(BidirIt it, typename iterator_traits<BidirIt>::difference_type n = 1)
+	{
+		advance(it, -n);
+		return it;
+	}
+
+	// Returns an iterator to the first element of container `c'.
+	template<class C>
+	auto begin(C& c) -> decltype(c.begin())
+	{
+		return c.begin();
+	}
+
+	// Returns a pointer to the first element of array `arr'.
+	template<class T, std::size_t Size>
+	inline T* begin(T(&arr)[Size])
+	{
+		return (arr);
+	}
+
+	// Returns an iterator to one past the last element of container `c'.
+	template<class C>
+	auto end(C& c) -> decltype(c.end())
+	{
+		return c.end();
+	}
+
+	// Returns a pointer to one past the last element of array `arr'.
+	template<class T, std::size_t Size>
+	inline T* end(T(&arr)[Size])
+	{
+		return (arr + Size);
+	}
+
+#  if defined __HAS_CPP17
+	// Returns c.size().
+	template<class C>
+	constexpr auto size(C& c) -> decltype(c.size())
+	{
+		return c.size();
+	}
+#  endif // defined __HAS_CPP17
+#  if defined __HAS_CPP20
+	// Returns c.size(), converted to the return type if necessary.
+	template <class C>
+	constexpr auto ssize(const C& c)
+		->std::common_type_t<std::ptrdiff_t,
+		typename std::make_signed<decltype(c.size())>::type>
+	{
+		using R = std::common_type_t<std::ptrdiff_t,
+			typename std::make_signed<decltype(c.size())>::type>;
+
+		return static_cast<R>(c.size());
+	}
+#  endif // defined __HAS_CPP20
+#  if defined __HAS_CPP17
+	// Returns Size.
+	template<class T, size_t Size>
+	constexpr size_t size(T(&arr)[Size])
+	{
+		return Size;
+	}
+#  endif // defined __HAS_CPP17
+#  if defined __HAS_CPP20
+	// Returns Size.
+	template <class T, std::ptrdiff_t Size>
+	constexpr std::ptrdiff_t ssize(const T(&arr)[Size]) noexcept
+	{
+		return Size;
+	}
+#endif // defined __HAS_CPP20
+
+#pragma endregion
+#pragma region iterator_adapters
+
+	// Iterator adaptor that uses move semantics when dereferenced.
+	template <class Iterator> 
+	class move_iterator 
+	{
+	private:
+		Iterator it_; // The underlying iterator.
+
+	public:
+		typedef Iterator iterator_type;
+		typedef move_iterator<iterator_type> self_type;
+		typedef typename iterator_traits<Iterator>::iterator_category iterator_category;
+		typedef typename iterator_traits<Iterator>::value_type value_type;
+		typedef typename iterator_traits<Iterator>::difference_type difference_type;
+		typedef Iterator pointer;
+		// If Iterator::reference is a reference then use rvalue reference type, else 
+		// use Iterator::reference unchanged.
+		typedef typename std::conditional<
+			std::is_reference<typename std::iterator_traits<Iterator>::reference>::value,
+			value_type&&, typename std::iterator_traits<Iterator>::reference>::type reference;
+
+	public:
+		move_iterator() {}
+		explicit move_iterator(Iterator it) : it_(it) {}
+		template<class Other> 
+		move_iterator(const move_iterator<Other>& it) : it_(it.base()) {}
+		template<class Other>
+		move_iterator& operator=(const move_iterator<Other>& it) { it_ = it.base(); }
+
+	public:
+		iterator_type base() const { return it_; }
+		pointer operator->() const { return it_; }
+		reference operator*() const { return std::move(*it_); }
+		self_type& operator++() { ++it_; return *this; }
+		self_type& operator--() { --it_; return *this; }
+		self_type operator++(int) { self_type it = *this; ++it_; return it; }
+		self_type operator--(int) { self_type it = *this; --it_; return it; }
+		self_type operator+ (difference_type n) const { return self_type(it_ + n); }
+		self_type operator- (difference_type n) const { return self_type(it_ - n); }
+		self_type& operator+= (difference_type n) { it_ += n; return *this; }
+		self_type& operator-= (difference_type n) { it_ -= n; return *this; }
+		auto operator[](difference_type n) const -> decltype(std::move(it_[n])) { return std::move(it_[n]); }
+	};
+
+	// Iterator adaptor that reverses the direction of a given iterator.
+	template<typename Iterator>
+	class reverse_iterator 
+	{
+	public:
+		typedef Iterator iterator_type;
+		typedef reverse_iterator<iterator_type> self_type;
+		typedef typename iterator_traits<Iterator>::iterator_category iterator_category;
+		typedef typename iterator_traits<Iterator>::value_type value_type;
+		typedef typename iterator_traits<Iterator>::difference_type difference_type;
+		typedef typename iterator_traits<Iterator>::pointer pointer;
+		typedef typename iterator_traits<Iterator>::reference reference;
+
+	public:
+		reverse_iterator() = default;
+		explicit reverse_iterator(Iterator it) : it_(it) {} 
+		template<class Other>
+		reverse_iterator(const reverse_iterator<Other>& it) : it_(it.base()) {}
+		template<class Other>
+		reverse_iterator& operator=(const reverse_iterator<Other>& it) { it_ = it.base(); }
+
+	public:
+		iterator_type base() const { return it_; }
+		reference operator*() { return *std::prev(it_); } 
+		pointer operator->() const { return &(**this); }
+		reference operator[](difference_type n) const { return (*(*this + n)); }
+		self_type& operator++() { --it_; return *this; }
+		self_type& operator--() { ++it_; return *this; }
+		self_type operator++(int) { self_type it = *this; --it_; return it; }
+		self_type operator--(int) { self_type it = *this; ++it_; return it; }
+		self_type operator+(difference_type n) const { return self_type(it_ - n); }
+		self_type operator-(difference_type n) const { return self_type(it_ + n); }
+		self_type& operator+=(difference_type n) { it_ -= n; return *this; }
+		self_type& operator-=(difference_type n) { it_ += n; return *this; }
+
+	private:
+		Iterator it_; // The underlying iterator.
+	};
+
+	// Output iterator that inserts elements into a container for which it was 
+	// constructed at the position pointed to by the supplied iterator. 
+	template <class Container>
+	class insert_iterator :	public iterator<output_iterator_tag, void, void, void, void>
+	{
+	public:
+		using container_type = Container;
+
+	public:
+		explicit insert_iterator(Container& c, typename Container::iterator it)
+			: container_(&c), it_(it) {}
+		insert_iterator<Container>& operator=(typename Container::value_type&& value)
+		{
+			it_ = container_->insert(it_, std::move(value)); ++it_; return *this;
+		}
+		insert_iterator<Container>& operator=(const typename Container::value_type& value)
+		{
+			it_ = container_->insert(it_, value); ++it_; return *this;
+		}
+		insert_iterator<Container>& operator*() { return *this; }
+		insert_iterator<Container>& operator++() { return *this; }
+		insert_iterator<Container>& operator++(int) { return *this; }
+
+	protected:
+		Container* container_;				// Pointer to the supplied container.
+		typename Container::iterator it_;	// The supplied iterator.
+	};
+
+	// Output iterator that prepends to a container for which it was constructed.
+	template <class Container>
+	class front_insert_iterator : public iterator<output_iterator_tag, void, void, void, void>
+	{
+	public:
+		typedef Container container_type;
+
+	public:
+		explicit front_insert_iterator(Container& c) : container_(&c) {}
+		front_insert_iterator<Container>& operator=(const typename Container::value_type& value)
+		{
+			container_->push_front(value); return *this;
+		}
+		front_insert_iterator<Container>& operator=(typename Container::value_type&& value)
+		{
+			container_->push_front(std::move(value)); return *this;
+		}
+		front_insert_iterator<Container>& operator*()
+		{
+			return *this;
+		}
+		front_insert_iterator<Container>& operator++()
+		{
+			return *this;
+		}
+		front_insert_iterator<Container> operator++(int)
+		{
+			return *this;
+		}
+
+	protected:
+		Container* container_;	// Pointer to the supplied container.
+	};
+
+	// Output iterator that appends to a container for which it was constructed.
+	template <class Container>
+	class back_insert_iterator : public iterator<output_iterator_tag, void, void, void, void>
+	{
+	public: 
+		typedef Container container_type;
+
+	public:
+		explicit back_insert_iterator(Container& c) : container_(&c) {}
+		back_insert_iterator<Container>& operator=(const typename Container::value_type& value)
+		{
+			container_->push_back(value); return *this;
+		}
+		back_insert_iterator<Container>& operator=(typename Container::value_type&& value)
+		{
+			container_->push_back(std::move(value)); return *this;
+		}
+		back_insert_iterator<Container>& operator*()
+		{
+			return *this;
+		}
+		back_insert_iterator<Container>& operator++()
+		{
+			return *this;
+		}
+		back_insert_iterator<Container> operator++(int)
+		{
+			return *this;
+		}
+	protected:
+		Container* container_;	// Pointer to the supplied container.
+	};
+
+
+	namespace experimental
+	{
+		constexpr bool is_pow2(size_t n) { return (n && !(n & (n - 1))); }
+
+		// Random access iterator that behaves as if Container were a circular buffer.
+		template<class Container>
+		class circular_iterator
+		{
+			// Limitations: Container must be a randomly accessible sequence container 
+			// having both a size() function and subscript operator (operator[]).
+		private:
+			// The iterator selects the best wraparound algorithm for the container size, 
+			// which is significantly faster if the container size is a power of two.
+			static constexpr size_t __size() { return Container().size(); }
+			inline size_t __wrap(size_t i, std::false_type) { return i % __size(); }
+			inline size_t __wrap(size_t i, std::true_type) { return i & (__size() - 1); }
+
+		public:
+			using container_type = Container;
+			using self_type = circular_iterator<container_type>;
+			using iterator_category = std::random_access_iterator_tag;
+			using difference_type = typename container_type::difference_type;
+			using value_type = typename container_type::value_type;
+			using reference = typename container_type::reference;
+			using pointer = typename container_type::pointer;
+
+		public:
+			explicit circular_iterator(Container& c) : c_(&c[0]), i_() {}
+			circular_iterator& operator=(const circular_iterator& other) 
+			{ 
+				c_ = other.c_; 
+				i_ = other.i_; 
+				
+				return *this; 
+			}
+
+		public:
+			reference operator*() { return *(c_ + __wrap(i_, std::bool_constant<is_pow2(__size())>())); }
+			pointer operator->() const { return c_ + __wrap(i_, std::bool_constant<is_pow2(__size())>()); }
+			reference operator[](difference_type n) const 
+			{ return *(c_ + __wrap(i_ + n, std::bool_constant<is_pow2(__size())>())); }
+			self_type& operator++() { ++i_; return *this; }
+			self_type& operator--() { --i_; return *this; }
+			self_type operator++(int) { self_type it = *this; ++i_; return it; }
+			self_type operator--(int) { self_type it = *this; --i_; return it; }
+			self_type operator+(difference_type n) const { self_type it = *this; it.i_ += n; return it; }
+			self_type operator-(difference_type n) const { self_type it = *this; it.i_ -= n; return it; }
+			self_type& operator+=(difference_type n) { i_ += n; return *this; }
+			self_type& operator-=(difference_type n) { i_ -= n; return *this; }
+			inline size_t size() { return __size(); }
+
+		public:
+			friend bool operator==(const circular_iterator& lhs, const circular_iterator& rhs)
+			{
+				return lhs.c_ + (lhs.i_ % lhs.size()) == rhs.c_ + (rhs.i_ % rhs.size());
+			}
+
+			friend bool operator!=(const circular_iterator& lhs, const circular_iterator& rhs)
+			{
+				return !(lhs == rhs);
+			}
+
+			friend bool operator<(const circular_iterator& lhs, const circular_iterator& rhs)
+			{
+				return lhs.c_ + (lhs.i_ % lhs.size()) <	rhs.c_ + (rhs.i_ % rhs.size());
+			}
+
+			friend bool operator<=(const circular_iterator& lhs, const circular_iterator& rhs)
+			{
+				return !(rhs < lhs);
+			}
+
+			friend bool operator>(const circular_iterator& lhs, const circular_iterator& rhs)
+			{
+				return rhs < lhs;
+			}
+
+			friend bool operator>=(const circular_iterator& lhs, const circular_iterator& rhs)
+			{
+				return !(lhs < rhs);
+			}
+
+		private:
+			pointer c_;		// Pointer to container data.
+			std::size_t i_;	// The current element index.
+		};
+	}
+
+#pragma endregion
+#pragma region non_member_functions 
+
+	/* 
+	 * Comparison functions. 
+	 */
+
+	template<class Iterator1, class Iterator2>
+	bool operator==(const std::move_iterator<Iterator1>& lhs,
+		const std::move_iterator<Iterator2>& rhs)
+	{
+		return lhs.base() == rhs.base();
+	}
+
+	template<class Iterator1, class Iterator2>
+	bool operator!=(const std::move_iterator<Iterator1>& lhs,
+		const std::move_iterator<Iterator2>& rhs)
+	{
+		return !(lhs == rhs);
+	}
+
+	template<class Iterator1, class Iterator2>
+	bool operator<(const std::move_iterator<Iterator1>& lhs,
+		const std::move_iterator<Iterator2>& rhs)
+	{
+		return lhs.base() < rhs.base();
+	}
+
+	template<class Iterator1, class Iterator2>
+	bool operator<=(const std::move_iterator<Iterator1>& lhs,
+		const std::move_iterator<Iterator2>& rhs)
+	{
+		return !(rhs < lhs);
+	}
+
+	template<class Iterator1, class Iterator2>
+	bool operator>(const std::move_iterator<Iterator1>& lhs,
+		const std::move_iterator<Iterator2>& rhs)
+	{
+		return rhs < lhs;
+	}
+
+	template< class Iterator1, class Iterator2 >
+	bool operator>=(const std::move_iterator<Iterator1>& lhs,
+		const std::move_iterator<Iterator2>& rhs)
+	{
+		return !(lhs < rhs);
+	}
+
+	template<class Iterator1, class Iterator2>
+	bool operator==(const std::reverse_iterator<Iterator1>& lhs,
+		const std::reverse_iterator<Iterator2>& rhs)
+	{
+		return lhs.base() == rhs.base();
+	}
+
+	template<class Iterator1, class Iterator2>
+	bool operator!=(const std::reverse_iterator<Iterator1>& lhs,
+		const std::reverse_iterator<Iterator2>& rhs)
+	{
+		return lhs.base() != rhs.base();
+	}
+
+	template<class Iterator1, class Iterator2>
+	bool operator<(const std::reverse_iterator<Iterator1>& lhs,
+		const std::reverse_iterator<Iterator2>& rhs)
+	{
+		return lhs.base() > rhs.base();
+	}
+
+	template<class Iterator1, class Iterator2>
+	bool operator<=(const std::reverse_iterator<Iterator1>& lhs,
+		const std::reverse_iterator<Iterator2>& rhs)
+	{
+		return lhs.base() >= rhs.base();
+	}
+
+	template<class Iterator1, class Iterator2>
+	bool operator>(const std::reverse_iterator<Iterator1>& lhs,
+		const std::reverse_iterator<Iterator2>& rhs)
+	{
+		return lhs.base() < rhs.base();
+	}
+
+	template< class Iterator1, class Iterator2 >
+	bool operator>=(const std::reverse_iterator<Iterator1>& lhs,
+		const std::reverse_iterator<Iterator2>& rhs)
+	{
+		return lhs.base() <= rhs.base();
+	}
+
+	/*
+	 * Convenience functions.
+	 */
+
+	// constructs a std::move_iterator for the given iterator it with the type 
+	// deduced from the type of the argument.
+	template<class Iterator>
+	std::move_iterator<Iterator> make_move_iterator(Iterator it)
+	{
+		return std::move_iterator<Iterator>(std::move(it));
+	}
+
+	// Constructs a std::reverse_iterator for the given iterator it with the type 
+	// deduced from the type of the argument.
+	template<class Iterator>
+	std::reverse_iterator<Iterator> make_reverse_iterator(Iterator it)
+	{
+		return std::reverse_iterator<Iterator>(it);
+	}
+
+	// Constructs a std::insert_iterator for the container c and its iterator it with 
+	// the type deduced from the type of the argument.
+	template<class Container>
+	std::insert_iterator<Container> inserter(Container& c, typename Container::iterator it)
+	{
+		return std::insert_iterator<Container>(c, it);
+	}
+
+	// Constructs a std::front_insert_iterator for the container c with the type 
+	// deduced from the type of the argument.
+	template<class Container>
+	std::front_insert_iterator<Container> front_inserter(Container& c)
+	{
+		return std::front_insert_iterator<Container>(c);
+	}
+
+	// Constructs a std::back_insert_iterator for the container c with the type 
+	// deduced from the type of the argument.
+	template<class Container>
+	std::back_insert_iterator<Container> back_inserter(Container& c)
+	{
+		return std::back_insert_iterator<Container>(c);
+	}
+
+#pragma endregion
+}
+
+# else // !defined __PG_HAS_NAMESPACES
+#  error Requires C++11 and namespace support.
+# endif // defined __PG_HAS_NAMESPACES 
+
+#endif // !defined __PG_ITERATOR_
