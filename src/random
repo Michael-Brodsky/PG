@@ -218,7 +218,6 @@ namespace std
         result_type operator()() 
         { 
             // TODO: Needs a circular iterator for better performance.
-            // (see std::experimental version, below.)
 
             const result_type x = buf_[++n_ % state_size], w = buf_[(n_ - 1) % state_size], t = (x ^ (x << 11));
             return (buf_[n_ % state_size] = (w ^ (w >> 19)) ^ (t ^ (t >> 8)));

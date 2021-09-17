@@ -1,6 +1,5 @@
 /*
- *	This file This header is part of the C++ Standard Library type support
- *	library.
+ *	This file is part of the C++ Standard Library type support library.
  *
  *  ***************************************************************************
  *
@@ -51,7 +50,6 @@
 # define __PG_CFLOAT_ 20210908L
 
 # include "pg.h"
-# include <float.h>
 
 # if defined ARDUINO
  // If the Arduino environment does not define the following object-like  
@@ -108,6 +106,13 @@
 #  if !defined __FLT_MAX_10_EXP__
 #   define __FLT_MAX_10_EXP__	38				/* floor(log10((1-b**(-p))*b**emax)) */
 #  endif
+
+/* According to the literature, the Arduino may have either a four or eight byte 
+ * wide <double> type depending on the board, but there is currently no way to 
+ * determine this at compile time that I'm aware of. So the following definitions 
+ * assume you have a true 64-bit <double> type, otherwise they need to be defined 
+ * the same as <float>. */
+
 #  if !defined __DBL_MANT_DIG__
 #   define __DBL_MANT_DIG__		53
 #  endif
@@ -168,6 +173,11 @@
 #  if !defined __LDBL_MAX_10_EXP__
 #   define __LDBL_MAX_10_EXP__	__DBL_MAX_10_EXP__
 #  endif
+
+// Then by including the Arduino <float.h> after we've defined the 
+// required values, it works properly.
+# include <float.h>
+
 # endif // defined ARDUINO
 
 #endif // !defined __PG_CFLOAT_

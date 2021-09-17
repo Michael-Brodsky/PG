@@ -30,7 +30,7 @@
  *
  *	Description:
  *
- *		This file defines objects in the <utility> header of a C++ Standard
+ *		This file defines objects in the <utility> header of the C++ Standard
  *		Standard Library - to the extent they are supported by the Arduino
  *		implementation. The objects behave according to the C++ ISO/IEC 14882
  *		Standards, except as noted.
@@ -40,8 +40,7 @@
 #if !defined __PG_UTILITY_
 # define __PG_UTILITY_ 20210903L
 
-# include "type_traits"	// Type support needed by std::forward & std::move.
-# include "tuple"		// Needed to specialize std::tuple primary templates.
+# include "tuple"	// Needed to specialize std::tuple primary templates.
 
 # if defined __PG_HAS_NAMESPACES
 

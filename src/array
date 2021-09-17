@@ -121,7 +121,6 @@ protected:	/**** Member Objects ****/
 };
 
 # pragma endregion
-
 # pragma region ReverseIterator
 
 // Iterator type for mutable reversed sequences.
@@ -353,7 +352,6 @@ ConstReverseIterator<RandomIt>::ConstReverseIterator(const ConstReverseIterator<
 }
 
 #pragma endregion
-
 #pragma region ConstReverseIterator_member_functions
 
 template<class RandomIt> inline 
@@ -1196,7 +1194,6 @@ bool operator>=(const array<T, Size>& lhs, const array<T, Size>& rhs)
 }
 
 #pragma endregion
-
 #pragma region miscellaneous_functions
 
 // Specialization of std::tuple_size for std::array.

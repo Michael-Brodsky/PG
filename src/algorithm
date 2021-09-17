@@ -54,8 +54,6 @@
 
 namespace std
 {
-#pragma region forward_decls
-
 	template <class ForwardIt>
 	ForwardIt min_element(ForwardIt first, ForwardIt last);
 	template<class ForwardIt, class Compare>
@@ -64,9 +62,8 @@ namespace std
 	ForwardIt max_element(ForwardIt first, ForwardIt last);
 	template<class ForwardIt, class Compare>
 	ForwardIt max_element(ForwardIt first, ForwardIt last, Compare comp);
-	
-#pragma endregion
-#pragma region non-modifying_sequence_operations
+
+# pragma region non-modifying_sequence_operations
 
 template<class InputIt, class Function>
 Function for_each(InputIt first, InputIt last, Function fn)
@@ -1463,17 +1460,16 @@ template <class ForwardIt, class T>
 	std::pair<ForwardIt, ForwardIt>
 		equal_range(ForwardIt first, ForwardIt last, const T& val)
 {
-	ForwardIt it = std::lower_bound(first, last, val);
-
-	return std::make_pair(it, std::upper_bound(it, last, val));
+	return std::make_pair(std::lower_bound(first, last, val),
+		std::upper_bound(first, last, val));
 }
 
 template<class ForwardIt, class T, class Compare>
 	pair<ForwardIt, ForwardIt>
-		equal_range(ForwardIt first, ForwardIt last, const T& value, Compare comp)
+		equal_range(ForwardIt first, ForwardIt last, const T& val, Compare comp)
 {
-	return std::make_pair(std::lower_bound(first, last, value, comp),
-		std::upper_bound(first, last, value, comp));
+	return std::make_pair(std::lower_bound(first, last, val, comp),
+		std::upper_bound(first, last, val, comp));
 }
 
 #pragma endregion
@@ -1507,15 +1503,16 @@ template <class T>
 	std::pair <const T&, const T&> 
 		minmax(const T& a, const T& b) 
 {
-	return (b < a) ? std::make_pair(b, a) : std::make_pair(a, b);
+		return (b < a) ? std::pair<const T&, const T&>(b, a)
+			: std::pair<const T&, const T&>(a, b);
 }
 	
 template<class T, class Compare>
 	std::pair<const T&, const T&> 
 		minmax(const T& a, const T& b, Compare comp)
 {
-	return comp(b, a) ? std::make_pair<const T&, const T&>(b, a)
-		: std::make_pair<const T&, const T&>(a, b);
+		return comp(b, a) ? std::pair<const T&, const T&>(b, a)
+			: std::pair<const T&, const T&>(a, b);
 }
 
 template <class ForwardIt>
@@ -1576,6 +1573,68 @@ ForwardIt max_element(ForwardIt first, ForwardIt last, Compare comp)
 
 	return largest;
 }
+
+template<class ForwardIt, class Compare>
+std::pair<ForwardIt, ForwardIt>
+minmax_element(ForwardIt first, ForwardIt last, Compare comp)
+{
+	auto min = first, max = first;
+
+	if (first == last || ++first == last)
+		return { min, max };
+
+	if (comp(*first, *min)) {
+		min = first;
+	}
+	else {
+		max = first;
+	}
+
+	while (++first != last) {
+		auto i = first;
+		if (++first == last) {
+			if (comp(*i, *min)) min = i;
+			else if (!(comp(*i, *max))) max = i;
+			break;
+		}
+		else {
+			if (comp(*first, *i)) {
+				if (comp(*first, *min)) min = first;
+				if (!(comp(*i, *max))) max = i;
+			}
+			else {
+				if (comp(*i, *min)) min = i;
+				if (!(comp(*first, *max))) max = first;
+			}
+		}
+	}
+	return { min, max };
+}
+
+template<class ForwardIt>
+std::pair<ForwardIt, ForwardIt>
+	minmax_element(ForwardIt first, ForwardIt last)
+{
+	using value_type = typename std::iterator_traits<ForwardIt>::value_type;
+
+	return std::minmax_element(first, last, std::less<value_type>());
+}
+
+#  if defined __PG_HAS_CPP17
+template<class T, class Compare>
+constexpr const T& clamp(const T& v, const T& lo, const T& hi, Compare comp)
+{
+	static_assert(!comp(hi, lo));
+	return comp(v, lo) ? lo : comp(hi, v) ? hi : v;
+}
+
+template<class T>
+constexpr const T& clamp(const T& v, const T& lo, const T& hi)
+{
+	return std::clamp(v, lo, hi, std::less<const T>{});
+}
+#  endif // defined __PG_HAS_CPP17
+
 #pragma endregion
 #pragma region set_operations
 

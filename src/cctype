@@ -1,6 +1,6 @@
 /*
- *	This file This header is part of the C++ Standard Library null-terminated 
- *	byte strings library.
+ *	This file is part of the C++ Standard Library C-style null-terminated byte 
+ *	strings library.
  *
  *	***************************************************************************
  *
@@ -37,14 +37,7 @@
  * 
  *	Notes:
  * 
- *		This header was originally in the C standard library as <ctype.h>. 
- *		The behavior of these functions is undefined if the argument's value 
- *		is neither representable as unsigned char nor equal to EOF. To use 
- *		these functions safely with plain chars (or signed chars), the 
- *		argument should first be converted to unsigned char. Similarly, they 
- *		should not be directly used with standard algorithms when the 
- *		iterator's value type is char or signed char, and should be converted  
- *		to unsigned char first. 
+ *		This header was originally in the C standard library as <ctype.h>.		
  * 
  *  Credits:
  * 
