@@ -6,14 +6,17 @@
 bool _valarray();
 bool _valarray_slicer();
 bool _valarray_nonmembers();
+bool _valarray_stuff();
 
 void setup() 
 {
   Serial.begin(9600);
-  bool b1 = _valarray(), b2 = _valarray_slicer(), b3 = _valarray_nonmembers();
+  bool b1 = _valarray(), b2 = _valarray_slicer(), b3 = _valarray_nonmembers(),
+    b4 = _valarray_stuff();
   Serial.print("_valarray() = "); Serial.println(b1 ? "OK" : "FAIL");
   Serial.print("_slicer() = "); Serial.println(b2 ? "OK" : "FAIL");
   Serial.print("_nonmembers() = "); Serial.println(b3 ? "OK" : "FAIL");
+  Serial.print("_stuff() = "); Serial.println(b4 ? "OK" : "FAIL");
 }
 
 void loop() 
@@ -129,6 +132,18 @@ bool _valarray_nonmembers()
   std::valarray<float, 16> b = std::sqrt(a);
   for (auto& i : b)
     result = result && i <= 6.480741;
+
+  return result;
+}
+
+bool _valarray_stuff()
+{
+  bool result = true;
+  std::valarray<int, 8> res = { 3,4,5,6,7,8,1,2 };
+  std::valarray<int, 8> v{ 1, 2, 3, 4, 5, 6, 7, 8 }, w = v.cshift(2);
+  std::valarray<bool, 8> b = w == res;
+  for (auto& i : b)
+    result = result && i == true;
 
   return result;
 }
