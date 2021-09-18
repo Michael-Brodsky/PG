@@ -39,7 +39,7 @@
  *		bitset(b, n): Sets the n-th bit in b.
  *		bitclr(b, n): Clears the n-th bit in b.
  *		bitflip(b, n): Complements the n-th bit in b.
- *		bitchange(b, n, f): Changes the n-th bit in b to the value of f.
+ *		bitchg(b, n, f): Changes the n-th bit in b to the value of f.
  *		bitmerge(a, b, m): Merges the non-masked bits in a with the masked bits in b according to mask m.
  *		bitrev(b): Reverses the bit order of b.
  *		bitsetm(b, m): Sets the bits in b set in mask m.
@@ -49,9 +49,9 @@
  *		bitisset(b, n): Checks whether the n-th bit in b is set.
  *		bitissetm(b, m): Checks whether the bits set in mask m are set in b.
  *		bitlsbset(b): Returns the rank of the least significant bit set in b.
- *		bitlsbclrm(b): Returns the mask of the least significant bit not set in b.
+ *		bitmlsbclr(b): Returns the mask of the least significant bit not set in b.
  *		bitnset(b): Returns the number of bits set in b.
- *		bitclrlsbn(b): Returns the number of consecutive lsbs not set in b.
+ *		bitnlsbclr(b): Returns the number of consecutive lsbs not set in b.
  *		bitparity(b): Returns the bit parity of b.
  *		bitswap(a, b): Swaps the two values a and b.
  *		widthof<T>(): Returns the width of type T in bits.
@@ -74,7 +74,7 @@
 #  undef bitset
 #  undef bitclr
 #  undef bitflip
-#  undef bitchange
+#  undef bitchg
 #  undef bitmerge
 #  undef bitrev
 #  undef bitsetm
@@ -83,12 +83,12 @@
 #  undef bitflipm
 #  undef bitissetm
 #  undef bitlsbset
-#  undef bitlsbclrm
+#  undef bitmlsbclr
 #  undef bitnset
-#  undef bitclrlsbn
+#  undef bitnlsbclr
 #  undef bitparity
 #  undef bitswap
-#  undef bitwidth
+#  undef widthof
 #  undef bitintlv
 
 namespace pg
@@ -156,6 +156,18 @@ namespace pg
 		};
 	} // namespace details
 
+#if defined CHAR_BIT
+	/* Returns the width of type T in bits. */
+	template<class T>
+	inline typename details::is_integer<T, size_t>::type
+		widthof() { return (sizeof(T) * CHAR_BIT); }
+
+	/* Returns the width of t in bits. */
+	template<class T>
+	inline typename details::is_integer<T, size_t>::type
+		widthof(T t) { return widthof<T>(); }
+#endif // defined CHAR_BIT
+
 	/* References the n-th bit in a bitfield. */
 	template<class T>
 	inline typename details::is_unsigned<T>::type
@@ -179,7 +191,7 @@ namespace pg
 	/* Changes the n-th bit in b to the value of f. */
 	template<class T>
 	inline typename details::is_unsigned<T>::type
-		bitchange(T b, uint8_t n, bool f) { return ((b & ~bit<T>(n)) | (-f & bit<T>(n))); }
+		bitchg(T b, uint8_t n, bool f) { return ((b & ~bit<T>(n)) | (-f & bit<T>(n))); }
 	
 	/* Merges the non-masked bits in a with the masked bits in b according to
 	 * the mask m, i.e. the bits in a corresponding to the bits cleared in m
@@ -234,7 +246,7 @@ namespace pg
 	/* Returns the mask of the least significant bit not set in b. */
 	template<class T>
 	inline typename details::is_unsigned<T>::type
-		bitlsbclrm(T b) { return (~b & (b + 1)); }
+		bitmlsbclr(T b) { return (~b & (b + 1)); }
 
 	/* Returns the number of bits set in b'. */
 	template<class T> 
@@ -249,12 +261,13 @@ namespace pg
 		return n;
 	}
 
+#if defined CHAR_BIT
 	/* Returns the number of consecutive lsbs not set in b. */
 	template<class T> 
 	inline typename details::is_unsigned<T, size_t>::type
-		bitclrlsbn(T b)
+		bitnlsbclr(T b)
 	{
-		T n = CHAR_BIT * sizeof(n);
+		T n = pg::widthof(b);
 
 		if (b) {
 			b = (b ^ (b - 1)) >> 1;
@@ -263,6 +276,7 @@ namespace pg
 
 		return static_cast<size_t>(n);
 	}
+#endif // defined CHAR_BIT
 
 	/* Returns the bit parity of b. */
 	template<class T> 
@@ -280,18 +294,6 @@ namespace pg
 	template<class T>
 	inline typename details::is_unsigned<T, void>::type
 		bitswap(T& a, T& b) { (a == b || (a ^= b), (b ^= a), (a ^= b)); }
-
-#if defined CHAR_BIT
-	/* Returns the width of type T in bits. */
-	template<class T>
-	inline typename details::is_integer<T, size_t>::type
-		widthof() { return (sizeof(T) * CHAR_BIT); }
-
-	/* Returns the width of t in bits. */
-	template<class T>
-	inline typename details::is_integer<T, size_t>::type
-		widthof(T t) { return widthof<T>(); }
-#endif // defined CHAR_BIT
 
 	/* Interleves the bits in x with those in y. */
 	template<class T>

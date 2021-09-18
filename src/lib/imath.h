@@ -90,6 +90,7 @@
 #if !defined __PG_IMATH_H
 # define __PG_IMATH_H	20210907L
 
+# include "cassert"		// assert() macro.
 # include "limits"		// Required to deduce function argument types.
 # include "type_traits"	// Required for function template substitution.
 

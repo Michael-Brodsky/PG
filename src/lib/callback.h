@@ -107,9 +107,9 @@ namespace pg
 
 } // namespace pg
 
-# else // !defined __HAS_NAMESPACES
+# else // !defined __PG_HAS_NAMESPACES
 #  error Requires C++11 and namespace support.
-# endif // defined __HAS_NAMESPACES
+# endif // defined __PG_HAS_NAMESPACES
 
 #endif // !defined __PG_CALLBACK_H
 

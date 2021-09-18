@@ -41,21 +41,28 @@
  *	cube(x): returns x**3.
  *	cmp(a, b): returns 1 if a>b, -1 if a<b or 0 if a=b, without branching.
  *	clamp(x, low, hi): returns x clamped on [low, hi], if (low < hi).
+ *	exp(x): returns an approximation of e**x.
  *	rads(x): returns x degrees converted to radians.
  *	deg(x): returns x radians converted to degrees.
- *	sine(x): returns an approximation of sin(x), where x in [-pi, pi] radians.
- *	cosine(x): returns an approximation of cos(x), where x in [-pi, pi] radians.
- *	tangent(x): returns an approximation of tan(x), where x in [-pi, pi] radians.
- *	arcsin(x): returns an approximation of asin(x), where x in [-1, 1] radians.
- *	arccos(x): returns an approximation of acos(x), where x in [-1, 1] radians.
- *	arctan(x): returns an approximation of atan(x), where x in [-1, 1] radians.
+ *	sin(x): returns an approximation of sin(x), where x in [-pi, pi] radians.
+ *	cos(x): returns an approximation of cos(x), where x in [-pi, pi] radians.
+ *	tan(x): returns an approximation of tan(x), where x in [-pi, pi] radians.
+ *	sec(x): returns an approximation of sec(x), where x in [-pi, pi] radians.
+ *	csc(x): returns an approximation of csc(x), where x in [-pi, pi] radians.
+ *	cot(x): returns an approximation of cot(x), where x in [-pi, pi] radians.
+ *	asin(x): returns an approximation of asin(x), where x in [-1, 1] radians.
+ *	acos(x): returns an approximation of acos(x), where x in [-1, 1] radians.
+ *	atan(x): returns an approximation of atan(x), where x in [-1, 1] radians.
+ *	sinh(x): returns an approximation of sinh(x).
+ *	cosh(x): returns an approximation of cosh(x).
+ *	tanh(x): returns an approximation of tanh(x).
+ *	sech(x): returns an approximation of sech(x).
+ *	csch(x): returns an approximation of csch(x).
+ *	coth(x): returns an approximation of coth(x).
  *	lerp(x): returns the linear interpolant of x between two known points.
  *	bilerp(x, y): returns the bilinear interpolant of (x, y) between four known points.
  *
  *	Notes:
- *
- *		Certain restrictions are placed on the library functions with 
- *		respect to argument types, specifically floating point/integral types.
  *
  *		Functions are enabled using template substitution based on the type of
  *		calling parameters. Template substitution will fail if called with
@@ -83,8 +90,28 @@ namespace pg
 		{
 			typedef typename std::enable_if<std::is_floating_point<T>::value, U>::type type;
 		};
-	} // namespace details
 
+		/* Recursive implementation of exp(x). */
+
+		template<typename T, size_t degree, size_t i = 0>
+		struct exp_impl {
+			static T evaluate(T x) {
+				constexpr T c = 1.0 / static_cast<T>(1U << degree);
+				x = exp_impl<T, degree, i + 1>::evaluate(x);
+				return x * x;
+			}
+		};
+
+		template<typename T, size_t degree>
+		struct exp_impl<T, degree, degree> {
+			static T evaluate(T x) {
+				constexpr T c = 1.0 / static_cast<T>(1u << degree);
+				x = 1.0 + c * x;
+				return x;
+			}
+		};
+	} // namespace details
+	
 	/* Returns -1 if x < 0, else returns +1.*/
 	template <class T> 
 	inline int sign(T x) { return (T(0) < x) - (x < T(0)); }
@@ -111,6 +138,15 @@ namespace pg
 		return t > hi ? hi : t;
 	}
 
+	// Returns an approximation of e**x.
+	template<class T>
+	inline T exp(const T& x)
+	{
+		constexpr const size_t N = 11; // number of iterations.
+
+		return details::exp_impl<T, N>::evaluate(x);
+	}
+
 	/* Returns `rads' radians converted to degrees. */
 	template<class T>
 	inline typename details::is_float<T>::type 
@@ -124,9 +160,9 @@ namespace pg
 	/* Returns an approximation of sin(rads), where rads in [-pi, pi] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type 
-		sine(const T& rads)
+		sin(const T& rads)
 	{ 
-		const T z = sqr(rads);
+		const T z = pg::sqr(rads);
 
 		return ((((z * 0.0000027557f - 0.00019841f) * z + 0.0083333f) * z - 0.16667f) * z + 1) * rads;
 	}
@@ -134,9 +170,9 @@ namespace pg
 	/* Returns an approximation of cos(rads), where rads in [-pi, pi] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type 
-		cosine(const T& rads)
+		cos(const T& rads)
 	{ 
-		const T z = sqr(rads);
+		const T z = pg::sqr(rads);
 
 		return rads * (1 + z * (-0.1666666f + z * (0.008333025f + z * (-0.000198074f + 2.6019031e-6 * z))));
 	}
@@ -144,17 +180,92 @@ namespace pg
 	/* Returns an approximation of tan(rads), where rads in [-pi, pi] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type 
-		tangent(const T& rads)
+		tan(const T& rads)
 	{
-		const T z = sqr(rads);
+		const T z = pg::sqr(rads);
 
 		return (((z * 0.092151584f + 0.11806635f) * z + 0.334961658f) * z + 1) * rads;
 	}
 
-	/* Returns an approximation of arcsin(rads), where rads in [-1, 1] radians. */
+	/* Returns an approximation of sec(rads), where rads in [-pi, pi] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type
-		arcsin(const T& rads)
+		sec(const T& rads)
+	{
+		return 1 / pg::cos(rads);
+	}
+
+	/* Returns an approximation of csc(rads), where rads in [-pi, pi] radians. */
+	template<class T>
+	inline typename details::is_float<T>::type
+		csc(const T& rads)
+	{
+		return 1 / pg::sin(rads);
+	}
+
+	/* Returns an approximation of cot(rads), where rads in [-pi, pi] radians. */
+	template<class T>
+	inline typename details::is_float<T>::type
+		cot(const T& rads)
+	{
+		return 1 / pg::tan(rads);
+	}
+
+	/* Returns an approximation of sinh(rads). */
+	template<class T>
+	inline typename details::is_float<T>::type
+		sinh(const T& rads)
+	{
+
+		return (pg::exp(rads) - pg::exp(-rads)) / 2;
+	} 
+
+	/* Returns an approximation of cosh(rads). */
+	template<class T>
+	inline typename details::is_float<T>::type
+		cosh(const T& rads)
+	{
+
+		return (pg::exp(rads) + pg::exp(-rads)) / 2;
+	}
+
+	/* Returns an approximation of tanh(rads). */
+	template<class T>
+	inline typename details::is_float<T>::type
+		tanh(const T& rads)
+	{
+
+		return (pg::exp(rads * 2) - 1) / (pg::exp(rads * 2) + 1);
+	}
+
+	/* Returns an approximation of coth(rads). */
+	template<class T>
+	inline typename details::is_float<T>::type
+		coth(const T& rads)
+	{
+		return (pg::exp(rads * 2) + 1) / (pg::exp(rads * 2) - 1);
+	}
+
+	/* Returns an approximation of sech(rads). */
+	template<class T>
+	inline typename details::is_float<T>::type
+		sech(const T& rads)
+	{
+		return (2 * pg::exp(rads)) / (pg::exp(rads * 2) + 1);
+	}
+
+	/* Returns an approximation of csch(rads). */
+	template<class T>
+	inline typename details::is_float<T>::type
+		csch(const T& rads)
+	{
+		return (2 * pg::exp(rads)) / (pg::exp(rads * 2) - 1);
+	}
+
+	/* Returns an approximation of asin(rads), where rads in [-1, 1] radians. */
+	template<class T>
+	inline typename details::is_float<T>::type
+		asin(const T& rads)
 	{
 		// Algo not so great for rads < 0, so we use |rads| and reflect that over -1 < rads < 0.
 		const T z = std::abs(rads);
@@ -163,10 +274,10 @@ namespace pg
 			(1.5707288f - 0.2121144f * z + 0.074261f * pg::sqr(z) - 0.0187293f * pg::cube(z)));
 	}
 
-	/* Returns an approximation of arccos(rads), where rads in [-1, 1] radians. */
+	/* Returns an approximation of acos(rads), where rads in [-1, 1] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type
-		arccos(T rads)
+		acos(T rads)
 	{
 		// This is nVidia's implementation.
 		float negate = float(rads < 0);
@@ -181,13 +292,14 @@ namespace pg
 		ret = ret + 1.5707288;
 		ret = ret * std::sqrt(1.0 - rads);
 		ret = ret - 2 * negate * ret;
+
 		return negate * std::numbers::pi + ret;
 	}
 
-	/* Returns an approximation of arctan(rads), where rads in [-1, 1] radians. */
+	/* Returns an approximation of atan(rads), where rads in [-1, 1] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type 
-		arctan(const T& rads)
+		atan(const T& rads)
 	{
 		const T z = std::abs(rads);
 
