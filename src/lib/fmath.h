@@ -59,6 +59,8 @@
  *	sech(x): returns an approximation of sech(x).
  *	csch(x): returns an approximation of csch(x).
  *	coth(x): returns an approximation of coth(x).
+ *	hypot(x,y): approximates the hypotenuse of a right triangle with sides x, y.
+ *	atan2(y,x): approximates the angle between the positive x-axis and ray (x,y) [see comments]. 
  *	lerp(x): returns the linear interpolant of x between two known points.
  *	bilerp(x, y): returns the bilinear interpolant of (x, y) between four known points.
  *
@@ -75,9 +77,27 @@
 
 # include "numbers"		// Numeric constants.
 # include "cmath"		// std::sqrt, std::abs
-# include "type_traits"	// Template substitution.
+# include "algorithm"	// std::min, std::max
 
 # if defined __PG_HAS_NAMESPACES 
+
+// Remove any conflicting macros possibly defined by the implementation.
+
+#  undef sign
+#  undef sqr
+#  undef cube
+#  undef cmp
+#  undef clamp
+#  undef rads
+#  undef deg
+#  undef sec
+#  undef csc
+#  undef cot
+#  undef sech
+#  undef csch
+#  undef coth
+#  undef lerp
+#  undef bilerp
 
 namespace pg
 {
@@ -110,6 +130,7 @@ namespace pg
 				return x;
 			}
 		};
+
 	} // namespace details
 	
 	/* Returns -1 if x < 0, else returns +1.*/
@@ -142,7 +163,7 @@ namespace pg
 	template<class T>
 	inline T exp(const T& x)
 	{
-		constexpr const size_t N = 11; // number of iterations.
+		constexpr const size_t N = 13; // number of iterations.
 
 		return details::exp_impl<T, N>::evaluate(x);
 	}
@@ -163,8 +184,9 @@ namespace pg
 		sin(const T& rads)
 	{ 
 		const T z = pg::sqr(rads);
-
-		return ((((z * 0.0000027557f - 0.00019841f) * z + 0.0083333f) * z - 0.16667f) * z + 1) * rads;
+		
+		return rads * (0.9999999946860073367 + z * (-0.1666665668400715135 + z * 
+			(0.008333025138969367298 + z * (-0.0001980741872742697087 + 2.60190306765146018e-6 * z))));
 	}
 
 	/* Returns an approximation of cos(rads), where rads in [-pi, pi] radians. */
@@ -174,7 +196,9 @@ namespace pg
 	{ 
 		const T z = pg::sqr(rads);
 
-		return rads * (1 + z * (-0.1666666f + z * (0.008333025f + z * (-0.000198074f + 2.6019031e-6 * z))));
+		return 0.9999999990181006763 + z * (-0.4999999804925358106 + z * 
+			(0.04166659852743524949 + z * (-0.001388796971511749935 + z * 
+				(0.0000247432468979897784 - 2.5792418318252055e-7 * z))));
 	}
 
 	/* Returns an approximation of tan(rads), where rads in [-pi, pi] radians. */
@@ -184,7 +208,7 @@ namespace pg
 	{
 		const T z = pg::sqr(rads);
 
-		return (((z * 0.092151584f + 0.11806635f) * z + 0.334961658f) * z + 1) * rads;
+		return (((z * 0.092151584 + 0.11806635) * z + 0.334961658) * z + 1) * rads;
 	}
 
 	/* Returns an approximation of sec(rads), where rads in [-pi, pi] radians. */
@@ -216,7 +240,6 @@ namespace pg
 	inline typename details::is_float<T>::type
 		sinh(const T& rads)
 	{
-
 		return (pg::exp(rads) - pg::exp(-rads)) / 2;
 	} 
 
@@ -225,7 +248,6 @@ namespace pg
 	inline typename details::is_float<T>::type
 		cosh(const T& rads)
 	{
-
 		return (pg::exp(rads) + pg::exp(-rads)) / 2;
 	}
 
@@ -234,7 +256,6 @@ namespace pg
 	inline typename details::is_float<T>::type
 		tanh(const T& rads)
 	{
-
 		return (pg::exp(rads * 2) - 1) / (pg::exp(rads * 2) + 1);
 	}
 
@@ -270,8 +291,8 @@ namespace pg
 		// Algo not so great for rads < 0, so we use |rads| and reflect that over -1 < rads < 0.
 		const T z = std::abs(rads);
 
-		return pg::sign(rads) * (std::numbers::pi_two - std::sqrt(1 - z) * 
-			(1.5707288f - 0.2121144f * z + 0.074261f * pg::sqr(z) - 0.0187293f * pg::cube(z)));
+		return pg::sign(rads) * (std::numbers::pi_inv_two - std::sqrt(1 - z) * 
+			(1.5707288 - 0.2121144 * z + 0.074261 * pg::sqr(z) - 0.0187293 * pg::cube(z)));
 	}
 
 	/* Returns an approximation of acos(rads), where rads in [-1, 1] radians. */
@@ -280,10 +301,10 @@ namespace pg
 		acos(T rads)
 	{
 		// This is nVidia's implementation.
-		float negate = float(rads < 0);
+		const T negate = T(rads < 0);
+		T ret = -0.0187293;
 
 		rads = std::abs(rads);
-		float ret = -0.0187293;
 		ret = ret * rads;
 		ret = ret + 0.0742610;
 		ret = ret * rads;
@@ -301,9 +322,34 @@ namespace pg
 	inline typename details::is_float<T>::type 
 		atan(const T& rads)
 	{
-		const T z = std::abs(rads);
+		constexpr const T a = 0.0776509570923569;
+		constexpr const T b = -0.287434475393028;
+		constexpr const T c = std::numbers::pi_inv_four - a - b;
+		const T z = pg::sqr(rads);
 
-		return rads * (std::numbers::pi_four + (1 - z) * (0.2447f + 0.663f * z));
+		return ((a * z + b) * z + c) * rads;
+	}
+
+	/* Returns an approximation of the length of the hypotenuse of a right triangle with sides (x,y). */
+	template<class T>
+	inline typename details::is_float<T>::type
+		hypot(const T& x, const T& y)
+	{
+		constexpr const T a0 = 127. / 128., b0 = 3./16., a1 = 27. / 32., b1 = 71. / 128.;
+		const T z0 = a0 * std::max(std::abs(x), std::abs(y)) + b0 * std::min(std::abs(x), std::abs(y));
+		const T z1 = a1 * std::max(std::abs(x), std::abs(y)) + b1 * std::min(std::abs(x), std::abs(y));
+
+		return std::max(z0, z1);
+	}
+
+	/* Returns an approximation of atan2(y, x), where y/x in [-1, 1] radians. */
+	template<class T>
+	inline typename details::is_float<T>::type
+		atan2(const T& y, const T& x)
+	{
+		const int sx = static_cast<int>(pg::sign(x)), sy = static_cast<int>((int)pg::sign(y));
+
+		return pg::sqr(sx) * pg::atan(y / x) + ((1 - sx) >> 1) * (1 + sy - pg::sqr(sy)) * std::numbers::pi;
 	}
 
 	/* Returns the linear interpolant of x between two known points. */

@@ -68,6 +68,9 @@
 #undef floor
 #undef fmod
 #undef frexp
+#undef hypot
+#undef isinf
+#undef isnan
 #undef ldexp
 #undef log
 #undef log10
@@ -82,13 +85,13 @@
 // Arduino may not define these.
 
 #if !defined HUGE_VALF 
-# define HUGE_VALF	((float)0)
+# define HUGE_VALF	((float)NAN) // needs a better def, but can't find one in the docs.
 #endif
 #if !defined HUGE_VAL 
-# define HUGE_VAL	((double)0)
+# define HUGE_VAL	((double)NAN)
 #endif
 #if !defined HUGE_VALL
-# define HUGE_VALL	((long double)0)
+# define HUGE_VALL	((long double)NAN)
 #endif
 
 namespace std {
@@ -106,7 +109,10 @@ namespace std {
 	using ::floor;
 	using ::fmod;
 	using ::frexp;
+	using ::hypot;
 	using ::isfinite;
+	using ::isinf;
+	using ::isnan;
 	using ::ldexp;
 	using ::log;
 	using ::log10;
@@ -120,132 +126,135 @@ namespace std {
 
 # if !defined __CORRECT_ISO_CPP_MATH_H_PROTO
 
+	// As of Arduino 1.8, only some of these are required.
+
 	inline float abs(float x) 
 	{
 		return fabsf(x);
 	}
 
-	inline float acos(float x) 
-	{
-		return acosf(x);
-	}
+	//inline float acos(float x) 
+	//{
+	//	return acosf(x);
+	//}
 
-	inline float asin(float x) 
-	{
-		return asinf(x);
-	}
+	//inline float asin(float x) 
+	//{
+	//	return asinf(x);
+	//}
 
-	inline float atan(float x) 
-	{
-		return atanf(x);
-	}
+	//inline float atan(float x) 
+	//{
+	//	return atanf(x);
+	//}
 
-	inline float atan2(float y, float x) 
-	{
-		return atan2f(y, x);
-	}
+	//inline float atan2(float y, float x) 
+	//{
+	//	return atan2f(y, x);
+	//}
 
-	inline float ceil(float x) 
-	{
-		return ceilf(x);
-	}
+	//inline float ceil(float x) 
+	//{
+	//	return ceilf(x);
+	//}
 
-	inline float cos(float x) 
-	{
-		return cosf(x);
-	}
+	//inline float cos(float x) 
+	//{
+	//	return cosf(x);
+	//}
 
-	inline float cosh(float x) 
-	{
-		return coshf(x);
-	}
+	//inline float cosh(float x) 
+	//{
+	//	return coshf(x);
+	//}
 
-	inline float exp(float x) 
-	{
-		return expf(x);
-	}
+	//inline float exp(float x) 
+	//{
+	//	return expf(x);
+	//}
 
-	inline float fabs(float x) 
-	{
-		return fabsf(x);
-	}
+	//inline float fabs(float x) 
+	//{
+	//	return fabsf(x);
+	//}
 
-	inline float floor(float x) 
-	{
-		return floorf(x);
-	}
+	//inline float floor(float x) 
+	//{
+	//	return floorf(x);
+	//}
 
-	inline float fmod(float x, float y) 
-	{
-		return fmodf(x, y);
-	}
+	//inline float fmod(float x, float y) 
+	//{
+	//	return fmodf(x, y);
+	//}
 
-	inline float frexp(float x, int* exp) 
-	{
-		return frexpf(x, exp);
-	}
+	//inline float frexp(float x, int* exp) 
+	//{
+	//	return frexpf(x, exp);
+	//}
 
-	inline float ldexp(float x, int exp) 
-	{
-		return ldexpf(x, exp);
-	}
+	//inline float ldexp(float x, int exp) 
+	//{
+	//	return ldexpf(x, exp);
+	//}
 
-	inline float log(float x) 
-	{
-		return logf(x);
-	}
+	//inline float log(float x) 
+	//{
+	//	return logf(x);
+	//}
 
-	inline float log10(float x) 
-	{
-		return log10f(x);
-	}
+	//inline float log10(float x) 
+	//{
+	//	return log10f(x);
+	//}
 
 	inline float modf(float x, float* inptr) 
 	{
 		return modff(x, inptr);
 	}
 
-	inline float pow(float x, float y) 
-	{
-		return powf(x, y);
-	}
+	//inline float pow(float x, float y) 
+	//{
+	//	return powf(x, y);
+	//}
 
-	inline float sin(float x) 
-	{
-		return sinf(x);
-	}
+	//inline float sin(float x) 
+	//{
+	//	return sinf(x);
+	//}
 
-	inline float sinh(float x) 
-	{
-		return sinhf(x);
-	}
+	//inline float sinh(float x) 
+	//{
+	//	return sinhf(x);
+	//}
 
-	inline float sqrt(float x) 
-	{
-		return sqrtf(x);
-	}
+	//inline float sqrt(float x) 
+	//{
+	//	return sqrtf(x);
+	//}
 
-	inline float tan(float x) 
-	{
-		return tanf(x);
-	}
+	//inline float tan(float x) 
+	//{
+	//	return tanf(x);
+	//}
 
-	inline float tanh(float x) 
-	{
-		return tanhf(x);
-	}
+	//inline float tanh(float x) 
+	//{
+	//	return tanhf(x);
+	//}
 
 	inline double abs(double x) 
 	{
 		return fabs(x);
 	}
 
-	inline double pow(double x, int y) 
-	{
-		return pow((double)x, (double)y);
-	}
+	//inline double pow(double x, int y) 
+	//{
+	//	return pow((double)x, (double)y);
+	//}
 
 #endif	//	 __CORRECT_ISO_CPP_MATH_H_PROTO
+
 } // namespace std
 
 # else // !defined __PG_HAS_NAMESPACES
