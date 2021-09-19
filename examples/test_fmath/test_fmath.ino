@@ -20,21 +20,24 @@ void setup()
   Serial.println(pg::exp(-0.5f), 6);
   Serial.println(pg::deg(std::numbers::pi), 6);
   Serial.println(pg::rads(180.0f), 6);
-  Serial.println(pg::sin(std::numbers::pi_four), 6);
-  Serial.println(pg::cos(std::numbers::pi_four), 6);
-  Serial.println(pg::tan(std::numbers::pi_four), 6);
-  Serial.println(pg::sec(std::numbers::pi_four), 6);
-  Serial.println(pg::csc(std::numbers::pi_four), 6);
-  Serial.println(pg::cot(std::numbers::pi_four), 6);
-  Serial.println(pg::sinh(std::numbers::pi_four), 6);
-  Serial.println(pg::cosh(std::numbers::pi_four), 6);
-  Serial.println(pg::tanh(std::numbers::pi_four), 6);
-  Serial.println(pg::sech(std::numbers::pi_four), 6);
-  Serial.println(pg::coth(std::numbers::pi_four), 6);
-  Serial.println(pg::csch(std::numbers::pi_four), 6);
-  Serial.println(pg::asin(std::numbers::pi_four), 6);
-  Serial.println(pg::acos(std::numbers::pi_four), 6);
-  Serial.println(pg::atan(std::numbers::pi_four), 6);
+  Serial.println(pg::sin(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::cos(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::tan(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::sec(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::csc(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::cot(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::sinh(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::cosh(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::tanh(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::sech(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::coth(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::csch(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::asin(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::acos(std::numbers::pi_inv_four), 6);
+  Serial.println(pg::atan(-1.0), 6);
+  Serial.println(pg::hypot(-3.0f, 4.0f), 6);
+  Serial.println(pg::atan2(-3.0f, 4.0f), 6);
+  Serial.println(std::isinf(pg::cot(std::tan(0))));
 }
 
 void loop() 
