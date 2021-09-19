@@ -46,9 +46,9 @@
 #if !defined __PG_LIMITS_
 # define __PG_LIMITS_ 20210817
 
-# include "climits"	// C++ Standard Library integral limits.
-# include "cfloat"	// C++ Standard Library floating-point limits.
-# include "cmath"	// `NAN' macro.
+# include <climits>	// C++ Standard Library integral limits.
+# include <cfloat>	// C++ Standard Library floating-point limits.
+# include <cmath>	// `NAN' macro.
 
 # if defined __PG_HAS_NAMESPACES 
 

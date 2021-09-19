@@ -121,8 +121,4 @@
 # define __PG_HAS_FENV_H 0		// defined as non-zero if implementation has <fenv.h>.
 # define __PG_HAS_COMPLEX_H 0	// defined as non-zero if implementation has <complex.h>.
 
-# if defined ARDUINO
-	auto steady_clock_api = micros; // Set STL clock source to micros().
-# endif // defined ARDUINO
-
 #endif // !defined PG_H__

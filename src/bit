@@ -32,7 +32,13 @@
  *		This file defines objects in the <bit> header of the C++ Standard
  *		Library - to the extent they are supported by the Arduino
  *		implementation. The objects behave according to the C++ ISO/IEC 14882
- *		Standards, except as noted.
+ *		Standards, except as noted. 
+ * 
+ *  Notes:
+ * 
+ *      The <bit> header is part of the C++20 Standard Library and this file 
+ *      contains only a minimal implementation. The <lib/imath.h> header has 
+ *      equivalent versions of the functions defined in <bit>.
  *
  *	**************************************************************************/
 
@@ -46,6 +52,7 @@
 
 namespace std
 {
+    // Obtain a value of type To by reinterpreting the object representation of From.
     template <class To, class From>
     typename std::enable_if<
         sizeof(To) == sizeof(From) &&
