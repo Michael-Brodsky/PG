@@ -12,9 +12,7 @@ Usage:
 
 Every project using Pg must include the <pg.h> header and this should be done from the Arduino IDE: Sketch->Include Library->Pg. Additional #include files can be wriitten below that. Including files from subdirectories (those not in Pg/src) must be qualified: 
 
-  #include <lib/imath.h>, or 
-  #include <interfaces/icommand.h>
-  
-Other files, including all of the STL headers can be written as #include <array>, for instance.
+#include <lib/imath.h>, or 
+#include <interfaces/icommand.h>
   
 Cheers!
