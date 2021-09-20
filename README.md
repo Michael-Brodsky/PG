@@ -12,7 +12,7 @@ The entire Pg folder must be installed under your sketchbook/libraries folder (t
 
 Every project using Pg must include the <pg.h> header and this should be done from the Arduino IDE: Sketch->Include Library->Pg. Additional #include files can be placed below that. Including files from subdirectories (those not in Pg/src) must be qualified: 
 
-<p>#include <lib/imath.h>, or </p>
-#include <interfaces/icommand.h>
+<p>\#include &ltlib/imath.h&gt, or 
+\#include &ltinterfaces/icommand.h&gt </p>
   
 Cheers!
