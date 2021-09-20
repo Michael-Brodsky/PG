@@ -50,6 +50,7 @@
 #if !defined __PG_ICLOCKABLE_H 
 # define __PG_ICLOCKABLE_H 20210409L
 
+# include "cassert"
 # include "../interfaces/icommand.h"	// `icommand' interface.
 
 # if defined __PG_HAS_NAMESPACES 
@@ -68,13 +69,13 @@ namespace pg
 	class ClockCommand : public icommand
 	{
 	public:
-		explicit ClockCommand(iclockable& receiver) : receiver_(receiver) {}
-
-	public:
-		void execute() override { receiver_.clock(); }
+		explicit ClockCommand(iclockable* receiver) : receiver_(receiver) { assert(receiver); }
 
 	private:
-		iclockable& receiver_;
+		void execute() override { receiver_->clock(); } // Only accessible through the interface.
+
+	private:
+		iclockable* receiver_;
 	};
 
 } // namespace pg

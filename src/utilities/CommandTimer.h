@@ -52,8 +52,10 @@
 #if !defined __PG_COMMANDTIMER_H
 # define COMMANDTIMER_H__ 20210403L
 
-# include "../interfaces/icommand.h"	// `ICommand' interface.
+# include "../interfaces/icommand.h"	// `icommand' interface.
 # include "Timer.h"						// `Timer' class.
+
+# if defined __PG_HAS_NAMESPACES 
 
 namespace pg
 {
@@ -135,7 +137,12 @@ namespace pg
 			command_->execute();
 		(repeats_) ? timer_type::reset() : timer_type::stop();
 	}
-}
+
+} // namespace pg
+
+# else // !defined __PG_HAS_NAMESPACES
+#  error Requires C++11 and namespace support.
+# endif // defined __PG_HAS_NAMESPACES 
 
 #endif // !defined COMMANDTIMER_H__
 
