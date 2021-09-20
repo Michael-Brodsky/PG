@@ -49,26 +49,26 @@ namespace pg
 	const nullptr_t NoCommand = nullptr;
 
 	// Null command type.
-	struct null_command : public icommand
+	struct NullCommand : public icommand
 	{
-		null_command() = default;
-		~null_command() = default;
+		NullCommand() = default;
+		~NullCommand() = default;
 
 		void execute() override {}
 	};
 
-	// Concrete command type for member functions with arguments.
+	// Concrete Command type for member functions with arguments.
 	template <class Ret, class Obj = void, class Arg = void>
-	class command : public icommand
+	class Command : public icommand
 	{
 	public:
 		// Callback type signature.
 		using callback_type = typename pg::callback<Ret, Obj, Arg>::type;
 
 	public:
-		command(Obj* receiver, callback_type callback, Arg arg) :
+		Command(Obj* receiver, callback_type callback, Arg arg) :
 			icommand(), arg_(arg), receiver_(receiver), callback_(callback) {}
-		~command() {};
+		~Command() {};
 
 	public:
 		// Command execute method.
@@ -80,18 +80,18 @@ namespace pg
 		Arg				arg_;		// Method argument.
 	};
 
-	// Concrete command type for free-standing functions with arguments.
+	// Concrete Command type for free-standing functions with arguments.
 	template <class Ret, class Arg>
-	class command<Ret, void, Arg> : public icommand
+	class Command<Ret, void, Arg> : public icommand
 	{
 	public:
 		// Callback type signature.
 		using callback_type = typename pg::callback<Ret, void, Arg>::type;
 
 	public:
-		command(callback_type callback, Arg arg) :
+		Command(callback_type callback, Arg arg) :
 			icommand(), arg_(arg), callback_(callback) {}
-		~command() {}
+		~Command() {}
 
 	public:
 		// Command execute method.
@@ -102,18 +102,18 @@ namespace pg
 		Arg				arg_;		// Callback argument.
 	};
 
-	// Concrete command type for member functions without arguments.
+	// Concrete Command type for member functions without arguments.
 	template <class Ret, class Obj>
-	class command<Ret, Obj, void> : public icommand
+	class Command<Ret, Obj, void> : public icommand
 	{
 	public:
 		// Callback type signature.
 		using callback_type = typename pg::callback<Ret, Obj, void>::type;
 
 	public:
-		command(Obj* object, callback_type callback) :
+		Command(Obj* object, callback_type callback) :
 			icommand(), receiver_(object), callback_(callback) {}
-		~command() {}
+		~Command() {}
 
 	public:
 		// Command execute method.
@@ -124,18 +124,18 @@ namespace pg
 		callback_type	callback_;	// Receiver::method.
 	};
 
-	// Concrete command type for free-standing functions without arguments.
+	// Concrete Command type for free-standing functions without arguments.
 	template <class Ret>
-	class command<Ret, void, void> : public icommand
+	class Command<Ret, void, void> : public icommand
 	{
 	public:
 		// Callback type signature.
 		using callback_type = typename pg::callback<Ret, void, void>::type;
 
 	public:
-		command(callback_type callback) :
+		Command(callback_type callback) :
 			icommand(), callback_(callback) {}
-		~command() {}
+		~Command() {}
 
 	public:
 		// Command execute method.
