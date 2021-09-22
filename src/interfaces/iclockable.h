@@ -37,7 +37,7 @@
  *	time-sensitive applications. 
  * 
  *	The `ClockCommand' type is a concrete type derived from `icommand' (see 
- *	<icommand.h>) that takes a reference to an `iclockable' object and, when 
+ *	<icommand.h>) that takes a pointer to an `iclockable' object and, when 
  *	executed, calls its `clock()' method. It's provided because it is often 
  *	convenient to implement scheduled tasks as `iclockable' objects, and then 
  *	create a collection of `ClockCommands' to execute them at specified 
