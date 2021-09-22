@@ -1,21 +1,58 @@
 /*
-  Print.h - Base class that provides print() and println()
-  Copyright (c) 2008 David A. Mellis.  All right reserved.
-
-  This library is free software; you can redistribute it and/or
-  modify it under the terms of the GNU Lesser General Public
-  License as published by the Free Software Foundation; either
-  version 2.1 of the License, or (at your option) any later version.
-
-  This library is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  Lesser General Public License for more details.
-
-  You should have received a copy of the GNU Lesser General Public
-  License along with this library; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
+ *	This file extends capabilities of the Arduino "Print" API.
+ *
+ *	***************************************************************************
+ *
+ *	File: Print.h
+ *	Date: September 17, 2021
+ *	Version: 1.0
+ *	Author: Michael Brodsky
+ *	Email: mbrodskiis@gmail.com
+ *	Copyright (c) 2012-2021 Michael Brodsky
+ *
+ *	***************************************************************************
+ *
+ *  This file is part of "Pretty Good" (Pg). "Pg" is free software:
+ *	you can redistribute it and/or modify it under the terms of the
+ *	GNU General Public License as published by the Free Software Foundation,
+ *	either version 3 of the License, or (at your option) any later version.
+ *
+ *  This file is distributed in the hope that it will be useful, but
+ *	WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	***************************************************************************
+ *
+ *	Description:
+ *
+ *		This file extends the <Print.h> file bundled with the Arduino IDE 
+ *      (avr-libc) by adding support for printing 64-bit integer types and 
+ *      <long double> types. 
+ *
+ *	Notes:
+ *
+ *      This file adds the following functions and function overloads to the 
+ *      `Print' class:
+ * 
+ *          size_t print64(unsigned long long, uint8_t);
+ *          size_t print(long long, int = DEC);
+ *          size_t print(unsigned long long, int = DEC);
+ *          size_t print(long double, int = 2);
+ *          size_t println(long long, int = DEC);
+ *          size_t println(unsigned long long, int = DEC);
+ *          size_t println(long double, int = 2);
+ *          
+ *  Credits:
+ *
+ *		This file is derived from <Print.h>, "Base class that provides print() 
+ *      and println()", Copyright (C) 2008 David A. Mellis and modified 2015 
+ *      by Chuck Todd.
+ *
+ *	**************************************************************************/
 
 #ifndef Print_h
 #define Print_h
@@ -40,7 +77,10 @@ class Print
     int write_error;
     size_t printNumber(unsigned long, uint8_t);
     size_t printFloat(double, uint8_t);
+
+    // Implements 64-bit integer printing, added 8/16/2021
     size_t print64(unsigned long long, uint8_t);
+
   protected:
     void setWriteError(int err = 1) { write_error = err; }
   public:
