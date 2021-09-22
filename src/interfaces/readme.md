@@ -1,3 +1,3 @@
 # Pg Interface Library
 
-The interfaces library defines several abstract inetrface classes for implementing common C++ design patterns.
+The Interfaces library defines several abstract interface classes for implementing common C++ design patterns.
