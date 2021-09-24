@@ -46,14 +46,14 @@
  *      Since the buttons and their functions are implementation-specific, 
  *      the `ButtonTag' type is only forward declared and must be defined by 
  *      the client, and the definition must be visible to the `Keypad' class. 
- *      Buttons are passed as a collection the the `Keypad' class constructor. 
+ *      Buttons are passed as a collection to the `Keypad' class constructor. 
  * 
  *      Longpress events can occur in one of three ways, when a button is 
  *      held down, after a button is released, or they can be disabled. The 
  *      longpress modes are enumerated by the `Longpress' type and the mode 
  *      is specified by the client at time of construction, as is the long-
- *      press interval which determines how long it takes to trigger the 
- *      event in milliseconds. 
+ *      press interval which determines the duration required to trigger the 
+ *      event. 
  * 
  *      The `Keypad' class also provides a mechanism to to repeatedly fire 
  *      the button `press' event. Clients enable/disable the repeat mode 
