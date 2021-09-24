@@ -61,6 +61,7 @@
  *	coth(x): returns an approximation of coth(x).
  *	hypot(x,y): approximates the hypotenuse of a right triangle with sides x, y.
  *	atan2(y,x): approximates the angle between the positive x-axis and ray (x,y) [see comments]. 
+ *	norm(x,xmin,xmax,ymin,ymax): normalize x in [xmin,xmax] to x in [ymin,ymax].
  *	lerp(x): returns the linear interpolant of x between two known points.
  *	bilerp(x, y): returns the bilinear interpolant of (x, y) between four known points.
  *
@@ -350,6 +351,15 @@ namespace pg
 		const int sx = static_cast<int>(pg::sign(x)), sy = static_cast<int>((int)pg::sign(y));
 
 		return pg::sqr(sx) * pg::atan(y / x) + ((1 - sx) >> 1) * (1 + sy - pg::sqr(sy)) * std::numbers::pi;
+	}
+
+	/* Normalizes x in [xmin,xmax] to x in [ymin,ymax]. */
+	template<class T>
+	T norm(T x, T xmin, T xmax, T ymin, T ymax)
+	{
+		assert(xmax != xmin);
+
+		return (ymax - ymin) / (xmax - xmin) * (x - xmax) + ymax;
 	}
 
 	/* Returns the linear interpolant of x between two known points. */
