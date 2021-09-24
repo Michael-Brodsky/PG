@@ -216,7 +216,10 @@ namespace pg
 
 	void TaskScheduler::Task::state(State val)
 	{
-		state_ = val;
+		if((state_ = val) == State::Active)
+			timer_.resume();
+		else
+			timer_.stop();
 	}
 
 	const TaskScheduler::Task::State& TaskScheduler::Task::state(void) const
