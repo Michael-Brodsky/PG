@@ -1,7 +1,8 @@
 #include <pg.h>
 #include <utilities/Unique.h>
 
-struct U : public Unique {} u, v;
+struct U : public pg::Unique {};
+U u, v;
 
 void setup() 
 {
