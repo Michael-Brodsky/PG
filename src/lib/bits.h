@@ -31,7 +31,7 @@
  *	Description:
  *
  *		The bits.h library functions operate on and return unsigned integral 
- *		types, treating them as bit-fields. The algorithms avoid branchung and 
+ *		types, treating them as bit-fields. The algorithms avoid branching and 
  *		are optimized for speed. Function arguments must be unsigned integral 
  *		types, otherwise the program is ill-formed.
  * 
