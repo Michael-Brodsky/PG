@@ -302,7 +302,7 @@ namespace pg
 	{
 		T z = T();
 
-		for (size_t i = 0; i < widthof(x); i++)
+		for (size_t i = 0; i < pg::widthof(x); i++)
 			z |= (x & 1ULL << i) << i | (y & 1ULL << i) << (i + 1);
 
 		return z;
