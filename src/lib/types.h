@@ -70,6 +70,8 @@
 #  define ANALOG_MAX 1023U				// Maximum value an object of type `analog_t' should hold.
 # endif // !defined __ANALOG_T_DEFINED
 
+# if defined __PG_HAS_NAMESPACES 
+
 namespace pg
 {
 # if defined __PIN_T_TYPE
@@ -82,5 +84,9 @@ namespace pg
 # endif 
 
 } // namespace pg
+
+# else // !defined __PG_HAS_NAMESPACES
+#  error Requires C++11 and namespace support.
+# endif // defined __PG_HAS_NAMESPACES 
 
 #endif // !defined __PG_TYPES_H
