@@ -1,6 +1,5 @@
 /*
- *	This files declares a class that encapsulates behaviors of a keypad 
- *  attached to an analog GPIO input.
+ *	This files declares some useful data types and constants. 
  *
  *	***************************************************************************
  *
