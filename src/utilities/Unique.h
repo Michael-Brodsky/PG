@@ -81,6 +81,7 @@ namespace pg
 	{
 		return id_;
 	};
+
 } // namespace pg
 
 # else // !defined __PG_HAS_NAMESPACES

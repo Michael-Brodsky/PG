@@ -1925,8 +1925,8 @@ OutputIt* iter_copy(InputIt* first, InputIt* last, OutputIt* dest)
 
 } // namespace std
 
-# else // !defined __HAS_NAMESPACES
+# else // !defined __PG_HAS_NAMESPACES
 #  error Requires C++11 and namespace support.
-# endif // defined __HAS_NAMESPACES
+# endif // defined __PG_HAS_NAMESPACES
 
 #endif // !defined __PG_ALGORITHM_

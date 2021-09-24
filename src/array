@@ -1202,14 +1202,14 @@ struct tuple_size<std::array<T, N>> :
 	std::integral_constant<std::size_t, N>
 {};
 
-#  if defined __HAS_CPP17
+#  if defined __PG_HAS_CPP17
 // Specialization of std::size for std::array.
 template<class T, size_t Size>
 constexpr size_t size(std::array<T, Size>)
 {
 	return Size;
 }
-#  endif // defined __HAS_CPP17
+#  endif // defined __PG_HAS_CPP17
 
 // Specialization of std::get for std::array.
 template<std::size_t I, class T, std::size_t N>
@@ -1289,8 +1289,8 @@ namespace experimental
 #pragma endregion
 } // namespace std
 
-# else // !defined __HAS_NAMESPACES
+# else // !defined __PG_HAS_NAMESPACES
 #  error Requires C++11 and namespace support.
-# endif // defined __HAS_NAMESPACES
+# endif // defined __PG_HAS_NAMESPACES
 
 #endif // !defined __PG_ARRAY_

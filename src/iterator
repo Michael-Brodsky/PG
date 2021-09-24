@@ -248,15 +248,15 @@ namespace std
 		return (arr + Size);
 	}
 
-#  if defined __HAS_CPP17
+#  if defined __PG_HAS_CPP17
 	// Returns c.size().
 	template<class C>
 	constexpr auto size(C& c) -> decltype(c.size())
 	{
 		return c.size();
 	}
-#  endif // defined __HAS_CPP17
-#  if defined __HAS_CPP20
+#  endif // defined __PG_HAS_CPP17
+#  if defined __PG_HAS_CPP20
 	// Returns c.size(), converted to the return type if necessary.
 	template <class C>
 	constexpr auto ssize(const C& c)
@@ -268,23 +268,23 @@ namespace std
 
 		return static_cast<R>(c.size());
 	}
-#  endif // defined __HAS_CPP20
-#  if defined __HAS_CPP17
+#  endif // defined __PG_HAS_CPP20
+#  if defined __PG_HAS_CPP17
 	// Returns Size.
 	template<class T, size_t Size>
 	constexpr size_t size(T(&arr)[Size])
 	{
 		return Size;
 	}
-#  endif // defined __HAS_CPP17
-#  if defined __HAS_CPP20
+#  endif // defined __PG_HAS_CPP17
+#  if defined __PG_HAS_CPP20
 	// Returns Size.
 	template <class T, std::ptrdiff_t Size>
 	constexpr std::ptrdiff_t ssize(const T(&arr)[Size]) noexcept
 	{
 		return Size;
 	}
-#endif // defined __HAS_CPP20
+#endif // defined __PG_HAS_CPP20
 
 #pragma endregion
 #pragma region iterator_adapters

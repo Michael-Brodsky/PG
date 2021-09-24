@@ -153,7 +153,7 @@ namespace std
     inline constexpr bool ratio_greater_v = ratio_greater<R1, R2>::value;
     template<class R1, class R2>
     inline constexpr bool ratio_greater_equal_v = ratio_greater_equal<R1, R2>::value;
-#endif // defined __HAS_CPP17
+#endif // defined __PG_HAS_CPP17
 #pragma endregion
 }
 

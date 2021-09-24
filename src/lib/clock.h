@@ -45,8 +45,9 @@ namespace std
 	namespace chrono
 	{
 		static std::time_t steady_clock_api() { return clock_api(); }
-	}
-}
+	} // namespace chrono
+
+} // namespace std
 
 # else // !defined __PG_HAS_NAMESPACES
 #  error Requires C++11 and namespace support.
