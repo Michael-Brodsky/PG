@@ -46,6 +46,15 @@ bool _random_xor()
     result = result && i == xorg0() && i == xorg1() && i == xorg2();
     result = result && xorg0 == xorg1 && xorg0 == xorg2;
   }
+
+  for (auto& i : xorshift128_results)
+    xorg2.seed(xorg1());
+  for (auto& i : xorshift128_results)
+    result == result && xorg0() != xorg2();
+  std::xorshift128_engine<unsigned long> xorg3(42);
+  std::experimental::xorshift128_engine<unsigned long> xorgex(42);
+  for (auto& i : xorshift128_results)
+    result = result && xorg3() == xorgex();
   return result;
 }
 
@@ -75,14 +84,39 @@ bool _random_exp()
   return result;
 }
 
+bool _random_ibe()
+{
+  bool result = true;
+  
+  std::independent_bits_engine<std::minstd_rand, 16, std::minstd_rand::result_type> 
+    ibe, ibe2(42), ibe3(std::minstd_rand(42)), ibe4, ibe5(ibe4());
+  std::minstd_rand lcg;
+  ibe5.discard(64);
+  for (int i = 0; i < 5; ++i)
+  {
+    std::minstd_rand::result_type r = lcg();
+    r >>= 16;
+    result = result && static_cast<std::minstd_rand::result_type>(r) == ibe();
+    result = result && ibe2() == ibe3() && ibe2 == ibe3;
+  }
+  for (int i = 0; i < 5; ++i)
+    Serial.println(ibe5());
+  ibe5.seed(ibe4());
+  for (int i = 0; i < 5; ++i)
+    Serial.println(ibe5());
+
+  return result;
+}
+
 void setup() 
 {
   Serial.begin(9600);
-  bool b0 = _random_lce(), b1 = _random_xor(), b2 = _random_dbe(), b3 = _random_exp();
+  bool b0 = _random_lce(), b1 = _random_xor(), b2 = _random_dbe(), b3 = _random_exp(), b4 = _random_ibe();
   Serial.print("_random_lce() = "); Serial.println(b0 ? "OK" : "FAIL");
   Serial.print("_random_xor() = "); Serial.println(b1 ? "OK" : "FAIL");
   Serial.print("_random_dbe() = "); Serial.println(b2 ? "OK" : "FAIL");
   Serial.print("_random_exp() = "); Serial.println(b3 ? "OK" : "FAIL");
+  Serial.print("_random_ibe() = "); Serial.println(b4 ? "OK" : "FAIL");
 }
 
 void loop() 
