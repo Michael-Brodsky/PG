@@ -4,6 +4,10 @@ Pg is a development library for the Arduino (avr) platform that includes a C++ S
 
 This is a work in progress with almost daily updates. Check back often for more stuff!
 
+## Requirements
+
+Pg requires named namespace support, which is available on the Arduino IDE v1.8 and later.
+
 ## Installation:
 
 The entire Pg folder must be installed under your sketchbook/libraries folder (the same location all other user libraries go).
