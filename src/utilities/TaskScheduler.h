@@ -61,13 +61,17 @@
 namespace pg
 {
 	// Schedules tasks to run at specified intervals.
+	template<class T = CommandTimer<std::chrono::milliseconds>>
 	class TaskScheduler
 	{
 	public:
+		using timer_type = T;
+		using duration = typename timer_type::duration;
+
 		// Scheduled task type.
 		class Task
 		{
-			friend class TaskScheduler;
+			friend class TaskScheduler<T>;
 
 		public:
 			// Enumerates the valid task states.
@@ -76,8 +80,6 @@ namespace pg
 				Idle = 0,	// Indicates the task is not currently active.
 				Active		// Indicates the task is currently active.
 			};
-			using timer_type = CommandTimer<std::chrono::milliseconds>;
-			using duration = timer_type::duration;
 
 		public:
 			// Constructs an uninitialized task.
@@ -138,39 +140,45 @@ namespace pg
 
 #pragma region TaskScheduler
 
+	template<class T>
 	template <size_t Size>
-	TaskScheduler::TaskScheduler(Task* (&tasks)[Size]) :
+	TaskScheduler<T>::TaskScheduler(Task* (&tasks)[Size]) :
 		tasks_(tasks)
 	{
 
 	}
 
-	TaskScheduler::TaskScheduler(Task* tasks[], size_t n) :
+	template<class T>
+	TaskScheduler<T>::TaskScheduler(Task* tasks[], size_t n) :
 		tasks_(tasks, n)
 	{
 		assert(n);
 	}
 
-	TaskScheduler::TaskScheduler(Task** first, Task** last) :
+	template<class T>
+	TaskScheduler<T>::TaskScheduler(Task** first, Task** last) :
 		tasks_(first, last)
 	{
 		assert(first && last);
 	}
 
-	void TaskScheduler::start()
+	template<class T>
+	void TaskScheduler<T>::start()
 	{
 		for (auto i : tasks_)
 			if (i->state_ == Task::State::Active)
 				i->timer_.start();
 	}
 
-	void TaskScheduler::stop()
+	template<class T>
+	void TaskScheduler<T>::stop()
 	{
 		for (auto i : tasks_)
 			i->timer_.stop();
 	}
 
-	void TaskScheduler::tick()
+	template<class T>
+	void TaskScheduler<T>::tick()
 	{
 		for (auto i : tasks_)
 			if (i->state_ == Task::State::Active)
@@ -178,7 +186,8 @@ namespace pg
 
 	}
 
-	void TaskScheduler::tasks(Task** first, Task** last)
+	template<class T>
+	void TaskScheduler<T>::tasks(Task** first, Task** last)
 	{
 		// Calling this method requires a subsequent call to start().
 		tasks_ = container_type(first, last);
@@ -187,34 +196,40 @@ namespace pg
 #pragma endregion
 #pragma region Task
 
-	TaskScheduler::Task::Task(duration interval, icommand* command, State state) :
+	template<class T>
+	TaskScheduler<T>::Task::Task(duration interval, icommand* command, State state) :
 		timer_(interval, command, true), state_(state) 
 	{
 		assert(command);
 	}
 
-	void TaskScheduler::Task::command(icommand* cmd)
+	template<class T>
+	void TaskScheduler<T>::Task::command(icommand* cmd)
 	{
 		assert(cmd);
 		timer_.command(cmd);
 	}
 
-	const icommand* TaskScheduler::Task::command() const
+	template<class T>
+	const icommand* TaskScheduler<T>::Task::command() const
 	{
 		return timer_.command();
 	}
 
-	void TaskScheduler::Task::interval(duration intvl)
+	template<class T>
+	void TaskScheduler<T>::Task::interval(duration intvl)
 	{
 		timer_.interval(intvl);
 	}
 
-	const TaskScheduler::Task::duration TaskScheduler::Task::interval() const
+	template<class T>
+	const typename TaskScheduler<T>::duration TaskScheduler<T>::Task::interval() const
 	{
 		return timer_.interval();
 	}
 
-	void TaskScheduler::Task::state(State val)
+	template<class T>
+	void TaskScheduler<T>::Task::state(State val)
 	{
 		if((state_ = val) == State::Active)
 			timer_.resume();
@@ -222,13 +237,14 @@ namespace pg
 			timer_.stop();
 	}
 
-	const TaskScheduler::Task::State& TaskScheduler::Task::state(void) const
+	template<class T>
+	const typename TaskScheduler<T>::Task::State& TaskScheduler<T>::Task::state(void) const
 	{
 		return state_;
 	}
 
 #pragma endregion
-}
+} // namespace pg
 
 # else // !defined __PG_HAS_NAMESPACES
 #  error Requires C++11 and namespace support.

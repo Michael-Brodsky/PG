@@ -62,12 +62,13 @@
 
 namespace pg
 {
-	// Type that asynchronously executes a sequence of commands objects.
+	// Type that executes a sequence of commands objects.
+	template<class T = Timer<std::chrono::milliseconds>>
 	class Sequencer : public iclockable, public icomponent
 	{
 	public:
-		using Timer = pg::Timer<std::chrono::milliseconds>;
-		using duration = typename Timer::duration;
+		using timer_type = T;
+		using duration = typename timer_type::duration;
 		
 		// Encapsulates information about an event.
 		struct Event
@@ -92,10 +93,11 @@ namespace pg
 			Done		// Current sequence is completed.
 		};
 
-		using Callback = void(*)(const Event&, Event::State);	// Client callback type.
-		using container_type = std::ArrayWrapper<Event*>;		// Sequence container type.
-		using iterator = container_type::iterator;				// Immutable sequence iterator.
-		using const_iterator = container_type::const_iterator;	// Mutable sequence iterator.
+		using Callback = void(*)(const typename Sequencer<T>::Event&, 
+			typename Sequencer<T>::Event::State);						// Client callback type.
+		using container_type = std::ArrayWrapper<Event*>;				// Sequence container type.
+		using iterator = typename container_type::iterator;				// Immutable sequence iterator.
+		using const_iterator = typename container_type::const_iterator;	// Mutable sequence iterator.
 
 	public:
 		//Constructs an uninitialized sequencer.
@@ -156,7 +158,7 @@ namespace pg
 		// Calls the `tick()' method.
 		void	clock() override;
 		// Executes the current callback.
-		void	callback(const_iterator, Event::State);
+		void	callback(const_iterator, typename Sequencer<T>::Event::State);
 
 	private:
 		container_type	events_;		// The current events collection.
@@ -165,48 +167,55 @@ namespace pg
 		bool			wrap_;			// Flag indicating whether the sequence wraps-around continuously.
 		bool			done_;			// Flag indicating whether the current sequence is completed.
 		bool			exec_;			// Flag indicating whether to execute the current event on resume.
-		Timer			event_timer_;	// Sequence event timer.
+		timer_type		event_timer_;	// Sequence event timer.
 	};
 
+	template<class T>
 	template <size_t Size>
-	Sequencer::Sequencer(Event* (&events)[Size], Callback callback, bool wrap) :
+	Sequencer<T>::Sequencer(Event* (&events)[Size], Callback callback, bool wrap) :
 		events_(events), current_(events), callback_(callback),
 		wrap_(wrap), done_(), exec_(), event_timer_()
 	{
 
 	}
 
-	Sequencer::Sequencer(Event* events[], size_t size, Callback callback, bool wrap) :
+	template<class T>
+	Sequencer<T>::Sequencer(Event* events[], size_t size, Callback callback, bool wrap) :
 		events_(events, size), current_(events), callback_(callback),
 		wrap_(wrap), done_(), exec_(), event_timer_()
 	{
 
 	}
 
-	Sequencer::Sequencer(Event** first, Event** last, Callback callback, bool wrap) :
+	template<class T>
+	Sequencer<T>::Sequencer(Event** first, Event** last, Callback callback, bool wrap) :
 		events_(first, last), current_(first), callback_(callback),
 		wrap_(wrap), done_(), exec_(), event_timer_()
 	{
 
 	}
 
-	Sequencer::container_type& Sequencer::events()
+	template<class T>
+	typename Sequencer<T>::container_type& Sequencer<T>::events()
 	{
 		return events_;
 	}
 
-	const Sequencer::container_type& Sequencer::events() const
+	template<class T>
+	const typename Sequencer<T>::container_type& Sequencer<T>::events() const
 	{
 		return events_;
 	}
 
-	void Sequencer::callback(Callback cb)
+	template<class T>
+	void Sequencer<T>::callback(Callback cb)
 	{
 		callback_ = cb;
 	}
 
 
-	void Sequencer::start()
+	template<class T>
+	void Sequencer<T>::start()
 	{
 		if (status() != Status::Active)
 		{
@@ -216,12 +225,14 @@ namespace pg
 		}
 	}
 
-	void Sequencer::stop()
+	template<class T>
+	void Sequencer<T>::stop()
 	{
 		event_timer_.stop();
 	}
 
-	void Sequencer::reset()
+	template<class T>
+	void Sequencer<T>::reset()
 	{
 		rewind();
 		if (status() == Status::Active)
@@ -234,7 +245,8 @@ namespace pg
 
 	}
 
-	void Sequencer::resume()
+	template<class T>
+	void Sequencer<T>::resume()
 	{
 		if (status() == Status::Idle)
 		{
@@ -252,7 +264,8 @@ namespace pg
 		}
 	}
 
-	void Sequencer::next()
+	template<class T>
+	void Sequencer<T>::next()
 	{
 		if (++current_ == std::end(events_))
 			current_ = std::begin(events_);
@@ -261,7 +274,8 @@ namespace pg
 		event_timer_.reset();
 	}
 
-	void Sequencer::prev()
+	template<class T>
+	void Sequencer<T>::prev()
 	{
 		if (current_ == std::begin(events_))
 			current_ = std::end(events_);
@@ -271,17 +285,20 @@ namespace pg
 		event_timer_.reset();
 	}
 
-	void Sequencer::wrap(bool value)
+	template<class T>
+	void Sequencer<T>::wrap(bool value)
 	{
 		wrap_ = value;
 	}
 
-	bool Sequencer::wrap() const
+	template<class T>
+	bool Sequencer<T>::wrap() const
 	{
 		return wrap_;
 	}
 
-	Sequencer::Status Sequencer::status() const
+	template<class T>
+	typename Sequencer<T>::Status Sequencer<T>::status() const
 	{
 		return event_timer_.active()
 			? Status::Active
@@ -290,27 +307,32 @@ namespace pg
 			: Status::Idle;
 	}
 
-	const Sequencer::Event& Sequencer::event() const
+	template<class T>
+	const typename Sequencer<T>::Event& Sequencer<T>::event() const
 	{
 		return **current_;
 	}
 
-	Sequencer::Event& Sequencer::event()
+	template<class T>
+	typename Sequencer<T>::Event& Sequencer<T>::event()
 	{
 		return const_cast<Event&>(**current_);
 	}
 
-	Sequencer::duration Sequencer::elapsed() const
+	template<class T>
+	typename Sequencer<T>::duration Sequencer<T>::elapsed() const
 	{
 		return event_timer_.elapsed();
 	}
 
-	uint8_t	Sequencer::index() const
+	template<class T>
+	uint8_t	Sequencer<T>::index() const
 	{
 		return static_cast<uint8_t>(std::distance(std::begin(events_), current_) + 1);
 	}
 
-	void Sequencer::tick()
+	template<class T>
+	void Sequencer<T>::tick()
 	{
 		if (event_timer_.expired())
 		{
@@ -321,15 +343,17 @@ namespace pg
 		}
 	}
 
-	void Sequencer::begin()
+	template<class T>
+	void Sequencer<T>::begin()
 	{
 		event_timer_.interval((*current_)->duration_);
 		if ((*current_)->command_)
 			(*current_)->command_->execute();
-		callback(current_, Event::State::Begin);
+		callback(current_, Sequencer<T>::Event::State::Begin);
 	}
 
-	void Sequencer::advance()
+	template<class T>
+	void Sequencer<T>::advance()
 	{
 		if (++current_ == std::end(events_))
 		{
@@ -340,28 +364,31 @@ namespace pg
 				stop();
 				--current_;
 				done_ = true;
-				//callback(current_, Event::State::End); // So clients can check if done.
 			}
 		}
 	}
 
-	void Sequencer::end()
+	template<class T>
+	void Sequencer<T>::end()
 	{
 		callback(current_, Event::State::End);
 	}
 
-	void Sequencer::rewind()
+	template<class T>
+	void Sequencer<T>::rewind()
 	{
 		current_ = std::begin(events_);
 		done_ = false;
 	}
 
-	void Sequencer::clock()
+	template<class T>
+	void Sequencer<T>::clock()
 	{
 		tick();
 	}
 
-	void Sequencer::callback(const_iterator event, Event::State state)
+	template<class T>
+	void Sequencer<T>::callback(const_iterator event, typename Sequencer<T>::Event::State state)
 	{
 		if (callback_)
 			(*callback_)(**event, state);

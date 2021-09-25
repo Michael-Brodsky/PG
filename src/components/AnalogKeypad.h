@@ -46,7 +46,7 @@
  *      Since the buttons and their functions are implementation-specific, 
  *      the `ButtonTag' type is only forward declared and must be defined by 
  *      the client, and the definition must be visible to the `Keypad' class. 
- *      Buttons are passed as a collection the the `Keypad' class constructor. 
+ *      Buttons are passed as a collection to the `Keypad' class constructor. 
  * 
  *      Longpress events can occur in one of three ways, when a button is 
  *      held down, after a button is released, or they can be disabled. The 
@@ -111,6 +111,7 @@
 # include "interfaces/icomponent.h" // `icomponent' interface.
 # include "utilities/Timer.h"	    // `Timer' type.
 
+# if defined __PG_HAS_NAMESPACES 
 
 namespace pg
 {
@@ -287,5 +288,9 @@ namespace pg
             (*callback_)(*button, e);
     }
 } // namespace pg
+
+# else // !defined __PG_HAS_NAMESPACES
+#  error Requires C++11 and namespace support.
+# endif // defined __PG_HAS_NAMESPACES 
 
 #endif //!defined __PG_ANALOGKEYPAD_H 
