@@ -3,6 +3,7 @@
 #include <utilities/TaskScheduler.h>
 using namespace pg;
 using namespace std::chrono;
+using Scheduler = pg::TaskScheduler<>; // Alias for default TaskScheduler.
 
 // Define a "clockable" type ...
 class Clockable : public pg::iclockable
@@ -29,14 +30,14 @@ struct ACommand : public icommand
 { void execute() override { Serial.println("ACommand executed"); } } acommand; // The execute() method can be anything, from blinking an LED to an entire program.
 
 // Create a collection of tasks.
-TaskScheduler::Task task1(seconds(1), &command1, TaskScheduler::Task::State::Active); // runs every second. (seconds is std::chrono::seconds)
-TaskScheduler::Task task2(seconds(2), &command2, TaskScheduler::Task::State::Active); // runs every two seconds.
-TaskScheduler::Task task3(seconds(3), &command3, TaskScheduler::Task::State::Active); // runs every three seconds.
-TaskScheduler::Task task4(seconds(4), &acommand, TaskScheduler::Task::State::Active); // runs every four seconds.
-TaskScheduler::Task* tasks[] =
+Scheduler::Task task1(seconds(1), &command1, Scheduler::Task::State::Active); // runs every second. (seconds is std::chrono::seconds)
+Scheduler::Task task2(seconds(2), &command2, Scheduler::Task::State::Active); // runs every two seconds.
+Scheduler::Task task3(seconds(3), &command3, Scheduler::Task::State::Active); // runs every three seconds.
+Scheduler::Task task4(seconds(4), &acommand, Scheduler::Task::State::Active); // runs every four seconds.
+Scheduler::Task* tasks[] =
 { &task1, &task2, &task3, &task4 };
 
-TaskScheduler ts(tasks);
+Scheduler ts(tasks);
 
 void setup() 
 {
