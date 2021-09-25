@@ -39,8 +39,9 @@
  *	sign(x): returns -1 if x < 0, else returns +1.
  *	sqr(x): returns x**2.
  *	cube(x): returns x**3.
+ *	fact(x): returns x!
  *	cmp(a, b): returns 1 if a>b, -1 if a<b or 0 if a=b, without branching.
- *	clamp(x, low, hi): returns x clamped on [low, hi], if (low < hi).
+ *	clamp(x, low, hi): returns x clamped in [low, hi], if (low < hi).
  *	exp(x): returns an approximation of e**x.
  *	rads(x): returns x degrees converted to radians.
  *	deg(x): returns x radians converted to degrees.
@@ -64,6 +65,10 @@
  *	norm(x,xmin,xmax,ymin,ymax): normalize x in [xmin,xmax] to x in [ymin,ymax].
  *	lerp(x): returns the linear interpolant of x between two known points.
  *	bilerp(x, y): returns the bilinear interpolant of (x, y) between four known points.
+ *	mean(first, last): returns the arithmetic mean of range [first, last).
+ *	median(first, last): returns the median value in the sorted range [first, last).
+ *  mode(first, last): returns the mode value in the sorted range [first, last).
+ *	range(first, last): returns the range of the values in range [first, last).
  *
  *	Notes:
  *
@@ -79,6 +84,8 @@
 # include "numbers"		// Numeric constants.
 # include "cmath"		// std::sqrt, std::abs
 # include "algorithm"	// std::min, std::max
+# include "numeric"		// Numeric algos.
+# include "imath.h"		// iseven, isodd
 
 # if defined __PG_HAS_NAMESPACES 
 
@@ -87,18 +94,35 @@
 #  undef sign
 #  undef sqr
 #  undef cube
+#  undef fact
 #  undef cmp
 #  undef clamp
 #  undef rads
 #  undef deg
+#  undef sin
+#  undef cos
+#  undef tan
 #  undef sec
 #  undef csc
 #  undef cot
+#  undef asin
+#  undef acos
+#  undef atan
+#  undef sinh
+#  undef cosh
+#  undef tanh
 #  undef sech
 #  undef csch
 #  undef coth
+#  undef hypot
+#  undef atan2
+#  undef norm
 #  undef lerp
 #  undef bilerp
+#  undef mean
+#  undef median
+#  undef mode
+#  undef range
 
 namespace pg
 {
@@ -145,6 +169,13 @@ namespace pg
 	/* Returns x**3. */
 	template<class T>
 	inline T cube(const T& x) { return x * x * x; }
+
+	template <class T>
+	inline typename details::is_integer<T>::type 
+		fact(T x)
+	{
+		return (x == 1 || x == 0) ? 1 : fact(x - 1) * x;
+	}
 
 	/* Returns 1 if a>b, -1 if a<b or 0 if a=b, without branching. */
 	template<class T>
@@ -386,6 +417,78 @@ namespace pg
 				q12 * (x2 - x) * (y - y1) +
 				q22 * (x - x1) * (y - y1)
 			);
+	}
+
+	/* Returns the arithmetic mean of range [first, last). */
+	template<class InputIt>	
+		inline typename std::iterator_traits<InputIt>::value_type
+			mean(InputIt first, InputIt last)
+	{
+		using value_type = typename std::iterator_traits<InputIt>::value_type;
+		
+		return first == last 
+			? value_type() 
+			: std::accumulate(first, last, value_type()) / std::distance(first, last);
+	}
+
+	/* Returns the median value in the sorted range [first, last). */
+	template<class InputIt>
+		inline typename std::iterator_traits<InputIt>::value_type
+			median(InputIt first, InputIt last)
+	{
+		using value_type = typename std::iterator_traits<InputIt>::value_type;
+		using difference_type = typename std::iterator_traits<InputIt>::difference_type;
+
+		const difference_type d = std::distance(first, last);
+
+		return first == last 
+			? value_type() 
+			: pg::isodd(d)
+				? *(first + d / 2)
+				: ((*(first + (d - 1) / 2) + *(first + (d + 1) / 2)) / 2);
+	}
+
+	/* Returns the mode value in the sorted range [first, last). */
+	template<class InputIt>
+	inline typename std::iterator_traits<InputIt>::value_type
+		mode(InputIt first, InputIt last, typename std::iterator_traits<InputIt>::value_type nomode = 
+			typename std::iterator_traits<InputIt>::value_type())
+	{
+		using value_type = typename std::iterator_traits<InputIt>::value_type;
+		value_type result = nomode;
+		unsigned count = 1, max_count = 0;
+
+		if (first != last)
+		{
+			value_type key = *first++;
+
+			for (; first != last; ++first)
+			{
+				if (key == *first) count++;
+				else
+				{
+					if (count > max_count)
+					{
+						result = *(first - 1);
+						max_count = count;
+					}
+					key = *first;
+					count = 1;
+				}
+			}
+			if (max_count < 2)
+				result = nomode;
+		}
+
+		return result;
+	}
+
+	/* Returns the range of the values in range [first, last). */
+	template<class InputIt>
+	inline typename std::iterator_traits<InputIt>::value_type
+		range(InputIt first, InputIt last)
+	{
+		return *std::max_element(first, last) - *std::min_element(first, last);
 	}
 
 } // namespace pg
