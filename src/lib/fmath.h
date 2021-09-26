@@ -4,7 +4,7 @@
  *	***************************************************************************
  *
  *	File: fmath.h
- *	Date: September 14, 2021
+ *	Date: September 25, 2021
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -31,7 +31,7 @@
  *
  *	The fmath library consists of mathematical functions templates useful in 
  *	scientific and engineering applications where execution speed is critical.
- *	The functions avoid branching where possible and use polynomial 
+ *	The functions avoid branching where possible and use numerical  
  *	approximations to compute results.
  *
  *	Library Functions:
@@ -79,12 +79,12 @@
  *	**************************************************************************/
 
 #if !defined __PG_FMATH_H
-# define __PG_FMATH_H	20210914L
+# define __PG_FMATH_H	20210925L
 
 # include "numbers"		// Numeric constants.
 # include "cmath"		// std::sqrt, std::abs
 # include "algorithm"	// std::min, std::max
-# include "numeric"		// Numeric algos.
+# include "numeric"		// std::accumulate.
 # include "imath.h"		// iseven, isodd
 
 # if defined __PG_HAS_NAMESPACES 
@@ -170,6 +170,7 @@ namespace pg
 	template<class T>
 	inline T cube(const T& x) { return x * x * x; }
 
+	/* Returns x! */
 	template <class T>
 	inline typename details::is_integer<T>::type 
 		fact(T x)
@@ -421,8 +422,8 @@ namespace pg
 
 	/* Returns the arithmetic mean of range [first, last). */
 	template<class InputIt>	
-		inline typename std::iterator_traits<InputIt>::value_type
-			mean(InputIt first, InputIt last)
+	inline typename std::iterator_traits<InputIt>::value_type
+		mean(InputIt first, InputIt last)
 	{
 		using value_type = typename std::iterator_traits<InputIt>::value_type;
 		
@@ -433,8 +434,8 @@ namespace pg
 
 	/* Returns the median value in the sorted range [first, last). */
 	template<class InputIt>
-		inline typename std::iterator_traits<InputIt>::value_type
-			median(InputIt first, InputIt last)
+	inline typename std::iterator_traits<InputIt>::value_type
+		median(InputIt first, InputIt last)
 	{
 		using value_type = typename std::iterator_traits<InputIt>::value_type;
 		using difference_type = typename std::iterator_traits<InputIt>::difference_type;

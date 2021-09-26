@@ -31,14 +31,14 @@
 #if !defined __PG_CLOCK_H 
 # define __PG_CLOCK_H 20210918L
 
+# include "ctime" // std::time_t type.
+
+# if defined __PG_HAS_NAMESPACES 
+
 # if defined ARDUINO 
 #  include "Arduino.h"
 #  define clock_api micros
 # endif
-
-# include "ctime" // std::time_t type.
-
-# if defined __PG_HAS_NAMESPACES 
 
 namespace std
 {
@@ -46,7 +46,6 @@ namespace std
 	{
 		static std::time_t steady_clock_api() { return clock_api(); }
 	} // namespace chrono
-
 } // namespace std
 
 # else // !defined __PG_HAS_NAMESPACES
