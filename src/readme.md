@@ -18,6 +18,3 @@ A collection of reusable objects that provide common functions encountered in em
 
 A collection of scientific, engineering and mathematical functions. 
 
-### docs 
-
-Miscellaneous design documents.
