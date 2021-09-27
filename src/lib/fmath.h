@@ -69,6 +69,8 @@
  *	median(first, last): returns the median value in the sorted range [first, last).
  *  mode(first, last): returns the mode value in the sorted range [first, last).
  *	range(first, last): returns the range of the values in range [first, last).
+ *	variance(first,last): returns the statistical variance of range [first, last). 
+ *	stddev(first,last): returns the statistical standard deviation of range [first, last). 
  *	newton(x, f(x), f'(x), e): returns an approximation of f(x) using the Newton-Raphson method.
  *	secant(x0, x1, f(x), e): returns an approximation of f(x) using the Secant method.
  *	quadratic(a,b,c): returns the roots of f(x)=ax**2+bx+c as a pair of complex numbers.
@@ -127,6 +129,8 @@
 #  undef median
 #  undef mode
 #  undef range
+#  undef variance 
+#  undef stddev
 #  undef newton
 #  undef secant
 #  undef quadratic
@@ -414,8 +418,8 @@ namespace pg
 	inline typename details::is_float<T>::type 
 		bilerp(
 			const T& x, const T& y, 
-			const T& x0, const T& x1, const T& x2,
-			const T& y0, const T& y1, const T& y2,
+			const T& x1, const T& x2,
+			const T& y1, const T& y2,
 			const T& q11, const T& q12, const T& q21, const T& q22)
 	{
 		return 1 / ((x2 - x1) * (y2 - y1)) * 
@@ -497,6 +501,33 @@ namespace pg
 		range(InputIt first, InputIt last)
 	{
 		return *std::max_element(first, last) - *std::min_element(first, last);
+	}
+
+	/* Returns the statistical variance of range [first, last). */
+	template<class InputIt>
+	inline typename std::iterator_traits<InputIt>::value_type
+		variance(InputIt first, InputIt last)
+	{
+		using value_type = typename std::iterator_traits<InputIt>::value_type;
+		typename std::iterator_traits<InputIt>::difference_type n = std::distance(first, last);
+		if (n < 2) return 0;
+
+		value_type var = 0;
+		value_type avg = mean(first, last);
+		InputIt first1 = first;
+
+		for (; first != last; ++first)
+			var += sqr(*first - avg);
+
+		return var / n;
+	}
+
+	/* Returns the statistical standard deviation of range [first, last). */
+	template<class InputIt>
+	inline typename std::iterator_traits<InputIt>::value_type
+		stddev(InputIt first, InputIt last)
+	{
+		return std::sqrt(variance(first, last));
 	}
 
 	/* Returns an approximation of f(x), with initial value x, after enough iterations of the Newton-Raphson method 
