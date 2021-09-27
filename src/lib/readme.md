@@ -14,4 +14,17 @@ Collection of templated typedefs for defining callback function signatures from 
 ### clock.h 
 Definitions of implementation-specific sources for the std::chrono clock types.
 
+### constants.h 
+Collection of scientific and engineering numerical constants.
 
+### fmath.h 
+Collection of engineering and scientific math functions.
+
+### imath.h 
+Collection of fast integer math functions.
+
+### library.h 
+Exposes the Arduino general API.
+
+### types.h 
+Defines some useful data types and constants. 
