@@ -70,12 +70,12 @@ namespace pg
 	public:
 		using baud_type = unsigned long;	// Baud rate type.
 		using protocol_type = char;			// Arduino #defined protocols type.
-		using map_type = std_pair<const char*, const protocol_type>; // Type that maps Arduino protocol #defines to human-readable strings. 
-		using baud_container_type = ArrayWrapper<const baud_type>;
-		using protocol_container_type = ArrayWrapper<const map_type>;
+		using map_type = std::pair<const char*, const protocol_type>; // Type that maps Arduino protocol #defines to human-readable strings. 
+		using baud_container_type = std::ArrayWrapper<const baud_type>;
+		using protocol_container_type = std::ArrayWrapper<const map_type>;
 		using baud_iterator_type = baud_container_type::const_iterator;
 		using protocol_iterator_type = protocol_container_type::const_iterator;
-		enum class Advance { Baud = 0, Protocol };	// Determines which value (baud or protocol) is advanced by prev() and next() methods.
+		enum class Select { Baud = 0, Protocol };	// Determines which value (baud or protocol) is advanced by prev() and next() methods.
 
 		static const baud_type SupportedBaudRates[];
 		static const map_type SupportedProtocols[];
@@ -97,16 +97,16 @@ namespace pg
 		void baud(const baud_type&);
 		// Returns the current baud rate.
 		const baud_type& baud() const;
-		// Selects the `Advance' mode.
-		void select(Advance);
-		// Advances to the next value (baud/protocol) in a list according to the `Advance' mode.
+		// Selects the `Select' mode.
+		void select(Select);
+		// Advances to the next value (baud/protocol) in a list according to the `Select' mode.
 		void next();
-		// Advances to the previous value (baud/protocol) in a list according to the `Advance' mode.
+		// Advances to the previous value (baud/protocol) in a list according to the `Select' mode.
 		void prev();
 		// Writes the currently stored baud/protocol values to EEPROM.
-		void serialize(EEPROMStream&) const override;
+		void serialize(EEStream&) const override;
 		// Reads baud/protocol values from the EEPROM and stores them.
-		void deserialize(EEPROMStream&) override;
+		void deserialize(EEStream&) override;
 		// Makes a copy of the current baud/protocol values.
 		void copy();
 		// Restores the current baud/protocol values from a copy.
@@ -123,7 +123,7 @@ namespace pg
 		protocol_iterator_type protocol_;		// Stores the current protocol value.
 		baud_iterator_type baud_rate_copy_;		// Stores a copy of the current baud rate.
 		protocol_iterator_type protocol_copy_;	// Stores a copy of the current protocol value.
-		Advance selection_;						// The current `Advance' mode.
+		Select selection_;						// The current `Select' mode.
 	};
 
 	// List of supported baud rates.
@@ -170,7 +170,7 @@ namespace pg
 	SerialProtocols::SerialProtocols() :
 		baud_rate_(match(DefaultBaudRate)), baud_rate_copy_(baud_rate_),
 		protocol_(match(DefaultProtocol)), protocol_copy_(protocol_),
-		selection_(Advance::Baud)
+		selection_(Select::Baud)
 	{
 
 	}
@@ -204,7 +204,7 @@ namespace pg
 		return *baud_rate_;
 	}
 
-	void SerialProtocols::select(Advance selection)
+	void SerialProtocols::select(Select selection)
 	{
 		selection_ = selection;
 	}
@@ -213,11 +213,11 @@ namespace pg
 	{
 		switch (selection_)
 		{
-		case SerialProtocols::Advance::Baud:
+		case SerialProtocols::Select::Baud:
 			if (++baud_rate_ == std::end(SupportedBaudRates))
 				baud_rate_ = std::begin(SupportedBaudRates);
 			break;
-		case SerialProtocols::Advance::Protocol:
+		case SerialProtocols::Select::Protocol:
 			if (++protocol_ == std::end(SupportedProtocols))
 				protocol_ = std::begin(SupportedProtocols);
 			break;
@@ -230,12 +230,12 @@ namespace pg
 	{
 		switch (selection_)
 		{
-		case SerialProtocols::Advance::Baud:
+		case SerialProtocols::Select::Baud:
 			if (baud_rate_ == std::begin(SupportedBaudRates))
 				baud_rate_ = std::end(SupportedBaudRates);
 			--baud_rate_;
 			break;
-		case SerialProtocols::Advance::Protocol:
+		case SerialProtocols::Select::Protocol:
 			if (protocol_ == std::begin(SupportedProtocols))
 				protocol_ = std::end(SupportedProtocols);
 			--protocol_;
@@ -245,13 +245,13 @@ namespace pg
 		}
 	}
 
-	void SerialProtocols::serialize(EEPROMStream& s) const
+	void SerialProtocols::serialize(EEStream& s) const
 	{
 		s << baud();
 		s << protocol().second;
 	}
 
-	void SerialProtocols::deserialize(EEPROMStream& s)
+	void SerialProtocols::deserialize(EEStream& s)
 	{
 		baud_type b;
 		protocol_type p;
