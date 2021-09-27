@@ -46,7 +46,6 @@
 # define __PG_COMPLEX_ 20210915L
 
 # include "limits"
-# include "lib/fmath.h"
 
 # if defined __PG_HAS_NAMESPACES 
 
@@ -224,8 +223,8 @@ namespace std
 	template<class U>
 	complex<T>& complex<T>::operator/=(const std::complex<U>& other)
 	{
-		real_ = (real_ * other.real() + imag_ * other.imag()) / (pg::sqr(other.real()) + pg::sqr(other.imag()));
-		imag_ = (imag_ * other.real() - real_ * other.imag()) / (pg::sqr(other.real()) + pg::sqr(other.imag()));
+		real_ = (real_ * other.real() + imag_ * other.imag()) / ((other.real() * other.real()) + (other.imag() *other.imag()));
+		imag_ = (imag_ * other.real() - real_ * other.imag()) / ((other.real() * other.real()) + (other.imag() * other.imag()));
 
 		return *this;
 	}
