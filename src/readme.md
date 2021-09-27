@@ -16,5 +16,5 @@ A collection of reusable objects that provide common functions encountered in em
 
 ### lib
 
-A collection of scientific, engineering and mathematical functions. 
+A collection of scientific, engineering, mathematical and miscellaneous functions. 
 
