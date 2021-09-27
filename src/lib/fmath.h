@@ -69,6 +69,9 @@
  *	median(first, last): returns the median value in the sorted range [first, last).
  *  mode(first, last): returns the mode value in the sorted range [first, last).
  *	range(first, last): returns the range of the values in range [first, last).
+ *	newton(x, f(x), f'(x), e): returns an approximation of f(x) using the Newton-Raphson method.
+ *	secant(x0, x1, f(x), e): returns an approximation of f(x) using the Secant method.
+ *	quadratic(a,b,c): returns the roots of f(x)=ax**2+bx+c as a pair of complex numbers.
  *
  *	Notes:
  *
@@ -86,6 +89,7 @@
 # include "algorithm"	// std::min, std::max
 # include "numeric"		// std::accumulate.
 # include "imath.h"		// iseven, isodd
+# include "complex"		// Complex number support.
 
 # if defined __PG_HAS_NAMESPACES 
 
@@ -123,6 +127,9 @@
 #  undef median
 #  undef mode
 #  undef range
+#  undef newton
+#  undef secant
+#  undef quadratic
 
 namespace pg
 {
@@ -490,6 +497,49 @@ namespace pg
 		range(InputIt first, InputIt last)
 	{
 		return *std::max_element(first, last) - *std::min_element(first, last);
+	}
+
+	/* returns an approximation of f(x), with initial value x, after enough iterations of the Newton-Raphson method 
+	   to satisfy the error e (dx is the first derivative of f(x). */
+	template<class T, class Fx, class Dx>
+	T newton(T x, Fx f, Dx dx, T e)
+	{
+		T y = T();
+
+		while (std::abs((y = x - f(x) / dx(x)) - x) > e)
+			x = y;
+
+		return y;
+	}
+
+	/* Returns an approximation of f(x), with initial values x0 and x1, after 
+	   enough iterations of the Secant method to satisfy the error e. */
+	template<class T, class Fx>
+	T secant(T x0, T x1, Fx f, T e)
+	{
+		T y = T();
+
+		while (std::abs((y = x1 - f(x1) * (x1 - x0) / (f(x1) - f(x0))) - x1) > e)
+		{
+			y = x1 - f(x1) * (x1 - x0) / (f(x1) - f(x0));
+			x0 = x1; x1 = y;
+		}
+
+		return y;
+	}
+	
+	/* Returns the roots of f(x)=ax**2+bx+c as a pair of complex numbers. */
+	template<class T>
+	std::pair<std::complex<T>, std::complex<T>>
+		quadratic(T a, T b, T c)
+	{
+		T disc = pg::sqr(b) - 4 * a * c;
+		T num = disc < 0 ? std::sqrt(-disc) : std::sqrt(disc), denom = 2 * a;
+		std::pair<std::complex<T>, std::complex<T>> result = disc < 0
+			? std::pair<std::complex<T>, std::complex<T>>{ std::complex<T>{ -b / denom, num / denom }, std::complex<T>{ -b / denom, -num / denom} }
+			: std::pair<std::complex<T>, std::complex<T>>{ (-b + num) / denom, (-b - num) / denom };
+
+		return result;
 	}
 
 } // namespace pg
