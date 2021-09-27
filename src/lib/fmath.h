@@ -29,9 +29,9 @@
  *
  *	Description:
  *
- *	The fmath library consists of mathematical functions templates useful in 
- *	scientific and engineering applications where execution speed is critical.
- *	The functions avoid branching where possible and use numerical  
+ *	The fmath library is a collection of mathematical function templates useful 
+ *	in scientific and engineering applications where execution speed is 
+ *	critical. The functions avoid branching where possible and use numerical  
  *	approximations to compute results.
  *
  *	Library Functions:
@@ -223,7 +223,7 @@ namespace pg
 	inline typename details::is_float<T>::type 
 		sin(const T& rads)
 	{ 
-		const T z = pg::sqr(rads);
+		const T z = sqr(rads);
 		
 		return rads * (0.9999999946860073367 + z * (-0.1666665668400715135 + z * 
 			(0.008333025138969367298 + z * (-0.0001980741872742697087 + 2.60190306765146018e-6 * z))));
@@ -234,7 +234,7 @@ namespace pg
 	inline typename details::is_float<T>::type 
 		cos(const T& rads)
 	{ 
-		const T z = pg::sqr(rads);
+		const T z = sqr(rads);
 
 		return 0.9999999990181006763 + z * (-0.4999999804925358106 + z * 
 			(0.04166659852743524949 + z * (-0.001388796971511749935 + z * 
@@ -246,7 +246,7 @@ namespace pg
 	inline typename details::is_float<T>::type 
 		tan(const T& rads)
 	{
-		const T z = pg::sqr(rads);
+		const T z = sqr(rads);
 
 		return (((z * 0.092151584 + 0.11806635) * z + 0.334961658) * z + 1) * rads;
 	}
@@ -256,7 +256,7 @@ namespace pg
 	inline typename details::is_float<T>::type
 		sec(const T& rads)
 	{
-		return 1 / pg::cos(rads);
+		return 1 / cos(rads);
 	}
 
 	/* Returns an approximation of csc(rads), where rads in [-pi, pi] radians. */
@@ -264,7 +264,7 @@ namespace pg
 	inline typename details::is_float<T>::type
 		csc(const T& rads)
 	{
-		return 1 / pg::sin(rads);
+		return 1 / sin(rads);
 	}
 
 	/* Returns an approximation of cot(rads), where rads in [-pi, pi] radians. */
@@ -272,7 +272,7 @@ namespace pg
 	inline typename details::is_float<T>::type
 		cot(const T& rads)
 	{
-		return 1 / pg::tan(rads);
+		return 1 / tan(rads);
 	}
 
 	/* Returns an approximation of sinh(rads). */
@@ -280,7 +280,7 @@ namespace pg
 	inline typename details::is_float<T>::type
 		sinh(const T& rads)
 	{
-		return (pg::exp(rads) - pg::exp(-rads)) / 2;
+		return (exp(rads) - exp(-rads)) / 2;
 	} 
 
 	/* Returns an approximation of cosh(rads). */
@@ -288,7 +288,7 @@ namespace pg
 	inline typename details::is_float<T>::type
 		cosh(const T& rads)
 	{
-		return (pg::exp(rads) + pg::exp(-rads)) / 2;
+		return (exp(rads) + exp(-rads)) / 2;
 	}
 
 	/* Returns an approximation of tanh(rads). */
@@ -296,7 +296,7 @@ namespace pg
 	inline typename details::is_float<T>::type
 		tanh(const T& rads)
 	{
-		return (pg::exp(rads * 2) - 1) / (pg::exp(rads * 2) + 1);
+		return (exp(rads * 2) - 1) / (exp(rads * 2) + 1);
 	}
 
 	/* Returns an approximation of coth(rads). */
@@ -304,7 +304,7 @@ namespace pg
 	inline typename details::is_float<T>::type
 		coth(const T& rads)
 	{
-		return (pg::exp(rads * 2) + 1) / (pg::exp(rads * 2) - 1);
+		return (exp(rads * 2) + 1) / (exp(rads * 2) - 1);
 	}
 
 	/* Returns an approximation of sech(rads). */
@@ -312,7 +312,7 @@ namespace pg
 	inline typename details::is_float<T>::type
 		sech(const T& rads)
 	{
-		return (2 * pg::exp(rads)) / (pg::exp(rads * 2) + 1);
+		return (2 * exp(rads)) / (exp(rads * 2) + 1);
 	}
 
 	/* Returns an approximation of csch(rads). */
@@ -320,7 +320,7 @@ namespace pg
 	inline typename details::is_float<T>::type
 		csch(const T& rads)
 	{
-		return (2 * pg::exp(rads)) / (pg::exp(rads * 2) - 1);
+		return (2 * exp(rads)) / (exp(rads * 2) - 1);
 	}
 
 	/* Returns an approximation of asin(rads), where rads in [-1, 1] radians. */
@@ -331,8 +331,8 @@ namespace pg
 		// Algo not so great for rads < 0, so we use |rads| and reflect that over -1 < rads < 0.
 		const T z = std::abs(rads);
 
-		return pg::sign(rads) * (std::numbers::pi_inv_two - std::sqrt(1 - z) * 
-			(1.5707288 - 0.2121144 * z + 0.074261 * pg::sqr(z) - 0.0187293 * pg::cube(z)));
+		return sign(rads) * (std::numbers::pi_inv_two - std::sqrt(1 - z) * 
+			(1.5707288 - 0.2121144 * z + 0.074261 * sqr(z) - 0.0187293 * cube(z)));
 	}
 
 	/* Returns an approximation of acos(rads), where rads in [-1, 1] radians. */
@@ -365,7 +365,7 @@ namespace pg
 		constexpr const T a = 0.0776509570923569;
 		constexpr const T b = -0.287434475393028;
 		constexpr const T c = std::numbers::pi_inv_four - a - b;
-		const T z = pg::sqr(rads);
+		const T z = sqr(rads);
 
 		return ((a * z + b) * z + c) * rads;
 	}
@@ -387,9 +387,9 @@ namespace pg
 	inline typename details::is_float<T>::type
 		atan2(const T& y, const T& x)
 	{
-		const int sx = static_cast<int>(pg::sign(x)), sy = static_cast<int>((int)pg::sign(y));
+		const int sx = static_cast<int>(sign(x)), sy = static_cast<int>((int)sign(y));
 
-		return pg::sqr(sx) * pg::atan(y / x) + ((1 - sx) >> 1) * (1 + sy - pg::sqr(sy)) * std::numbers::pi;
+		return sqr(sx) * atan(y / x) + ((1 - sx) >> 1) * (1 + sy - sqr(sy)) * std::numbers::pi;
 	}
 
 	/* Normalizes x in [xmin,xmax] to x in [ymin,ymax]. */
@@ -451,7 +451,7 @@ namespace pg
 
 		return first == last 
 			? value_type() 
-			: pg::isodd(d)
+			: isodd(d)
 				? *(first + d / 2)
 				: ((*(first + (d - 1) / 2) + *(first + (d + 1) / 2)) / 2);
 	}
@@ -499,7 +499,7 @@ namespace pg
 		return *std::max_element(first, last) - *std::min_element(first, last);
 	}
 
-	/* returns an approximation of f(x), with initial value x, after enough iterations of the Newton-Raphson method 
+	/* Returns an approximation of f(x), with initial value x, after enough iterations of the Newton-Raphson method 
 	   to satisfy the error e (dx is the first derivative of f(x). */
 	template<class T, class Fx, class Dx>
 	T newton(T x, Fx f, Dx dx, T e)
@@ -533,10 +533,11 @@ namespace pg
 	std::pair<std::complex<T>, std::complex<T>>
 		quadratic(T a, T b, T c)
 	{
-		T disc = pg::sqr(b) - 4 * a * c;
+		T disc = sqr(b) - 4 * a * c;
 		T num = disc < 0 ? std::sqrt(-disc) : std::sqrt(disc), denom = 2 * a;
 		std::pair<std::complex<T>, std::complex<T>> result = disc < 0
-			? std::pair<std::complex<T>, std::complex<T>>{ std::complex<T>{ -b / denom, num / denom }, std::complex<T>{ -b / denom, -num / denom} }
+			? std::pair<std::complex<T>, std::complex<T>>{ std::complex<T>{ -b / denom, num / denom }, 
+				std::complex<T>{ -b / denom, -num / denom} }
 			: std::pair<std::complex<T>, std::complex<T>>{ (-b + num) / denom, (-b - num) / denom };
 
 		return result;
