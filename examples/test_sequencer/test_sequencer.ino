@@ -1,7 +1,7 @@
 #include <pg.h>
-#include <components/Sequencer.h>
+#include <components/EventSequencer.h>
 using namespace pg;
-using MySequencer = Sequencer<>; // Alias for default Sequencer.
+using Sequencer = EventSequencer<>; // Alias for default Sequencer.
 
 // Class Foo represents a reusable type, usually part of a user-library 
 // that performs some commonly required, but complex task. 
@@ -33,9 +33,9 @@ private:
 // and possibly callback functions.
 
 // Handles MySequencer callbacks (not strictly necessary).
-void sequencer_cb(const MySequencer::Event& event, MySequencer::Event::State state) 
+void sequencer_cb(const Sequencer::Event& event, Sequencer::Event::State state) 
 {
-  Serial.print(event.name_); Serial.print(": "); Serial.println(state == MySequencer::Event::State::Begin ? "begin" : "end");
+  Serial.print(event.name_); Serial.print(": "); Serial.println(state == Sequencer::Event::State::Begin ? "begin" : "end");
 }
 
 // Objects needed by the program.
@@ -44,12 +44,12 @@ Bar b(&f); // Orders pizza, then calls your mom asking for money ...
 // Commands that "talk" to the objects.
 Command<void, Foo, void> cmd_foo(&f, &Foo::doSomething);
 Command<void, Bar, void> cmd_bar(&b, &Bar::check_value);
-// MySequencer event objects 
-MySequencer::Event event_foo = { "Foo Event", std::chrono::seconds(2), &cmd_foo };
-MySequencer::Event event_bar = { "Bar Event", std::chrono::seconds(4), &cmd_bar };
-MySequencer::Event* events[] = { &event_foo, &event_bar };
-// MySequencer object.
-MySequencer seq(events, &sequencer_cb, true); // If callbacks not used, then substitute nullptr for the callback function. 
+// Sequencer event objects 
+Sequencer::Event event_foo = { "Foo Event", std::chrono::seconds(2), &cmd_foo };
+Sequencer::Event event_bar = { "Bar Event", std::chrono::seconds(4), &cmd_bar };
+//Sequencer::Event* events[] = { &event_foo, &event_bar };
+// Sequencer object.
+Sequencer seq({ &event_foo, &event_bar }, &sequencer_cb, true); // If callbacks not used, then substitute nullptr for the callback function. 
 
 void setup() 
 {
