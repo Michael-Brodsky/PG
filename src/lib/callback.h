@@ -60,7 +60,7 @@
 namespace pg
 {
 
-# if defined __PG_HAS_VARIADIC_TEMPLATES	// Requires C++11 or later.
+# if defined __PG_HAS_VARIADIC_TEMPLATES
 
 	template <class Ret, class Obj = void, class ... Args>
 	struct callback

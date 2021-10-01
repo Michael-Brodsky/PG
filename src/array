@@ -40,6 +40,7 @@
 # define __PG_ARRAY_ 20210822L
 
 # include "cassert"		// `assert()' macro.
+# include "initializer_list"
 # include "algorithm"	// Container iterator & algorithm functions.
 
 # if defined __PG_HAS_NAMESPACES

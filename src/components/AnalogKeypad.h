@@ -106,7 +106,7 @@
 # define __PG_ANALOGKEYPAD_H 20210718L
 
 # include "array"                   // `ArrayWrapper' type.
-# include "lib/types.h"             // `pin_t', `analog_t' types.
+# include "lib/pgtypes.h"             // `pin_t', `analog_t' types.
 # include "interfaces/iclockable.h"	// `iclockable' interface.
 # include "interfaces/icomponent.h" // `icomponent' interface.
 # include "utilities/Timer.h"	    // `Timer' type.
@@ -159,15 +159,17 @@ namespace pg
             None        // Event is never triggered.
         };
 
-        using Callback = void(*)(const Button&, Event);         // Client callback type.
+        using event_type = Event;
+        using button_type = Button;
+        using callback_type = callback<void, void, const button_type&, event_type>::type;
         using container_type = std::ArrayWrapper<const Button>; // Button collection container type.
         using const_iterator = container_type::const_iterator;  // Button container immutable iterator.
 
     public:
         template <size_t Size>
-        Keypad(pin_t, Callback, LongPress, duration, const Button(&)[Size]);
-        Keypad(pin_t, Callback, LongPress, duration, const Button[], size_t);
-        Keypad(pin_t, Callback, LongPress, duration, const Button*, const Button*);
+        Keypad(pin_t, callback_type, LongPress, duration, const Button(&)[Size]);
+        Keypad(pin_t, callback_type, LongPress, duration, const Button[], size_t);
+        Keypad(pin_t, callback_type, LongPress, duration, const Button*, const Button*);
 
     public:
         // Polls the keypad for button events.
@@ -189,7 +191,7 @@ namespace pg
 
     private:
         pin_t           pin_;           // The attached analog GPIO input pin.
-        Callback        callback_;      // Client callback.
+        callback_type        callback_;      // Client callback.
         container_type  buttons_;       // The current button collection.
         const_iterator  current_;       // Points to the currently triggered button. 
         Timer<duration> lp_timer_;	    // Keypad longpress event timer.
@@ -199,21 +201,21 @@ namespace pg
     };
 
     template <size_t Size>
-    Keypad::Keypad(pin_t pin, Callback callback, LongPress lp_mode, duration lp_interval, const Button(&buttons)[Size]) :
+    Keypad::Keypad(pin_t pin, callback_type callback, LongPress lp_mode, duration lp_interval, const Button(&buttons)[Size]) :
         pin_(pin), callback_(callback), buttons_(buttons), current_(std::end(buttons_)),
         lp_timer_(lp_interval), lp_interval_(lp_interval), lp_mode_(lp_mode), repeat_()
     {
 
     }
 
-    Keypad::Keypad(pin_t pin, Callback callback, LongPress lp_mode, duration lp_interval, const Button buttons[], size_t size) :
+    Keypad::Keypad(pin_t pin, callback_type callback, LongPress lp_mode, duration lp_interval, const Button buttons[], size_t size) :
         pin_(pin), callback_(callback), buttons_(buttons, size), current_(std::end(buttons_)),
         lp_timer_(lp_interval), lp_interval_(lp_interval), lp_mode_(lp_mode), repeat_()
     {
 
     }
 
-    Keypad::Keypad(pin_t pin, Callback callback, LongPress lp_mode, duration lp_interval, const Button* first, const Button* last) :
+    Keypad::Keypad(pin_t pin, callback_type callback, LongPress lp_mode, duration lp_interval, const Button* first, const Button* last) :
         pin_(pin), callback_(callback), buttons_(first, last), current_(last),
         lp_timer_(lp_interval), lp_interval_(lp_interval), lp_mode_(lp_mode), repeat_()
     {

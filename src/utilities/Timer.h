@@ -61,7 +61,7 @@ namespace pg
 	public:
 		using duration = T;
 		using time_point = std::chrono::time_point<std::chrono::steady_clock, duration>;
-		using clock = std::chrono::steady_clock;
+		using clock = std::chrono::steady_clock; // chg to clock_type.
 
 	public:
 		// Constructs an uninitialized timer.

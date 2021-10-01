@@ -40,9 +40,9 @@
 #if !defined __PG_CHRONO_
 # define __PG_CHRONO_ 20210817L
 
-# include "lib/clock.h"
-# include "ratio"	// std::ratio and related types needed by std::chrono::duration_values.
-# include "ctime"	// std::time_t type and time-related functions.
+# include "lib/clock.h"	// std::chrono::steady_clock steady clock source.
+# include "ratio"		// std::ratio and related types needed by std::chrono::duration_values.
+# include "ctime"		// std::time_t type and time-related functions.
 
 # if defined __PG_HAS_NAMESPACES
 
