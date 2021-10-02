@@ -43,10 +43,10 @@
 # include "cstdio"
 # include "cstring"
 # include "cstdlib"
+# include "array"
 # include "lib/pgtypes.h"
 # include "interfaces/icomponent.h"	// `icomponent' interface.
 # include "interfaces/iclockable.h"
-# include "array"
 # include "utilities/Timer.h"
 # include <LiquidCrystal.h>
 
@@ -95,10 +95,12 @@ namespace pg
 			explicit Screen(Field**, Field**, const char* = nullptr);
 			// Constructs a screen from a list of fields.
 			explicit Screen(std::initializer_list<Field*>, const char* = nullptr);
+			// Constructs a screen from a container of fields.			
+			explicit Screen(const container_type&, const char* = nullptr);
 
 		public:
-			template<std::size_t N>
 			// Sets the screen fields collection from an array.
+			template<std::size_t N>
 			void fields(Field* (&)[N]);
 			// Sets the screen fields collection from a pointer and size.
 			void fields(Field* [], std::size_t);
@@ -106,6 +108,8 @@ namespace pg
 			void fields(Field**, Field**);
 			// Sets the screen fields collection from a list.
 			void fields(std::initializer_list<Field*>);
+			// Sets the screen fields collection from a container.
+			void fields(container_type&);
 			// Returns the current fields collection as a container.
 			const container_type& fields() const;
 			// Sets the screen label.
@@ -254,7 +258,7 @@ namespace pg
 		Screen*			screen_;	// Current `Screen' object.
 		Cursor			cursor_;	// Current display cursor setting.
 		bool			display_;	// Current display/nodisplay setting.
-		Mode			mode_;		// Current display mode setting.
+		Mode			mode_;		// Current operating mode setting.
 		Event			event_;		// Currently pending update events.
 		timer_type		timer_;		// Display blink timer.
 		callback_type	callback_;	// Client callback.
@@ -284,22 +288,32 @@ namespace pg
 	{}
 
 	template<uint8_t Cols, uint8_t Rows>
+	LCDDisplay<Cols, Rows>::Screen::Screen(const container_type& fields, const char* label) : 
+		fields_(fields), label_(label), current_(std::begin(fields_))
+	{
+
+	}
+
+	template<uint8_t Cols, uint8_t Rows>
 	template<std::size_t N>
 	void LCDDisplay<Cols, Rows>::Screen::fields(Field* (&fields)[N])
 	{
 		fields_ = container_type(fields);
+		current_ = std::begin(fields_);
 	}
 
 	template<uint8_t Cols, uint8_t Rows>
 	void LCDDisplay<Cols, Rows>::Screen::fields(Field* fields[], std::size_t n)
 	{
 		fields_ = container_type(fields, n);
+		current_ = std::begin(fields_);
 	}
 
 	template<uint8_t Cols, uint8_t Rows>
 	void LCDDisplay<Cols, Rows>::Screen::fields(Field** first, Field** last)
 	{ 
 		fields_ = container_type(first, last); 
+		current_ = std::begin(fields_);
 	}
 
 	template<uint8_t Cols, uint8_t Rows>
@@ -307,6 +321,12 @@ namespace pg
 	{
 		fields_ = container_type(const_cast<Field**>(il.begin()), il.size());
 		current_ = std::begin(fields_);
+	}
+
+	template<uint8_t Cols, uint8_t Rows>
+	void LCDDisplay<Cols, Rows>::Screen::fields(container_type& fields)
+	{
+		fields_ = fields;
 	}
 
 	template<uint8_t Cols, uint8_t Rows>

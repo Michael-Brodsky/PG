@@ -97,8 +97,8 @@ namespace pg
 		using sequencer_type = EventSequencer<T>;
 		using event_type = typename sequencer_type::Event;
 		using state_type = typename sequencer_type::Event::State;
-		using callback_type = typename callback<void, void, const event_type&, state_type>::type;
-		using container_type = std::ArrayWrapper<event_type*>;
+		using callback_type = typename callback<void, void, const Event*, state_type>::type;
+		using container_type = std::ArrayWrapper<Event*>;
 		using iterator = typename container_type::iterator;
 		using const_iterator = typename container_type::const_iterator;
 
@@ -107,63 +107,74 @@ namespace pg
 		EventSequencer() = default;
 		// Constructs the sequencer from an array of events.
 		template <std::size_t N>
-		explicit EventSequencer(event_type* (&)[N], callback_type, bool = false);
+		explicit EventSequencer(Event* (&)[N], callback_type, bool = false);
 		// Constructs the sequencer from a pointer to and size of events..
-		EventSequencer(event_type* [], std::size_t, callback_type, bool = false);
+		EventSequencer(Event* [], std::size_t, callback_type, bool = false);
 		// Constructs the sequencer from a range of events.
-		EventSequencer(event_type**, event_type**, callback_type, bool = false);
+		EventSequencer(Event**, Event**, callback_type, bool = false);
 		// Constructs the sequencer from a list of events.
-		EventSequencer(std::initializer_list<event_type*>, callback_type, bool = false);
+		EventSequencer(std::initializer_list<Event*>, callback_type, bool = false);
+		// Constructs the sequencer from a container of events.
+		EventSequencer(const container_type&, callback_type, bool = false);
 
 	public:
-		// Returns a mutable reference to the sequence of events.
-		container_type& events();
-		// Returns a immutable reference to the sequence of events.
+		// Sets the events collection from an array.
+		template <std::size_t N>
+		void			events(Event* (&)[N]);
+		// Sets the events collection from a pointer and size.
+		void			events(Event* [], std::size_t);
+		// Sets the events collection from a range.
+		void			events(Event**, Event**);
+		// Sets the events collection from a list.
+		void			events(std::initializer_list<Event*>);
+		// Sets the events collection from a container.
+		void			events(container_type&); 
+		// Returns the current events collection.
 		const container_type& events() const;
 		// Sets the client callback.
-		void	callback(callback_type);
+		void			callback(callback_type);
 		// Starts the current sequence.
-		void	start();
+		void			start();
 		// Stops the current sequence.
-		void	stop();
+		void			stop();
 		// Resets the current sequence to the beginning.
-		void	reset();
+		void			reset();
 		// Resumes the sequence at the current event.
-		void	resume();
+		void			resume();
 		// Advances to the next sequence event.
-		void	next();
+		void			next();
 		// Advances to the previous sequence event.
-		void	prev();
+		void			prev();
 		// Sets the sequence wrap-around mode.
-		void	wrap(bool);
+		void			wrap(bool);
 		// Returns the current sequence wrap-around mode.
-		bool	wrap() const;
+		bool			wrap() const;
 		// Returns the EventSequencer's current status.
-		Status	status() const;
-		// Returns an immutable reference to the current event.
-		const Event& event() const;
-		// Returns a mutable reference to the current event.
-		Event& event();
+		Status			status() const;
+		// Returns a reference to the current event.
+		const Event*	event() const;
+		// Sets the current event.
+		void			event(Event*);
 		// Returns the current event's time elapsed in milliseconds.
-		duration elapsed() const;
+		duration		elapsed() const;
 		// Returns the index of the current event within the sequence.
-		uint8_t	index() const;
+		uint8_t			index() const;
 		// Steps through and executes the current sequence chronologically.
-		void	tick();
+		void			tick();
 
 	private:
 		// Begins the current event.
-		void	begin();
+		void			begin();
 		// Advances to the next event in the current sequence.
-		void	advance();
+		void			advance();
 		// Ends the current event.
-		void	end();
+		void			end();
 		// Rewinds the sequence to the first event.
-		void	rewind();
+		void			rewind();
 		// Calls the `tick()' method.
-		void	clock() override;
+		void			clock() override;
 		// Executes the current callback.
-		void	callback(const_iterator, state_type);
+		void			callback(const_iterator, state_type);
 
 	private:
 		container_type	events_;		// The current events collection.
@@ -177,7 +188,7 @@ namespace pg
 
 	template<class T>
 	template <std::size_t N>
-	EventSequencer<T>::EventSequencer(event_type* (&events)[N], callback_type callback, bool wrap) :
+	EventSequencer<T>::EventSequencer(Event* (&events)[N], callback_type callback, bool wrap) :
 		events_(events), current_(events_.begin()), callback_(callback),
 		wrap_(wrap), done_(), exec_(), event_timer_()
 	{
@@ -185,7 +196,7 @@ namespace pg
 	}
 
 	template<class T>
-	EventSequencer<T>::EventSequencer(event_type* events[], std::size_t size, callback_type callback, bool wrap) :
+	EventSequencer<T>::EventSequencer(Event* events[], std::size_t size, callback_type callback, bool wrap) :
 		events_(events, size), current_(events_.begin()), callback_(callback),
 		wrap_(wrap), done_(), exec_(), event_timer_()
 	{
@@ -193,7 +204,7 @@ namespace pg
 	}
 
 	template<class T>
-	EventSequencer<T>::EventSequencer(event_type** first, event_type** last, callback_type callback, bool wrap) :
+	EventSequencer<T>::EventSequencer(Event** first, Event** last, callback_type callback, bool wrap) :
 		events_(first, last), current_(events_.begin()), callback_(callback),
 		wrap_(wrap), done_(), exec_(), event_timer_()
 	{
@@ -201,17 +212,55 @@ namespace pg
 	}
 
 	template<class T>
-	EventSequencer<T>::EventSequencer(std::initializer_list<event_type*> il, callback_type callback, bool wrap) :
-		events_(const_cast<event_type**>(il.begin()), il.size()), current_(events_.begin()), callback_(callback),
+	EventSequencer<T>::EventSequencer(std::initializer_list<Event*> il, callback_type callback, bool wrap) :
+		events_(const_cast<Event**>(il.begin()), il.size()), current_(events_.begin()), callback_(callback),
 		wrap_(wrap), done_(), exec_(), event_timer_()
 	{
 
 	}
 
 	template<class T>
-	typename EventSequencer<T>::container_type& EventSequencer<T>::events()
+	EventSequencer<T>::EventSequencer(const container_type& events, callback_type callback, bool wrap) :
+		events_(events), current_(events_.begin()), callback_(callback),
+		wrap_(wrap), done_(), exec_(), event_timer_()
 	{
-		return events_;
+
+	}
+
+	template<class T>
+	template <std::size_t N>
+	void EventSequencer<T>::events(Event* (&events)[N])
+	{
+		events_ = events;
+		current_ = std::begin(events_);
+	}
+
+	template<class T>
+	void EventSequencer<T>::events(Event* events[], std::size_t n)
+	{
+		events_ = container_type(events, n);
+		current_ = std::begin(events_);
+	}
+
+	template<class T>
+	void EventSequencer<T>::events(Event** first, Event** last)
+	{
+		events_ = container_type(first, last);
+		current_ = std::begin(events_);
+	}
+
+	template<class T>
+	void EventSequencer<T>::events(std::initializer_list<Event*> il)
+	{
+		events_ = (const_cast<Event**>(il.begin()), il.size());
+		current_ = std::begin(events_);
+	}
+
+	template<class T>
+	void EventSequencer<T>::events(container_type& events)
+	{
+		events_ = events;
+		current_ = std::begin(events_);
 	}
 
 	template<class T>
@@ -225,7 +274,6 @@ namespace pg
 	{
 		callback_ = cb;
 	}
-
 
 	template<class T>
 	void EventSequencer<T>::start()
@@ -321,15 +369,15 @@ namespace pg
 	}
 
 	template<class T>
-	const typename EventSequencer<T>::Event& EventSequencer<T>::event() const
+	const typename EventSequencer<T>::Event* EventSequencer<T>::event() const
 	{
-		return **current_;
+		return *current_;
 	}
 
 	template<class T>
-	typename EventSequencer<T>::Event& EventSequencer<T>::event()
+	void EventSequencer<T>::event(Event* event)
 	{
-		return const_cast<Event&>(**current_);
+		*current_ = event;
 	}
 
 	template<class T>
@@ -406,7 +454,7 @@ namespace pg
 	void EventSequencer<T>::callback(const_iterator event, state_type state)
 	{
 		if (callback_)
-			(*callback_)(**event, state);
+			(*callback_)(*event, state);
 	}
 
 } // namespace pg
