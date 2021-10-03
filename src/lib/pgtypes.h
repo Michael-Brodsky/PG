@@ -49,8 +49,7 @@
 #if !defined __PG_TYPES_H
 # define __PG_TYPES_H 20210923L
 
-# include <cstdint>
-# include "pg.h"
+# include "boards.h"
 
 # if !(defined __PIN_T_DEFINED || defined pin_t)
 #  if !defined __PIN_T_TYPE
@@ -81,6 +80,7 @@ namespace pg
 
 # if defined __ANALOG_T_DEFINED
 	typedef __ANALOG_T_TYPE analog_t;	// Unsigned integral type that represents an analog input level.
+	constexpr analog_t AnalogMax() { return ((analog_t)1 << pg::board_traits<board_type>::adc_digits); }
 # endif 
 
 } // namespace pg

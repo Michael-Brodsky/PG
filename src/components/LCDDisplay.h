@@ -1,5 +1,5 @@
 /*
- *	This files declares a class that configures and asynchronously manages an 
+ *	This files defines a class that configures and asynchronously manages an 
  *	LCD display device.
  *
  *	***************************************************************************

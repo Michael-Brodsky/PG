@@ -60,7 +60,7 @@
 
 namespace pg
 {
-	// Schedules tasks to run at specified intervals.
+	// Schedules tasks to run concurrently at specified intervals.
 	template<class T = CommandTimer<std::chrono::milliseconds>>
 	class TaskScheduler
 	{
@@ -117,20 +117,31 @@ namespace pg
 		// Constructs an uninitialized TaskScheduler.
 		TaskScheduler() = default;
 		// Constructs a TaskScheduler from an array of Tasks.
-		template <size_t Size>
-		explicit TaskScheduler(Task* (&)[Size]);
+		template <std::size_t N>
+		explicit TaskScheduler(Task* (&)[N]);
 		// Constructs a TaskScheduler from pointer to and size of Tasks.
 		TaskScheduler(Task* [], size_t);
 		// Constructs a TaskScheduler from a range of Tasks.
 		TaskScheduler(Task**, Task**);
+		// Constructs a TaskScheduler from a list of Tasks.
+		TaskScheduler(std::initializer_list<Task*>);
 
 	public:
 		// Starts the TaskScheduler.
 		void start();
 		// Stops the TaskScheduler.
 		void stop();
-		// Sets the current tasks from a range (requires a restart).
+		// Sets the tasks from an array (requires a restart).
+		template <std::size_t N>
+		void tasks(Task* (&)[N]);
+		// Sets the tasks from a pointer and size (requires a restart).
+		void tasks(Task* [], std::size_t n);
+		// Sets the tasks from a range (requires a restart).
 		void tasks(Task**, Task**);
+		// Sets the tasks from a list (requires a restart).
+		void tasks(std::initializer_list<Task*>);
+		// Returns the current tasks collection.
+		const container_type& tasks() const;
 		// Checks for and executes any currently scheduled tasks.
 		void tick();
 
@@ -141,18 +152,18 @@ namespace pg
 #pragma region TaskScheduler
 
 	template<class T>
-	template <size_t Size>
-	TaskScheduler<T>::TaskScheduler(Task* (&tasks)[Size]) :
+	template <std::size_t N>
+	TaskScheduler<T>::TaskScheduler(Task* (&tasks)[N]) :
 		tasks_(tasks)
 	{
-
+		assert(N > 0);
 	}
 
 	template<class T>
 	TaskScheduler<T>::TaskScheduler(Task* tasks[], size_t n) :
 		tasks_(tasks, n)
 	{
-		assert(n);
+		assert(n > 0);
 	}
 
 	template<class T>
@@ -160,6 +171,43 @@ namespace pg
 		tasks_(first, last)
 	{
 		assert(first && last);
+	}
+
+	template<class T>
+	TaskScheduler<T>::TaskScheduler(std::initializer_list<Task*> il) : 
+		tasks_(const_cast<Task**>(il.begin()), il.size())
+		
+	{
+		assert(il.size() > 0);
+	}
+
+	template<class T>
+	template <std::size_t N>
+	void TaskScheduler<T>::tasks(Task* (&tasks)[N])
+	{
+		// Calling this method requires a subsequent call to start().
+		tasks_ = container_type(tasks);
+	}
+
+	template<class T>
+	void TaskScheduler<T>::tasks(Task* tasks[], std::size_t n)
+	{
+		// Calling this method requires a subsequent call to start().
+		tasks_ = container_type(tasks, n);
+	}
+
+	template<class T>
+	void TaskScheduler<T>::tasks(Task** first, Task** last)
+	{
+		// Calling this method requires a subsequent call to start().
+		tasks_ = container_type(first, last);
+	}
+
+	template<class T>
+	void TaskScheduler<T>::tasks(std::initializer_list<Task*> il)
+	{
+		// Calling this method requires a subsequent call to start().
+		tasks_ = container_type(const_cast<Task**>(il.begin()), il.size());
 	}
 
 	template<class T>
@@ -184,13 +232,6 @@ namespace pg
 			if (i->state_ == Task::State::Active)
 				i->timer_.tick();
 
-	}
-
-	template<class T>
-	void TaskScheduler<T>::tasks(Task** first, Task** last)
-	{
-		// Calling this method requires a subsequent call to start().
-		tasks_ = container_type(first, last);
 	}
 
 #pragma endregion

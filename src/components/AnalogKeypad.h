@@ -46,14 +46,13 @@
  *      Since the buttons and their functions are implementation-specific, 
  *      the `ButtonTag' type is only forward declared and must be defined by 
  *      the client, and the definition must be visible to the `Keypad' class. 
- *      Buttons are passed as a collection to the `Keypad' class constructor. 
  * 
  *      Longpress events can occur in one of three ways, when a button is 
  *      held down, after a button is released, or they can be disabled. The 
  *      longpress modes are enumerated by the `Longpress' type and the mode 
  *      is specified by the client at time of construction, as is the long-
  *      press interval which determines how long it takes to trigger the 
- *      event in milliseconds. 
+ *      event. 
  * 
  *      The `Keypad' class also provides a mechanism to to repeatedly fire 
  *      the button `press' event. Clients enable/disable the repeat mode 
@@ -75,12 +74,11 @@
  *      // Client instantiates a button collection. Each button must have a unique 
  *      // analog triggering level (see `analogRead()') and, the buttons MUST be 
  *      // instantiated in increasing order of this level within the collection, from lowest to highest.
- *      Keypad::Button buttons[] = { Keypad::Button(ButtonTag::Up, 0), Keypad::Button(ButtonTag::Up, 42), ... }; 
+ *      Keypad::Button buttons[] = { Keypad::Button(ButtonTag::Up, 0), Keypad::Button(ButtonTag::Down, 42), ... }; 
  * 
- *      // Client instantiates the `Keypad' object specifying the analog input 
- *      // pin to attach, the callback, the longpress mode and interval and 
- *      // the button collection.
- *      Keypad keypad(0, Keypad::Callaback(&callback), Keypad::Longpress::Hold, 1000U, buttons);
+ *      // Client instantiates the `Keypad' object specifying the button collection,  
+ *      // analog input pin to attach, the callback, the longpress mode and interval.
+ *      Keypad keypad(buttons, 0, Keypad::Callaback(&callback), Keypad::Longpress::Hold, seconds(1));
  * 
  *      // Client polls the keypad in a loop.
  *      void loop() { 
@@ -88,7 +86,7 @@
  *      }
  * 
  *      If a button event occurs, the keypad object calls the client callback
- *      function, passing it the button and the type of event.
+ *      function, passing the button and type of event.
  * 
  *  Notes:
  * 
@@ -115,7 +113,8 @@
 
 namespace pg
 {
-    enum class ButtonTag;       // Forward decl, button tags are user-defined.
+    // TODO: Move this into Button class, like AnalogInput::Range::Tag.
+    //enum class ButtonTag;       // Forward decl, button tags are user-defined.
     // Type that encapsulates behaviors of a keypad attached to an analog GPIO input.
     class Keypad : public iclockable, public icomponent
     {
@@ -133,21 +132,23 @@ namespace pg
         // Keypad button type.
         struct Button
         {
-            const ButtonTag tag_;			// Uniquely identifying tag.
+            enum class Tag;
+
+            const Tag       tag_;			// Uniquely identifying tag.
             const analog_t  trigger_level_;	// The analog input triggering level. 
                                             // Button collections MUST be instantiated in increasing order of 
                                             // the `trigger_level_' field, from lowest to highest.
 
-            Button(ButtonTag tag, analog_t trigger_level) :
+            Button(Tag tag, analog_t trigger_level) :
                 tag_(tag), trigger_level_(trigger_level)
             {}
-            bool operator==(const Button& other) const
+            friend bool operator==(const Button& lhs, const Button& rhs)
             {
-                return trigger_level_ == other.trigger_level_;
+                return lhs.trigger_level_ == rhs.trigger_level_;
             }
-            bool operator<(const Button& other) const
+            friend bool operator<(const Button& lhs, const Button& rhs)
             {
-                return trigger_level_ < other.trigger_level_;
+                return lhs.trigger_level_ < rhs.trigger_level_;
             }
         };
 
@@ -191,7 +192,7 @@ namespace pg
         void            callback(const_iterator, Event);
 
     private:
-        pin_t           pin_;           // The attached analog GPIO input pin.
+        pin_t           pin_;           // The attached analog input pin.
         callback_type   callback_;      // Client callback.
         container_type  buttons_;       // The current button collection.
         const_iterator  current_;       // Points to the currently triggered button. 

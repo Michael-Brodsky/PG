@@ -77,12 +77,18 @@
 # if (defined __cplusplus)
 #  if __cplusplus >= 202002L
 #   define __PG_HAS_CPP20 1
+#   define __PG_HAS_CPP17 1
+#   define __PG_HAS_CPP14 1
+#   define __PG_HAS_CPP11 1
 #  endif // if __cplusplus >= 202002L
 #  if  __cplusplus >= 201703L
 #   define __PG_HAS_CPP17 1
+#   define __PG_HAS_CPP14 1
+#   define __PG_HAS_CPP11 1
 #  endif // if  __cplusplus >= 201703L
 #  if  __cplusplus >= 201402L
 #   define __PG_HAS_CPP14 1
+#   define __PG_HAS_CPP11 1
 #  endif // if  __cplusplus >= 201402L
 #  if  __cplusplus >= 201103L
 #   define __PG_HAS_CPP11 1
