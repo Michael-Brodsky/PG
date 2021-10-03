@@ -30,9 +30,10 @@
  *	Description:
  * 
  *	The `AnalogInput' class is used to poll analog input pins and issue client 
- *	callbacks if the value read from the connected input falls within a 
- *	specified range. The nested `Range' type identifies and encapsulates input 
- *	ranges.
+ *	callbacks if the value read from the attached input falls within a 
+ *	specified range. The nested `Range' type encapsulates information about  
+ *	input ranges. Input values are read by the Arduino analogRead() API 
+ *	function.
  * 
  *	AnalogInput objects must be attached to a valid GPIO analog input, either 
  *	in the constructor or the attach() method. If range checking and callbacks 
@@ -40,8 +41,8 @@
  *	and callback() methods respectively. If ranges and callbacks are not used, 
  *	these parameters should be omitted.
  * 
- *	Range objects contain two fields, range_ as std:pair<analog_t, analog_t> 
- *	and a tag_ which is an enumerated type that is used to uniquely identify 
+ *	Range objects contain two fields, `range_' as std:pair<analog_t, analog_t> 
+ *	and `tag_' which is an enumerated type that is used to uniquely identify 
  *	ranges. Clients must define an AnalogInput::Range::Tag object which must 
  *	be visible to the AnalogInput class:
  * 
@@ -63,39 +64,42 @@
  *	in addition to reading the input value, also checks whether the value 
  *	falls within a specified range and, if so, executes a callback.
  *
- *	AnalogInput also defines six comparison functions which can be used to 
- *	compare two AnalogInput objects for equality. The functions compare on the 
- *	last value read from the attached input. If clients need to read a new 
- *	value immediately before comparison, operator() should be used with the 
- *	comparison functions:
+ *	AnalogInput also specializes six non-member comparison functions which can 
+ *	be used to compare two AnalogInput objects for equality. The functions 
+ *	compare on the last value read from the attached input. If clients need to 
+ *	read a new value immediately before comparison, operator() should be used 
+ *	with the comparison functions:
  * 
  *		AnalogInput in1(0), in2(1);
  *		bool b1 = in1 == in2;		// Compares the last known input values.
  *		bool b2 = in1() == in2();	// Reads and compares the current values.
+ * 
+ *	AnalogInput objects are not copyable or assignable as this would lead to 
+ *	multiple instances attached to the same analog input, which is redundant.
  *
  *	**************************************************************************/
 
 #if !defined __PG_ANALOG_INPUT_H
 #define __PG_ANALOG_INPUT_H 20211002L
 
-#include "utility"
-#include "array"
-#include "lib/pgtypes.h"
-#include "interfaces/icomponent.h"
-#include "interfaces/iclockable.h"
+#include "utility"					// std::pair type.
+#include "array"					// Fixed-size array types.
+#include "lib/pgtypes.h"			// pin_t and analog_t types.
+#include "interfaces/icomponent.h"	// icomponent interface.
+#include "interfaces/iclockable.h"	// iclockable interface.
 
 # if defined __PG_HAS_NAMESPACES
 
 namespace pg
 {
-	// Asyncronous analog input poller.
+	// Asyncronous analog input polling class.
 	class AnalogInput : public icomponent, public iclockable 
 	{
 	public:
-		// Encapsulates information about a range of inputs.
+		// Encapsulates information about a range of analog input values.
 		struct Range
 		{
-			enum class Tag;
+			enum class Tag; // Must be defined by clients.
 			using range_type = std::pair<analog_t, analog_t>; // first is low, second is high.
 
 			range_type	range_;	// The input range, low, high.
@@ -112,18 +116,18 @@ namespace pg
 	public:
 		// Constructs an uninitialized AnalogInput.
 		AnalogInput();
-		// Constructs an AnalogInput connected to the given analog input pin.
+		// Constructs an AnalogInput attached to the given analog input pin.
 		explicit AnalogInput(pin_t);
-		// Constructs an AnalogInput connected to the given pin and with the specified input ranges.
+		// Constructs an AnalogInput attached to the given pin and with input ranges specified in an array.
 		template<std::size_t N>
 		AnalogInput(pin_t, callback_type, Range* (&)[N]);
-		// Constructs an AnalogInput connected to the given pin and with the specified input ranges.
+		// Constructs an AnalogInput attached to the given pin and with input ranges specified by a pointer and size.
 		AnalogInput(pin_t, callback_type, Range* [], std::size_t);
-		// Constructs an AnalogInput connected to the given pin and with the specified input ranges.
+		// Constructs an AnalogInput attached to the given pin and with input ranges specified by a range.
 		AnalogInput(pin_t, callback_type, Range**, Range**);
-		// Constructs an AnalogInput connected to the given pin and with the specified input ranges.
+		// Constructs an AnalogInput attached to the given pin and with input ranges specified by a list.
 		AnalogInput(pin_t, callback_type, std::initializer_list<Range*>);
-		// Constructs an AnalogInput connected to the given pin and with the specified input ranges.
+		// Constructs an AnalogInput attached to the given pin and with input ranges specified by a container.
 		AnalogInput(pin_t, callback_type, container_type&);
 		// No copy constructor.
 		AnalogInput(const AnalogInput&) = delete;
@@ -154,6 +158,8 @@ namespace pg
 		analog_t value() const;
 		// Reads and returns the current input value.
 		analog_t operator()();
+		// Polls the input and executes a callback if any input ranges were matched.
+		void			poll();
 
 	private:
 		// Reads the current input value and returns the matched range, if any.
@@ -162,9 +168,9 @@ namespace pg
 		void clock() override;
 
 	private:
-		pin_t			pin_;		// The GPIO input pin.
+		pin_t			pin_;		// The attached GPIO analog input pin.
 		analog_t		value_;		// The last value read from the input.
-		container_type	ranges_;	// The collection of ranges.
+		container_type	ranges_;	// The collection of input ranges.
 		iterator		current_;	// The last range matched by the last input value, if any.
 		callback_type	callback_;	// The client callback.
 	};
@@ -286,6 +292,18 @@ namespace pg
 		return value_;
 	}
 
+	void AnalogInput::poll()
+	{
+		iterator i = read_input();
+
+		if (i != current_)
+		{
+			if (i != std::end(ranges_))
+				(*callback_)(pin_, value_, *i);
+			current_ = i;
+		}
+	}
+
 	typename AnalogInput::iterator AnalogInput::read_input()
 	{
 		iterator i = std::end(ranges_);
@@ -305,16 +323,7 @@ namespace pg
 
 	void AnalogInput::clock()
 	{
-		bool match = false;
-
-		iterator i = read_input();
-
-		if (i != current_)
-		{
-			if(i != std::end(ranges_))
-				(*callback_)(pin_, value_, *i);
-			current_ = i;
-		}
+		poll();
 	}
 
 #pragma endregion
