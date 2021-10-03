@@ -57,7 +57,6 @@ namespace pg
 			bool in_range(analog_t value) { return value >= range_.first && value <= range_.second; }
 		};
 
-		using range_type = std::pair<analog_t, analog_t>;
 		using callback_type = typename callback<void, void, pin_t, analog_t, Range*>::type;
 		using container_type = std::ArrayWrapper<Range*>;
 		using iterator = typename container_type::iterator;
