@@ -24,6 +24,54 @@
  *
  *  You should have received a copy of the GNU General Public License
  *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ * 
+ *	**************************************************************************
+ * 
+ *	Description:
+ * 
+ *	The `AnalogInput' class is used to poll analog input pins and issue client 
+ *	callbacks if the value read from the connected input falls within a 
+ *	specified range. The nested `Range' type identifies and encapsulates input 
+ *	ranges.
+ * 
+ *	AnalogInput objects must be attached to a valid GPIO analog input, either 
+ *	in the constructor or the attach() method. If range checking and callbacks 
+ *	are used, they must also be specified in the constructor, or the ranges() 
+ *	and callback() methods respectively. If ranges and callbacks are not used, 
+ *	these parameters should be omitted.
+ * 
+ *	Range objects contain two fields, range_ as std:pair<analog_t, analog_t> 
+ *	and a tag_ which is an enumerated type that is used to uniquely identify 
+ *	ranges. Clients must define an AnalogInput::Range::Tag object which must 
+ *	be visible to the AnalogInput class:
+ * 
+ *		enum class pg::AnalogInput::Range::Tag
+ *		{ 
+ *			LowRange = 0, 
+ *			HighRange, 
+ *			OtherRange 
+ *		};
+ * 
+ *		pg::AnalogInput::Range range1 = { 
+ *			AnalogInput::Range::range_type(0,60), 
+ *			pg::AnalogInput::Range::Tag::LowRange
+ *		};
+ * 
+ *	AnalogInput objects can be polled synchronously with `operator()' or 
+ *	asynchronously using the clock() method. `operator()' simply returns the 
+ *	value returned by the Arduino analogRead() function. The clock() method, 
+ *	in addition to reading the input value, also checks whether the value 
+ *	falls within a specified range and, if so, executes a callback.
+ *
+ *	AnalogInput also defines six comparison functions which can be used to 
+ *	compare two AnalogInput objects for equality. The functions compare on the 
+ *	last value read from the attached input. If clients need to read a new 
+ *	value immediately before comparison, operator() should be used with the 
+ *	comparison functions:
+ * 
+ *		AnalogInput in1(0), in2(1);
+ *		bool b1 = in1 == in2;		// Compares the last known input values.
+ *		bool b2 = in1() == in2();	// Reads and compares the current values.
  *
  *	**************************************************************************/
 
@@ -83,6 +131,10 @@ namespace pg
 		AnalogInput& operator=(const AnalogInput&) = delete;
 
 	public:
+		// Attaches to the specified analog input pin.
+		void attach(pin_t);
+		// Returns the attached analog input pin, or pg::InvalidPin if not attached.
+		pin_t attach() const;
 		// Sets the input ranges from an array.
 		template<std::size_t N>
 		void ranges(Range* (&)[N]);
@@ -116,6 +168,8 @@ namespace pg
 		iterator		current_;	// The last range matched by the last input value, if any.
 		callback_type	callback_;	// The client callback.
 	};
+
+#pragma region member_funcs
 
 	AnalogInput::AnalogInput() :
 		pin_(InvalidPin), value_(), callback_(), ranges_(), current_()
@@ -166,6 +220,16 @@ namespace pg
 
 		for (auto j : il)
 			*ranges_[i++] = *j;
+	}
+
+	void AnalogInput::attach(pin_t pin)
+	{
+		pin_ = pin;
+	}
+
+	pin_t AnalogInput::attach() const
+	{
+		return pin_;
 	}
 
 	template<std::size_t N>
@@ -253,6 +317,9 @@ namespace pg
 		}
 	}
 
+#pragma endregion
+#pragma region non-member_funcs
+
 	inline bool operator==(const AnalogInput& lhs, const AnalogInput& rhs)
 	{
 		return lhs.value() == rhs.value();
@@ -283,6 +350,7 @@ namespace pg
 		return !(lhs < rhs);
 	}
 
+#pragma endregion
 } // namespace pg
 
 # else // !defined __PG_HAS_NAMESPACES
