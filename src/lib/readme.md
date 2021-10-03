@@ -26,5 +26,5 @@ Collection of fast integer math functions.
 ### library.h 
 Exposes the Arduino general API.
 
-### types.h 
+### pgtypes.h 
 Defines some useful data types and constants. 
