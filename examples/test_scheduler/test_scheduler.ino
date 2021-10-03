@@ -34,10 +34,8 @@ Scheduler::Task task1(seconds(1), &command1, Scheduler::Task::State::Active); //
 Scheduler::Task task2(seconds(2), &command2, Scheduler::Task::State::Active); // runs every two seconds.
 Scheduler::Task task3(seconds(3), &command3, Scheduler::Task::State::Active); // runs every three seconds.
 Scheduler::Task task4(seconds(4), &acommand, Scheduler::Task::State::Active); // runs every four seconds.
-Scheduler::Task* tasks[] =
-{ &task1, &task2, &task3, &task4 };
 
-Scheduler ts(tasks);
+Scheduler ts({ &task1, &task2, &task3, &task4 });
 
 void setup() 
 {

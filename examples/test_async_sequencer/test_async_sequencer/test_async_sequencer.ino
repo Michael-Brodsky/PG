@@ -4,10 +4,10 @@
 #include <utilities/TaskScheduler.h>
 using namespace pg;
 using namespace std::chrono;
-using Sequencer = EventSequencer<>;
 using Scheduler = TaskScheduler<>;
+using Sequencer = EventSequencer<>;
 
-// This program demonstrates how a TaskScheduler can be used to trigger tasks asynchronously,  
+// This program demonstrates how a Scheduler can be used to trigger tasks asynchronously,  
 // at predefined intervals and start/stop tasks based on criteria. This can greatly improve 
 // CPU resource use by executing tasks only when they're needed and at a rate which doesn't 
 // overload the CPU or prevent other tasks from timely execution.
@@ -59,7 +59,7 @@ Keypad keypad({ &right_button,&up_button,&down_button,&left_button,&select_butto
 
 // Task scheduling parameters & objects.
 const milliseconds KeypadPollingInterval = milliseconds(100); // Keypad is polled every 100ms.
-const milliseconds SequencerClockingInterval = microseconds(500000); // us automatically converted to ms.
+const milliseconds SequencerClockingInterval = microseconds(500000); // us automatically converted ms.
 
 ClockCommand keypad_clock(&keypad);
 ClockCommand sequencer_clock(&seq);

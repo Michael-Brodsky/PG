@@ -33,9 +33,9 @@ private:
 // and possibly callback functions.
 
 // Handles MySequencer callbacks (not strictly necessary).
-void sequencer_cb(const Sequencer::Event& event, Sequencer::Event::State state) 
+void sequencer_cb(const Sequencer::Event* event, Sequencer::Event::State state) 
 {
-  Serial.print(event.name_); Serial.print(": "); Serial.println(state == Sequencer::Event::State::Begin ? "begin" : "end");
+  Serial.print(event->name_); Serial.print(": "); Serial.println(state == Sequencer::Event::State::Begin ? "begin" : "end");
 }
 
 // Objects needed by the program.
@@ -49,7 +49,7 @@ Sequencer::Event event_foo = { "Foo Event", std::chrono::seconds(2), &cmd_foo };
 Sequencer::Event event_bar = { "Bar Event", std::chrono::seconds(4), &cmd_bar };
 //Sequencer::Event* events[] = { &event_foo, &event_bar };
 // Sequencer object.
-Sequencer seq({ &event_foo, &event_bar }, &sequencer_cb, true); // If callbacks not used, then substitute nullptr for the callback function. 
+Sequencer seq({ &event_foo,&event_bar }, &sequencer_cb, true); // If callbacks not used, then substitute nullptr for the callback function. 
 
 void setup() 
 {

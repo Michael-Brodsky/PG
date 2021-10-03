@@ -21,12 +21,12 @@ enum class pg::ButtonTag  // Enumerates valid tags that identify Keypad::Button 
 };
 
 // Button press event handler.
-void keypadPressEvent(const Keypad::Button& button)
+void keypadPressEvent(const Keypad::Button* button)
 {
   const char* event_type = " button pressed";
   const char* btn = nullptr;
 
-  switch (button.tag_)
+  switch (button->tag_)
   {
   case ButtonTag::Down:
     btn = button_name[0];
@@ -54,12 +54,12 @@ void keypadPressEvent(const Keypad::Button& button)
 }
 
 // Button release event handler.
-void keypadReleaseEvent(const Keypad::Button& button)
+void keypadReleaseEvent(const Keypad::Button* button)
 {
   const char* event_type = " button released";
   const char* btn = nullptr;
 
-  switch (button.tag_)
+  switch (button->tag_)
   {
   case ButtonTag::Down:
     btn = button_name[0];
@@ -87,12 +87,12 @@ void keypadReleaseEvent(const Keypad::Button& button)
 }
 
 // Button long-press event handler.
-void keypadLongpressEvent(const Keypad::Button& button)
+void keypadLongpressEvent(const Keypad::Button* button)
 {
   const char* event_type = " button long pressed";
   const char* btn = nullptr;
 
-  switch (button.tag_)
+  switch (button->tag_)
   {
   case ButtonTag::Down:
     btn = button_name[0];
@@ -120,7 +120,7 @@ void keypadLongpressEvent(const Keypad::Button& button)
 }
 
 // Keypad callback function.
-void keypad_cb(const Keypad::Button& button, Keypad::Event event)
+void keypad_cb(const Keypad::Button* button, Keypad::Event event)
 {
   static bool lp = false;
 
@@ -157,15 +157,15 @@ const analog_t LeftButtonTriggerLevel = 600;
 const analog_t SelectButtonTriggerLevel = 800;
 
 // Keypad button objects.
-const Keypad::Button right_button(ButtonTag::Right, RightButtonTriggerLevel);
-const Keypad::Button up_button(ButtonTag::Up, UpButtonTriggerLevel);
-const Keypad::Button down_button(ButtonTag::Down, DownButtonTriggerLevel);
-const Keypad::Button left_button(ButtonTag::Left, LeftButtonTriggerLevel);
-const Keypad::Button select_button(ButtonTag::Select, SelectButtonTriggerLevel);
-const Keypad::Button buttons[] = { right_button, up_button, down_button, left_button, select_button };
+Keypad::Button right_button(ButtonTag::Right, RightButtonTriggerLevel);
+Keypad::Button up_button(ButtonTag::Up, UpButtonTriggerLevel);
+Keypad::Button down_button(ButtonTag::Down, DownButtonTriggerLevel);
+Keypad::Button left_button(ButtonTag::Left, LeftButtonTriggerLevel);
+Keypad::Button select_button(ButtonTag::Select, SelectButtonTriggerLevel);
+Keypad::Button buttons[] = { right_button, up_button, down_button, left_button, select_button };
 
 // Keypad object.
-Keypad keypad(KeypadInputPin, &keypad_cb, Keypad::LongPress::Hold, KeypadLongPressInterval, buttons);
+Keypad keypad({ &right_button,&up_button,&down_button,&left_button,&select_button }, KeypadInputPin, &keypad_cb, Keypad::LongPress::Hold, KeypadLongPressInterval);
 
 void setup() 
 {
