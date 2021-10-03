@@ -7,7 +7,7 @@ using MySequencer = EventSequencer<>; // Alias for default Sequencer.
 
 // This program demonstrates how a Keypad Shield can be used to control an event sequence.
 
-enum class pg::ButtonTag  // Enumerates valid tags that identify Keypad::Button objects.
+enum class Keypad::Button::Tag  // Enumerates valid tags that identify Keypad::Button objects.
 {
   Right = 0,
   Up,
@@ -34,11 +34,11 @@ const analog_t DownButtonTriggerLevel = 400;
 const analog_t LeftButtonTriggerLevel = 600;
 const analog_t SelectButtonTriggerLevel = 800;
 // Keypad button objects.
-Keypad::Button right_button(ButtonTag::Right, RightButtonTriggerLevel);
-Keypad::Button up_button(ButtonTag::Up, UpButtonTriggerLevel);
-Keypad::Button down_button(ButtonTag::Down, DownButtonTriggerLevel);
-Keypad::Button left_button(ButtonTag::Left, LeftButtonTriggerLevel);
-Keypad::Button select_button(ButtonTag::Select, SelectButtonTriggerLevel);
+Keypad::Button right_button(Keypad::Button::Tag::Right, RightButtonTriggerLevel);
+Keypad::Button up_button(Keypad::Button::Tag::Up, UpButtonTriggerLevel);
+Keypad::Button down_button(Keypad::Button::Tag::Down, DownButtonTriggerLevel);
+Keypad::Button left_button(Keypad::Button::Tag::Left, LeftButtonTriggerLevel);
+Keypad::Button select_button(Keypad::Button::Tag::Select, SelectButtonTriggerLevel);
 Keypad::Button buttons[] = { right_button, up_button, down_button, left_button, select_button };
 // Keypad and MySequencer objects instatiated from parameters.
 Keypad keypad({ &right_button,&up_button,&down_button,&left_button,&select_button }, KeypadInputPin, &keypad_cb);
@@ -63,7 +63,7 @@ void keypad_cb(const Keypad::Button* button, Keypad::Event event)
   case Keypad::Event::Press:
     switch (button->tag_)
     {
-    case ButtonTag::Select: // Toggle the sequencer's status on each press of <Select> button.
+    case Keypad::Button::Tag::Select: // Toggle the sequencer's status on each press of <Select> button.
       seq.status() == MySequencer::Status::Active ? Serial.println("Sequencer Stopped") : Serial.println("Sequencer Started");
       seq.status() == MySequencer::Status::Active ? seq.stop() : seq.resume();
       break;
