@@ -1,5 +1,5 @@
 # Pg Standard Library
-C++ Standard Library for the Arduino that uses only static memory (no new, malloc) along with collections of generic, reusable objects and utilities for rapid development and portability.
+C++ Standard Library for the Arduino that uses only static memory (no new, malloc) along with collections of generic, reusable objects and utilities for rapid application development and portability.
 
 ### interfaces 
 A collection of abstract interface classes for implementing common C++ design patterns.
