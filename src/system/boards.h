@@ -30,7 +30,34 @@
  *	Description:
  *
  *	This file defines a collection of types that identify Arduino-compatible 
- *	boards and their hardware traits.
+ *	boards and their hardware traits. Traits are declared as constexpr and 
+ *	can be evaluated at compile-time.
+ * 
+ *	Board types are identified by object-like macros defined by the Arduino 
+ *	implementation according to the target board selected in the IDE. These are 
+ *	used to select one of the `board_type' tags (empty structs) which identify 
+ *	known boards. The tags can be used as template parameters to select one 
+ *	of the specialized `board_traits' types to access the board's hardware 
+ *	traits. `board_traits' provide the following:
+ * 
+ *		adc_digits: bit resolution of the onboard ADC, 
+ *		pwm_frequency(pin): default PWM frequency of the given output pin, 
+ *		pwm_timer(pin): timer number that controls the PWM output of the pin, 
+ *		clock_frequency: CPU clock frequency in Hz.
+ * 
+ *	Both `board_type' and `board_traits' are visible to and can be evaluated by 
+ *	clients at compile-time:
+ * 
+ *		frequency_t cf = board_traits<board_type>::clock_frequency;
+ * 
+ *	pwm_frequency() returns 0 and pwm_timer() returns `InvalidPin' if the 
+ *	pin number passed to the function does not support PWM output.
+ * 
+ *	Notes:
+ * 
+ *	The list of known boards and traits is incomplete and in the process of 
+ *	being updated as more information becomes available.
+ *		
  *
  *	***************************************************************************/
 
@@ -717,9 +744,11 @@ namespace pg
 #pragma endregion
 #pragma region misc_funcs
 
+	// Returns the maximum value returned by `analogRead()' for a given board at compile-time.
 	template<class T>
 	constexpr analog_t AnalogMax() { return (analog_t(1) << board_traits<T>::adc_digits) - 1; }
 
+	// Returns the reciprocal of the CPU clock frequency for a given board at compile-time.
 	template<class T>
 	constexpr frequency_t ClockPeriod() { return 1 / board_traits<T>::clock_frequency; }
 

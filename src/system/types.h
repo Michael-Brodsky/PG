@@ -1,5 +1,5 @@
 /*
- *	This files declares some useful data types and constants. 
+ *	This files is part of the Pg type support library . 
  *
  *	***************************************************************************
  *
@@ -35,15 +35,12 @@
  *     analog_t:  An unsigned integral type that represents an analog input 
  *                level (as converted to a digital value (see e.g. 
  *                `analogRead()').
+ *	frequency_t:  A floating-point type used to hold a frequency in Hz.
  *
  *  This file defines the following constants:
  *
  *   InvalidPin:  constant indicating an invalid digital GPIO pin number.
  *
- *  This file defines the following object-like macros:
- *
- *	 ANALOG_MAX:  Maximum value an object of type `analog_t' can hold. 
- * 
  *	**************************************************************************/ 
 
 #if !defined __PG_TYPES_H
@@ -78,17 +75,16 @@
 namespace pg
 {
 # if defined __PIN_T_DEFINED
-	typedef __PIN_T_TYPE pin_t;		    // Unsigned integral type that can hold any GPIO pin number.
-	constexpr pin_t InvalidPin = 0xff;	// Constant indicating an invalid GPIO pin number.
+	typedef __PIN_T_TYPE pin_t;				// Unsigned integral type that can hold any GPIO pin number.
+	constexpr pin_t InvalidPin = 0xff;		// Constant indicating an invalid GPIO pin number.
 # endif
 
 # if defined __ANALOG_T_DEFINED
-	typedef __ANALOG_T_TYPE analog_t;	// Unsigned integral type that represents an analog input level.
-	//constexpr analog_t AnalogMax() { return ((analog_t)1 << pg::board_traits<board_type>::adc_digits); }
+	typedef __ANALOG_T_TYPE analog_t;		// Unsigned integral type that represents an analog input level.
 # endif 
 
 # if defined __FREQUENCY_T_DEFINED
-	typedef __FREQUENCY_T_TYPE frequency_t;		    // Unsigned integral type that can hold any GPIO pin number.
+	typedef __FREQUENCY_T_TYPE frequency_t;	// Floating-point type that can hold any frequency in Hz.
 # endif
 
 } // namespace pg
