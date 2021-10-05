@@ -4,7 +4,7 @@
 Exposes the Arduino general API.
 
 ### boards.h 
-Provides board hardware traits and utilities.
+Provides board-specific hardware traits and utilities.
 
 ### clock.h 
 Definitions of implementation-specific sources for the std::chrono clock types.
