@@ -11,9 +11,6 @@ Collection of functions that perform bit-wise operations and calculations.
 ### callback.h 
 Collection of templated typedefs for defining callback function signatures from template parameters.
 
-### clock.h 
-Definitions of implementation-specific sources for the std::chrono clock types.
-
 ### constants.h 
 Collection of scientific and engineering numerical constants.
 
