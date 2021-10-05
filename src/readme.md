@@ -11,4 +11,7 @@ A collection of reusable objects that follow the Mediator design pattern.
 A collection of reusable objects that provide common functions for embedded systems development.
 
 ### lib
-A collection of scientific, engineering, mathematical and miscellaneous functions, as well as support objects and functions for the Pg Standard Library. 
+A collection of scientific, engineering, mathematical and miscellaneous functions. 
+
+### system
+Provides low-level type and API support for the Pg libraries.
