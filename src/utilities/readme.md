@@ -16,8 +16,12 @@ The EEStream class enables simple object serialization/deserialization to and fr
 ### PIDController.h
 The PIDController class is a control loop mechanism used in industrial automation applications to control devices according to a proportional-integral-derivative (PID) algorithm.
 
-### Unique.h 
-Unique is a base class that provides a unique identifier (number) to derived types which clients can use to identify multiple instances of the same object type.
+### PWMOutput.h
+The Pwm class provides a simple interface for managing pulse-width modulated (PWM) outputs and generating waveforms.
 
 ### SerialProtocols.h 
 The SerialProtocols class manipulates and stores/retrieves communications settings in EEPROM. It allows programs to enable real-time editing, storage and retrieval of communications settings with single lines of code.
+
+### Unique.h 
+Unique is a base class that provides a unique identifier (number) to derived types which clients can use to identify multiple instances of the same object type.
+
