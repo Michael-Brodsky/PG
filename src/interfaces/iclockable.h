@@ -51,7 +51,7 @@
 # define __PG_ICLOCKABLE_H 20210409L
 
 # include "cassert"
-# include "../interfaces/icommand.h"	// `icommand' interface.
+# include "interfaces/icommand.h"	// `icommand' interface.
 
 # if defined __PG_HAS_NAMESPACES 
 

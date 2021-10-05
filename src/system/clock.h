@@ -1,11 +1,11 @@
 /*
- *  This file defines an abstract interface class for creating/cloning
- *  objects using the C++ "Virtual Constructor Idiom".
+ *	This files defines implementation-specific sources for the std::chrono 
+ *	"clock" objects.
  *
  *	***************************************************************************
  *
- *	File: icloneable.h
- *	Date: July 17, 2020
+ *	File: clock.h
+ *	Date: September 18, 2021
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -28,27 +28,52 @@
  *
  *	**************************************************************************/
 
-#if !defined __PG_ICLONEABLE_H
-#define __PG_ICLONEABLE_H 20210717L
+#if !defined __PG_CLOCK_H 
+# define __PG_CLOCK_H 20210918L
 
-# include "pg.h"
+# include "ctime" // std::time_t type.
+# include "ratio"
+# include "api.h" // chg to sys/api.h, move pgtypes.h to sys/types.h and clock.h to sys/clock.h
 
 # if defined __PG_HAS_NAMESPACES 
 
 namespace pg
 {
-    // Clonable type abstract interface class.
-    struct icloneable
-    {
-        virtual ~icloneable() = default;
 
-        virtual icloneable* clone() const = 0;  // Uses the copy constructor
-        virtual icloneable* create() const = 0; // Uses the default constructor
-    };
+#  if defined ARDUINO 
+#   define steady_clock_api micros
+#   define system_clock_api millis
+	using system_clock_period = std::milli;
+	using steady_clock_period = std::micro;
+#  endif // defined ARDUINO 
+
+	struct steady_clock_t
+	{
+		using period = steady_clock_period;
+
+		static inline std::time_t now() { return steady_clock_api(); }
+	};
+
+	struct system_clock_t
+	{
+		using period = system_clock_period;
+
+		static inline std::time_t now() { return system_clock_api(); }
+	};
 }
+
+//namespace std
+//{
+//	namespace chrono
+//	{
+//		
+//		static std::time_t steady_clock_api() { return clock_api_steady(); }
+//		static std::time_t system_clock_api() { return clock_api_system(); }
+//	} // namespace chrono
+//} // namespace std
 
 # else // !defined __PG_HAS_NAMESPACES
 #  error Requires C++11 and namespace support.
 # endif // defined __PG_HAS_NAMESPACES 
 
-#endif // !defined __PG_ICLONEABLE_H
+#endif // !defined __PG_CLOCK_H 

@@ -76,7 +76,7 @@
 #if !defined __PG_DIGITAL_INPUT_H
 # define __PG_DIGITAL_INPUT_H 20211003L
 
-#include "lib/pgtypes.h"			// pin_t type.
+#include "system/types.h"			// pin_t type.
 #include "interfaces/icomponent.h"	// icomponent interface.
 #include "interfaces/iclockable.h"	// iclockable interface.
 

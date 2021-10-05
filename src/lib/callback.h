@@ -30,7 +30,7 @@
  *	Description:
  *
  *	This file includes several templated typedefs for defining callback 
- *	function signatures with template parameters. The templates support both 
+ *	function signatures from template parameters. The templates support both 
  *	member method or free-standing function callbacks, with or without 
  *	arguments.
  *
@@ -59,8 +59,9 @@
 
 namespace pg
 {
+	// Callback that take arguments.
 
-# if defined __PG_HAS_VARIADIC_TEMPLATES
+#  if defined __PG_HAS_VARIADIC_TEMPLATES
 
 	template <class Ret, class Obj = void, class ... Args>
 	struct callback
@@ -74,7 +75,7 @@ namespace pg
 		typedef Ret(*type)(Args ...);
 	};
 
-# else // !defined __PG_HAS_VARIADIC_TEMPLATES
+#  else // !defined __PG_HAS_VARIADIC_TEMPLATES
 
 	template <class Ret, class Obj = void, class Arg = void>
 	struct callback
@@ -88,7 +89,9 @@ namespace pg
 		typedef Ret(*type)(Arg);
 	};
 
-# endif // defined __PG_HAS_VARIADIC_TEMPLATES 
+#  endif // defined __PG_HAS_VARIADIC_TEMPLATES 
+
+	// Callback without arguments.
 
 	template <class Ret, class Obj>
 	struct callback<Ret, Obj, void>

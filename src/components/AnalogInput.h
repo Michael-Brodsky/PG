@@ -84,7 +84,7 @@
 
 #include "utility"					// std::pair type.
 #include "array"					// Fixed-size array types.
-#include "lib/pgtypes.h"			// pin_t and analog_t types.
+#include "system/types.h"			// pin_t and analog_t types.
 #include "interfaces/icomponent.h"	// icomponent interface.
 #include "interfaces/iclockable.h"	// iclockable interface.
 

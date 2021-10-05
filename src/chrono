@@ -40,7 +40,7 @@
 #if !defined __PG_CHRONO_
 # define __PG_CHRONO_ 20210817L
 
-# include "lib/clock.h"	// std::chrono::steady_clock steady clock source.
+# include "system/clock.h"	// std::chrono::steady_clock steady clock source.
 # include "ratio"		// std::ratio and related types needed by std::chrono::duration_values.
 # include "ctime"		// std::time_t type and time-related functions.
 
@@ -249,13 +249,34 @@ namespace std
 		// Class std::chrono::steady_clock represents a monotonic clock.
 		struct steady_clock
 		{
-			using duration = std::chrono::microseconds;
+			using duration = std::chrono::duration<std::time_t, pg::steady_clock_t::period>;
 			using rep = duration::rep;
 			using period = duration::period;
 			using time_point = std::chrono::time_point<steady_clock, duration>;
 			static constexpr bool is_steady = true;
-			static time_point now() noexcept { return time_point(duration(steady_clock_api())); }
+			static time_point now() noexcept { return time_point(duration(pg::steady_clock_t::now())); }
 		};
+
+		struct system_clock
+		{
+			using duration = std::chrono::duration<std::time_t, pg::system_clock_t::period>;
+			using rep = duration::rep;
+			using time_point = std::chrono::time_point<system_clock, duration>;
+			static constexpr bool is_steady = true;
+			static time_point now() noexcept { return time_point(duration(pg::system_clock_t::now())); }
+			static std::time_t to_time_t(const time_point& t) noexcept
+			{
+				return std::time_t(std::chrono::duration_cast<std::chrono::seconds>(t.time_since_epoch()).count());
+			}
+			static time_point from_time_t(std::time_t t) noexcept
+			{
+				using from = std::chrono::time_point<system_clock, std::chrono::seconds>;
+
+				return std::chrono::time_point_cast<system_clock::duration>(from(std::chrono::seconds(t)));
+			}
+		};
+
+		using high_resolution_clock = steady_clock;
 
 #pragma endregion
 	} // namespace chrono

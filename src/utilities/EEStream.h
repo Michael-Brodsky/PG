@@ -33,7 +33,7 @@
 
 # include <Arduino.h>	// Arduino genral API.
 # include <EEPROM.h>	// Arduino EEPROM api.
-# include "../interfaces/iserializable.h"	// `iserializable' interface.
+# include "interfaces/iserializable.h"	// `iserializable' interface.
 # include "array"		// Fixed-size array types & iterators'.
 
 # if defined __PG_HAS_NAMESPACES 

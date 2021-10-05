@@ -28,8 +28,8 @@
  *
  *	**************************************************************************/
 
-#if !defined IMEDIATOR_H__
-# define IMEDIATOR_H__ 20210717L
+#if !defined __PG_IMEDIATOR_H
+# define __PG_IMEDIATOR_H 20210717L
 
 # include "pg.h"
 
@@ -54,4 +54,4 @@ namespace pg
 #  error Requires C++11 and namespace support.
 # endif // defined __PG_HAS_NAMESPACES
 
-#endif // !defined IMEDIATOR_H__
+#endif // !defined __PG_IMEDIATOR_H

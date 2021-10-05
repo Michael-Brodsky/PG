@@ -104,7 +104,7 @@
 # define __PG_ANALOGKEYPAD_H 20210718L
 
 # include "array"                   // `ArrayWrapper' type.
-# include "lib/pgtypes.h"           // `pin_t', `analog_t' types.
+# include "system/types.h"           // `pin_t', `analog_t' types.
 # include "interfaces/iclockable.h"	// `iclockable' interface.
 # include "interfaces/icomponent.h" // `icomponent' interface.
 # include "utilities/Timer.h"	    // `Timer' type.

@@ -52,7 +52,7 @@
 #if !defined __PG_COMMANDTIMER_H
 # define COMMANDTIMER_H__ 20210403L
 
-# include "../interfaces/icommand.h"	// `icommand' interface.
+# include "interfaces/icommand.h"	// `icommand' interface.
 # include "Timer.h"						// `Timer' class.
 
 # if defined __PG_HAS_NAMESPACES 

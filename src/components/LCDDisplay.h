@@ -44,7 +44,7 @@
 # include "cstring"
 # include "cstdlib"
 # include "array"
-# include "lib/pgtypes.h"
+# include "system/types.h"
 # include "interfaces/icomponent.h"	// `icomponent' interface.
 # include "interfaces/iclockable.h"
 # include "utilities/Timer.h"
@@ -191,7 +191,7 @@ namespace pg
 
 	public:
 		// Constructs an LCDDisplay.
-		LCDDisplay(LiquidCrystal*, callback_type, Screen* = nullptr);
+		explicit LCDDisplay(LiquidCrystal*, callback_type = nullptr, Screen* = nullptr);
 
 	public:
 		// Refreshes the lcd display device.
