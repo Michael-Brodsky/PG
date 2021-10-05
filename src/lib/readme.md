@@ -19,9 +19,3 @@ Collection of engineering and scientific math functions.
 
 ### imath.h 
 Collection of fast integer math functions.
-
-### library.h 
-Exposes the Arduino general API.
-
-### pgtypes.h 
-Defines some useful data types and constants. 
