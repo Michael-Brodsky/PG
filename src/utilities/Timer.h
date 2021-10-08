@@ -113,6 +113,8 @@ namespace pg
 	template<class T>
 	bool Timer<T>::expired() const
 	{
+		// returns true only if active, initialized and expired.
+		//return (active_ && interval_.count() != 0) && !(elapsed() < interval_);
 		// returns true only if initialized and expired.
 		return (interval_.count() != 0) && !(elapsed() < interval_);
 	}

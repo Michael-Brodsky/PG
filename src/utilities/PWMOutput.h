@@ -10,20 +10,20 @@
 
 namespace pg
 {
-		template<class FracType, class UIntType>
-		struct duty_cycle
+	template<class FracType, class UIntType>
+	struct duty_cycle
+	{
+		static constexpr FracType frac_min = FracType(0);
+		static constexpr FracType frac_max = FracType(1.0);
+		static constexpr UIntType frac_to_uint(FracType frac)
 		{
-			static constexpr FracType frac_min = FracType(0);
-			static constexpr FracType frac_max = FracType(1.0);
-			static constexpr UIntType frac_to_uint(FracType frac)
-			{
-				return (UIntType)(clamp(frac, frac_min, frac_max) * FracType(std::numeric_limits<UIntType>::max()));
-			}
-			static constexpr FracType uint_to_frac(UIntType uint)
-			{
-				return (FracType)(FracType(uint) / FracType(std::numeric_limits<UIntType>::max()));
-			}
-		};
+			return (UIntType)(clamp(frac, frac_min, frac_max) * FracType(std::numeric_limits<UIntType>::max()));
+		}
+		static constexpr FracType uint_to_frac(UIntType uint)
+		{
+			return (FracType)(FracType(uint) / FracType(std::numeric_limits<UIntType>::max()));
+		}
+	};
 
 	class Pwm
 	{
@@ -33,14 +33,15 @@ namespace pg
 
 	public:
 		Pwm();
-		//Pwm(pin_t);
-		//Pwm(pin_t, duty_cycle_t, frequency_t = 0, bool = false);
 		Pwm(pin_t, duty_cycle_t = 0, bool = false);
+		// No copy constructor.
+		Pwm(const Pwm&) = delete;
+		// No copy assignment operator.
+		Pwm& operator=(const Pwm&) = delete;
 
 	public:
 		void attach(pin_t);
 		pin_t attach() const;
-		//void frequency(frequency_t);
 		frequency_t frequency() const;
 		void duty_cycle(duty_cycle_t);
 		duty_cycle_t duty_cycle() const;
@@ -58,34 +59,11 @@ namespace pg
 		bool enabled_;
 	};
 
-	//Pwm::Pwm() :
-	//	pin_(InvalidPin), frequency_(), duty_cycle_(), enabled_()
-	//{
-
-	//}
-
 	Pwm::Pwm() :
 		pin_(InvalidPin), duty_cycle_(), frequency_(), enabled_()
 	{
 
 	}
-
-
-	//Pwm::Pwm(pin_t pin) :
-	//	pin_(board_traits<board_type>::pwm_frequency(pin) != 0 ? pin : InvalidPin),
-	//	frequency_(set_frequency(0)),
-	//	duty_cycle_(), enabled_()
-	//{
-	//	set_output();
-	//}
-
-	//Pwm::Pwm(pin_t pin, duty_cycle_t duty_cycle, frequency_t frequency, bool enabled) :
-	//	pin_(board_traits<board_type>::pwm_frequency(pin) != 0 ? pin : InvalidPin), 
-	//	frequency_(set_frequency(frequency)),
-	//	duty_cycle_(duty_cycle), enabled_(enabled)
-	//{
-	//	set_output();
-	//}
 
 	Pwm::Pwm(pin_t pin, duty_cycle_t duty_cycle, bool enabled) :
 		pin_(board_traits<board_type>::pwm_frequency(pin) != 0 ? pin : InvalidPin),
@@ -106,12 +84,6 @@ namespace pg
 	{
 		return pin_;
 	}
-
-	//void Pwm::frequency(frequency_t ideal)
-	//{
-	//	frequency_ = set_frequency(ideal);
-	//	set_output();
-	//}
 
 	frequency_t Pwm::frequency() const
 	{
@@ -141,19 +113,6 @@ namespace pg
 	{
 		return enabled_;
 	}
-
-	//frequency_t Pwm::set_frequency(frequency_t ideal)
-	//{
-	//	assert(ideal < board_traits<board_type>::clock_frequency);
-
-	//	frequency_t actual = ideal != 0 
-	//		? ideal
-	//		: pin_ != InvalidPin 
-	//		? board_traits<board_type>::pwm_frequency(pin_) 
-	//		: 0;
-	//	// Set the closest frequency according to the timer used for the current pin_.
-	//	return actual;
-	//}
 
 	frequency_t Pwm::set_frequency(frequency_t ideal)
 	{
