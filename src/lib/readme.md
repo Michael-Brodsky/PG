@@ -15,7 +15,10 @@ Collection of templated typedefs for defining callback function signatures from 
 Collection of scientific and engineering numerical constants.
 
 ### fmath.h 
-Collection of engineering and scientific math functions.
+Collection of scientific and engineering math functions.
 
 ### imath.h 
 Collection of fast integer math functions.
+
+### units.h 
+Collection of units of measure typedefs and conversion functions.
