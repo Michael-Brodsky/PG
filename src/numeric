@@ -44,7 +44,6 @@
 #if !defined __PG_NUMERIC_
 # define __PG_NUMERIC_ 20210817L
 
-# include "type_traits"   // std::common_type
 # include "algorithm"     // std::max
 
 # if defined __PG_HAS_NAMESPACES 

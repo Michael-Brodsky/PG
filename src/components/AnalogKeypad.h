@@ -1,12 +1,12 @@
 /*
- *	This files declares a class that encapsulates behaviors of a keypad 
+ *	This files defines a class that encapsulates behaviors of a keypad 
  *  attached to an analog GPIO input.
  *
  *	***************************************************************************
  *
  *	File: AnalogKeypad.h
- *	Date: July 18, 2021
- *	Version: 0.99
+ *	Date: October 5, 2021
+ *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
  *	Copyright (c) 2012-2021 Michael Brodsky
@@ -34,92 +34,79 @@
  *      attached to an analog input pin. It is a generic, reusable type that 
  *      can be parameterized to fit a particular application. It supports any 
  *      number of buttons and the standard button events, such as `press', 
- *      `release', `longpress' and `repeat'. `Keypad' objects can be operated 
- *      asynchronously using the `clock()' method, or synchronously with the 
- *      `poll()' method. Communication with the client is handled via a 
- *      callback that must be implemented by the client. The button and event 
- *      type (press, release or longpress) are passed to the client in the 
- *      callback. 
+ *      `release', `longpress' and `repeat', and can issue client callbacks 
+ *      when an event occurs.
  * 
- *      Keypad buttons are encapsulated by the nested `Button' class which  
- *      contains a `ButtonTag' field that uniquely identifies each button. 
- *      Since the buttons and their functions are implementation-specific, 
- *      the `ButtonTag' type is only forward declared and must be defined by 
- *      the client, and the definition must be visible to the `Keypad' class. 
+ *      Keypad buttons are defined by the nested `Button' type which contains  
+ *      a `trigger_level_' field and inherits the `id()' method from its base 
+ *      class `Unique'. Clients use id() to uniquely identify Button instances 
+ *      and trigger_level_ to set the analog input levels that trigger events. 
+ *      The trigger_level_ is compared to the value returned by the Arduino 
+ *      analogRead() function from the attached input, and are determined by 
+ *      how buttons are physically wired to the input.
  * 
- *      Longpress events can occur in one of three ways, when a button is 
+ *      Keypad objects are constructed from a collection of Button objects 
+ *      and attached to any valid GPIO analog input. Button collections MUST 
+ *      be ordered from low to high with respect to their trigger_level_ (see 
+ *      below). Clients must also specify the callback method, and optionally
+ *      the longpress mode and interval, in the constructor. 
+ * 
+ *      Keypads are polled using the `poll()' method, or asynchronously with 
+ *      the `clock()' method. Each call to poll() or clock() reads the current 
+ *      value from the attached input and checks it against each Button's 
+ *      trigger_level_ to see if an event has occured. The input level is 
+ *      less-than compared against each Button's trigger_level_ in the 
+ *      collection, from first to last. If a Button with a higher 
+ *      trigger_level_ appears in the collection before buttons with lower 
+ *      levels it will prevent those buttons from ever being triggered. This is 
+ *      why Button collections must be ordered from lowest to highest levels.
+ * 
+ *      Valid events are enumerated by the Keypad::Event type and can be one 
+ *      the    following:      Press,       Release     or      Longpress.
+ *      The `Press' event occurs whenever the polled input level first becomes 
+ *      less than a Button's trigger_level_. No further events are triggered 
+ *      until the `Release' event, which occurs when the input level becomes 
+ *      greater than or equal to the pressed Button's trigger_level_. This 
+ *      behavior can be changed by the `repeat()' method which, if enabled, 
+ *      will trigger the press event each time the Keypad is polled until the 
+ *      Button is released.
+ * 
+ *      `Longpress' events can occur in one of three ways, when a button is 
  *      held down, after a button is released, or they can be disabled. The 
- *      longpress modes are enumerated by the `Longpress' type and the mode 
- *      is specified by the client at time of construction, as is the long-
- *      press interval which determines how long it takes to trigger the 
- *      event. 
+ *      mode is set by the value of the Keypad::Longpress type passed to the 
+ *      constructor. The event is triggered when a timer, started after the 
+ *      Press event, expires. A Release event stops and resets the timer,  
+ *      thereby cancelling the Longpress event.
  * 
- *      The `Keypad' class also provides a mechanism to to repeatedly fire 
- *      the button `press' event. Clients enable/disable the repeat mode 
- *      using the `repeat()' method. The `Keypad' class only provides the 
- *      mechanism, the repeat logic is implemented by the client and can be 
- *      enabled or disabled by the client at any time, regardless of the  
- *      internal state of the `Keypad' class. The repeat event is triggered 
- *      by each call to `poll()' and thus fires at the same rate that the 
- *      keypad is polled.
+ *      A Keypad can issue a client callback whenever an event occurs. The 
+ *      callback passes a reference to the Button and the triggered Event. 
+ *      Callbacks are only enabled if a valid callback method is passed to 
+ *      to the Keypad constructor (see `callback_type' below for signature).
  * 
- *	Examples:
- *
- *      // Client defines the `ButtonTag's, usually to indicate each button's function. 
- *      enum class ButtonTag { Up, Down, Left, Right };
- * 
- *      // Client defines the callback function that handles button events.
- *      void callback(const Keypad::Button&, Keypad::Event) { ... };
- * 
- *      // Client instantiates a button collection. Each button must have a unique 
- *      // analog triggering level (see `analogRead()') and, the buttons MUST be 
- *      // instantiated in increasing order of this level within the collection, from lowest to highest.
- *      Keypad::Button buttons[] = { Keypad::Button(ButtonTag::Up, 0), Keypad::Button(ButtonTag::Down, 42), ... }; 
- * 
- *      // Client instantiates the `Keypad' object specifying the button collection,  
- *      // analog input pin to attach, the callback, the longpress mode and interval.
- *      Keypad keypad(buttons, 0, Keypad::Callaback(&callback), Keypad::Longpress::Hold, seconds(1));
- * 
- *      // Client polls the keypad in a loop.
- *      void loop() { 
- *          keypad.poll();
- *      }
- * 
- *      If a button event occurs, the keypad object calls the client callback
- *      function, passing the button and type of event.
- * 
- *  Notes:
- * 
- *      It is absolutely essential that button collections appear in increasing 
- *      order of each button's `trigger_level', from lowest to highest. This is 
- *      required because in each iteration through the button collection, each 
- *      button's `trigger_level' is less-than compared to the value returned by 
- *      the `analogRead()' function. If a button with a higher `trigger_level' 
- *      appears in the collection before buttons with lower values, it will 
- *      prevent those buttons from being triggered. 
+ *	    Keypad objects are not copyable or assignable as this would lead to 
+ *	    multiple instances attached to the same analog input, which is 
+ *      redundant.
  * 
  *	**************************************************************************/
 
 #if !defined __PG_ANALOGKEYPAD_H 
-# define __PG_ANALOGKEYPAD_H 20210718L
+# define __PG_ANALOGKEYPAD_H 20211005L
 
 # include "array"                   // `ArrayWrapper' type.
-# include "system/types.h"           // `pin_t', `analog_t' types.
+# include "system/types.h"          // `pin_t', `analog_t' types.
 # include "interfaces/iclockable.h"	// `iclockable' interface.
 # include "interfaces/icomponent.h" // `icomponent' interface.
 # include "utilities/Timer.h"	    // `Timer' type.
+# include "utilities/Unique.h"		// `Unique' base class.
 
 # if defined __PG_HAS_NAMESPACES 
 
 namespace pg
 {
-    // TODO: Move this into Button class, like AnalogInput::Range::Tag.
-    //enum class ButtonTag;       // Forward decl, button tags are user-defined.
-    // Type that encapsulates behaviors of a keypad attached to an analog GPIO input.
+    // Encapsulates behaviors of a keypad attached to a GPIO analog input.
     class Keypad : public iclockable, public icomponent
     {
     public:
-        using duration = std::chrono::milliseconds;
 
         // Enumerates valid keypad events.
         enum class Event
@@ -130,18 +117,16 @@ namespace pg
         };
 
         // Keypad button type.
-        struct Button
+        struct Button : public Unique 
         {
-            enum class Tag;
-
-            const Tag       tag_;			// Uniquely identifying tag.
             const analog_t  trigger_level_;	// The analog input triggering level. 
                                             // Button collections MUST be instantiated in increasing order of 
-                                            // the `trigger_level_' field, from lowest to highest.
+                                            // `trigger_level_', from lowest to highest.
 
-            Button(Tag tag, analog_t trigger_level) :
-                tag_(tag), trigger_level_(trigger_level)
+            Button(analog_t trigger_level) :
+                trigger_level_(trigger_level)
             {}
+
             friend bool operator==(const Button& lhs, const Button& rhs)
             {
                 return lhs.trigger_level_ == rhs.trigger_level_;
@@ -152,32 +137,45 @@ namespace pg
             }
         };
 
-        // Enumerates the valid longpress event modes.
+        // Enumerates the valid Longpress event triggering modes.
         enum class LongPress
         {
-            Hold,	    // Event is triggered while button is held down.
+            Hold = 0,   // Event is triggered while button is held down.
             Release,    // Event is triggered after button is released.
             None        // Event is never triggered.
         };
 
+        // Longpress event timer resolution type.
+        using duration = std::chrono::milliseconds;
+        // Client callback signature.
         using callback_type = callback<void, void, const Button*, Event>::type;
         using container_type = std::ArrayWrapper<Button*>; 
         using const_iterator = container_type::const_iterator;  
 
     public:
+        // Constructs a Keypad from an array of Buttons.
         template <std::size_t Size>
         Keypad(Button* (&)[Size], pin_t, callback_type, LongPress = LongPress::None, duration = duration());
+        // Constructs a Keypad from a Button pointer and size.
         Keypad(Button* [], std::size_t, pin_t, callback_type, LongPress = LongPress::None, duration = duration());
+        // Constructs a Keypad from a range of Buttons.
         Keypad(Button**, Button**, pin_t, callback_type, LongPress = LongPress::None, duration = duration());
+        // Constructs a Keypad from a list of Buttons.
         Keypad(std::initializer_list<Button*>, pin_t, callback_type, LongPress = LongPress::None, duration = duration());
+        // Constructs a Keypad from a container of Buttons.
         Keypad(const container_type&, pin_t, callback_type, LongPress = LongPress::None, duration = duration());
-
+        // No copy constructor.
+        Keypad(const Keypad&) = delete;
+        // No copy assignment operator.
+        Keypad& operator=(const Keypad&) = delete;
 
     public:
         // Polls the keypad for button events.
         void            poll();
         // Sets the button repeat state.
         void	        repeat(bool);
+        // Returns the current button repeat state.
+        bool	        repeat();
 
     private:
         // Reads the attached pin's input level and returns the currently pressed button, if any.
@@ -189,17 +187,17 @@ namespace pg
         // Calls the `poll()' method.
         void            clock() override;
         // Executes the current callback.
-        void            callback(const_iterator, Event);
+        void            doCallback(const_iterator, Event);
 
     private:
         pin_t           pin_;           // The attached analog input pin.
         callback_type   callback_;      // Client callback.
         container_type  buttons_;       // The current button collection.
         const_iterator  current_;       // Points to the currently triggered button. 
-        Timer<duration> lp_timer_;	    // Keypad longpress event timer.
-        duration        lp_interval_;   // Keypad longpress event interval.
-        LongPress       lp_mode_;       // Keypad longpress mode.
-        bool            repeat_;	    // Flag indicating whether the button press callback is executed on each call to `poll()'.
+        Timer<duration> lp_timer_;	    // Longpress event timer.
+        duration        lp_interval_;   // Longpress event interval.
+        LongPress       lp_mode_;       // Longpress event triggering mode.
+        bool            repeat_;	    // Flag indicating whether the Press event repeats.
     };
 
     template <std::size_t Size>
@@ -249,13 +247,14 @@ namespace pg
         }
         else if (current_ == std::end(buttons_))
             pressEvent(button);
-        else if (lp_mode_ == LongPress::Hold && lp_timer_.expired())
+        //else if (lp_mode_ == LongPress::Hold && lp_timer_.expired()) // depends on timer remains expired() when !active() <Timer.h>
+        else if (lp_mode_ == LongPress::Hold && lp_timer_.active() && lp_timer_.expired())
         {
-            callback(button, Event::Longpress);
+            doCallback(button, Event::Longpress);
             lp_timer_.stop();
         }
         else
-            (repeat_) ? callback(current_, Event::Press) : ((void)0);
+            (repeat_) ? doCallback(current_, Event::Press) : ((void)0);
         current_ = button;
     }
 
@@ -278,19 +277,25 @@ namespace pg
         repeat_ = value;
     }
 
+    bool Keypad::repeat()
+    {
+        return repeat_;
+    }
+
     void Keypad::pressEvent(const_iterator button)
     {
-        callback(button, Event::Press);
+        doCallback(button, Event::Press);
         if (lp_mode_ != LongPress::None)
             lp_timer_.start();
     }
 
     void Keypad::releaseEvent(const_iterator button)
     {
-        if (lp_mode_ == LongPress::Release && lp_timer_.expired())
-            callback(button, Event::Longpress);
+        //if (lp_mode_ == LongPress::Release && lp_timer_.expired()) // depends on timer remains expired() when !active() <Timer.h>
+        if (lp_mode_ == LongPress::Release && lp_timer_.active() && lp_timer_.expired())
+            doCallback(button, Event::Longpress);
         else
-            callback(button, Event::Release);
+            doCallback(button, Event::Release);
         lp_timer_.stop();
         repeat_ = false;
     }
@@ -300,7 +305,7 @@ namespace pg
         poll();
     }
 
-    void Keypad::callback(const_iterator button, Event e)
+    void Keypad::doCallback(const_iterator button, Event e)
     {
         if (callback_)
             (*callback_)(*button, e);

@@ -42,9 +42,8 @@
  *	fact(x): returns x!
  *	cmp(a, b): returns 1 if a>b, -1 if a<b or 0 if a=b, without branching.
  *	clamp(x, low, hi): returns x clamped in [low, hi], if (low < hi).
+ *	wrap(x,inc,min,max): returns x + inc wrapped around [min,max].
  *	exp(x): returns an approximation of e**x.
- *	rads(x): returns x degrees converted to radians.
- *	deg(x): returns x radians converted to degrees.
  *	sin(x): returns an approximation of sin(x), where x in [-pi, pi] radians.
  *	cos(x): returns an approximation of cos(x), where x in [-pi, pi] radians.
  *	tan(x): returns an approximation of tan(x), where x in [-pi, pi] radians.
@@ -103,6 +102,7 @@
 #  undef fact
 #  undef cmp
 #  undef clamp
+#  undef wrap
 #  undef rads
 #  undef deg
 #  undef sin
@@ -203,6 +203,21 @@ namespace pg
 		return t > hi ? hi : t;
 	}
 
+	// Returns `x' + `inc' wrapped around range [min,max].
+	template<class T, class U>
+	T wrap(T x, U inc, T min, T max)
+	{
+		typename std::make_signed<T>::type y = x;
+
+		y += inc;
+
+		return y < static_cast<typename std::make_signed<T>::type>(min)
+			? max
+			: y > static_cast<typename std::make_signed<T>::type>(max)
+			? min
+			: y;
+	}
+
 	// Returns an approximation of e**x.
 	template<class T>
 	inline T exp(const T& x)
@@ -211,16 +226,6 @@ namespace pg
 
 		return details::exp_impl<T, N>::evaluate(x);
 	}
-
-	/* Returns `rads' radians converted to degrees. */
-	template<class T>
-	inline typename details::is_float<T>::type 
-		deg(const T& rads) { return rads / std::numbers::pi * 180; }
-
-	/* Returns `deg' degrees converted to radians. */
-	template<class T>
-	inline typename details::is_float<T>::type 
-		rads(const T& deg) { return deg / 180 * std::numbers::pi; }
 
 	/* Returns an approximation of sin(rads), where rads in [-pi, pi] radians. */
 	template<class T>

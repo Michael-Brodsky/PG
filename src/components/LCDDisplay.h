@@ -44,7 +44,7 @@
 # include "cstring"
 # include "cstdlib"
 # include "array"
-# include "system/types.h"
+# include "system/boards.h"
 # include "interfaces/icomponent.h"	// `icomponent' interface.
 # include "interfaces/iclockable.h"
 # include "utilities/Timer.h"
@@ -62,10 +62,11 @@ namespace pg
 		// Aggregates properties about a display field.
 		struct Field
 		{
-			uint8_t		col_;	// display column.
-			uint8_t		row_;	// display row.
-			const char* label_;	// display label.
-			const char* fmt_;	// display format.
+			uint8_t		col_;		// column index.
+			uint8_t		row_;		// row index.
+			const char* label_;		// label string.
+			const char* fmt_;		// format string.
+			bool		visible_;	// is visible.
 
 			friend bool operator==(const Field& lhs, const Field& rhs) { return lhs.col_ == rhs.col_ && lhs.row_ == rhs.row_; }
 			friend bool operator!=(const Field& lhs, const Field& rhs) { return !(lhs == rhs); }
@@ -192,6 +193,10 @@ namespace pg
 	public:
 		// Constructs an LCDDisplay.
 		explicit LCDDisplay(LiquidCrystal*, callback_type = nullptr, Screen* = nullptr);
+		// No copy constructor.
+		LCDDisplay(const LCDDisplay&) = delete;
+		// No copy assignment operator.
+		LCDDisplay& operator=(const LCDDisplay&) = delete;
 
 	public:
 		// Refreshes the lcd display device.
@@ -221,6 +226,10 @@ namespace pg
 		void			mode(Mode);
 		// Returns the current display mode.
 		Mode			mode() const;
+
+		void			next();
+
+		void			prev();
 
 	private:
 		// Calls the client callback function.
@@ -351,7 +360,7 @@ namespace pg
 	template<uint8_t Cols, uint8_t Rows>
 	void LCDDisplay<Cols, Rows>::Screen::active_field(Field* field)
 	{
-		*current_ = field;
+		current_ = std::find(fields_.begin(), fields_.end(), field);
 	}
 
 	template<uint8_t Cols, uint8_t Rows>
@@ -364,7 +373,7 @@ namespace pg
 	template<uint8_t Cols, uint8_t Rows>
 	const typename LCDDisplay<Cols, Rows>::Field* LCDDisplay<Cols, Rows>::Screen::next()
 	{
-		if (current_++ == std::end(fields_))
+		if (++current_ == std::end(fields_))
 			current_ = std::begin(fields_);
 
 		return *current_;
@@ -384,7 +393,7 @@ namespace pg
 
 	template<uint8_t Cols, uint8_t Rows>
 	LCDDisplay<Cols, Rows>::LCDDisplay(LiquidCrystal* lcd, callback_type cb, Screen* screen) :
-		lcd_(lcd), callback_(cb), screen_(screen), cursor_(), display_(true), mode_(), event_(), timer_()
+		lcd_(lcd), callback_(cb), screen_(screen), cursor_(), display_(true), mode_(), event_(), timer_() 
 	{}
 
 	template<uint8_t Cols, uint8_t Rows>
@@ -437,7 +446,7 @@ namespace pg
 			write_all(buf, it, std::forward<Ts>(args)...);
 		}
 		if (event_ == Update::Field)	// Position cursor at current field.
-			lcd_->setCursor(screen_->active_field()->col_, screen_->active_field()->col_);
+			lcd_->setCursor(screen_->active_field()->col_, screen_->active_field()->row_);
 		event_ = Update::None;			// Reset the Update Event flags.
 	}
 
@@ -445,8 +454,8 @@ namespace pg
 	void LCDDisplay<Cols, Rows>::screen(Screen* scr)
 	{
 		set_update_event();
+		scr->active_field(*std::begin(scr->fields())); // bloated
 		screen_ = scr;
-		screen_->active_field(*std::begin(screen_->fields())); // bloated
 	}
 
 	template<uint8_t Cols, uint8_t Rows>
@@ -525,6 +534,20 @@ namespace pg
 	}
 
 	template<uint8_t Cols, uint8_t Rows>
+	void LCDDisplay<Cols, Rows>::next()
+	{
+		screen_->next();
+		set_field_event();
+	}
+
+	template<uint8_t Cols, uint8_t Rows>
+	void LCDDisplay<Cols, Rows>::prev()
+	{
+		screen_->prev();
+		set_field_event();
+	}
+
+	template<uint8_t Cols, uint8_t Rows>
 	void LCDDisplay<Cols, Rows>::clock() 
 	{
 		if (callback_)
@@ -535,16 +558,22 @@ namespace pg
 	template<class T>
 	void LCDDisplay<Cols, Rows>::write_all(char* buf, iterator it, T&& arg)
 	{
-		write_label(*it); // Write field label ...
-		write_value(buf, *it, static_cast<const T&>(arg)); // ... and value.
+		if ((*it)->visible_)
+		{
+			write_label(*it); // Write field label ...
+			write_value(buf, *it, static_cast<const T&>(arg)); // ... and value.
+		}
 	}
 
 	template<uint8_t Cols, uint8_t Rows>
 	template<class T, class ...Ts>
 	void LCDDisplay<Cols, Rows>::write_all(char* buf, iterator it, T&& arg, Ts&& ...args)
 	{
-		write_label(*it);	// Write field label, ...
-		write_value(buf, *it, static_cast<const T&>(arg)); // ... value ...
+		if ((*it)->visible_)
+		{
+			write_label(*it);	// Write field label, ...
+			write_value(buf, *it, static_cast<const T&>(arg)); // ... value ...
+		}
 		write_all(buf, ++it, std::forward<Ts>(args)...); // ... and the rest.
 	}
 

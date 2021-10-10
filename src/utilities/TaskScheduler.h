@@ -125,6 +125,8 @@ namespace pg
 		TaskScheduler(Task**, Task**);
 		// Constructs a TaskScheduler from a list of Tasks.
 		TaskScheduler(std::initializer_list<Task*>);
+		// Constructs a TaskScheduler from a container of Tasks.
+		TaskScheduler(const container_type&);
 
 	public:
 		// Starts the TaskScheduler.
@@ -139,7 +141,9 @@ namespace pg
 		// Sets the tasks from a range (requires a restart).
 		void tasks(Task**, Task**);
 		// Sets the tasks from a list (requires a restart).
-		void tasks(std::initializer_list<Task*>);
+		void tasks(std::initializer_list<Task*>); 
+		// Sets the tasks from a list (requires a restart).
+		void tasks(const container_type&);
 		// Returns the current tasks collection.
 		const container_type& tasks() const;
 		// Checks for and executes any currently scheduled tasks.
@@ -182,6 +186,13 @@ namespace pg
 	}
 
 	template<class T>
+	TaskScheduler<T>::TaskScheduler(const container_type& tasks) : 
+		tasks_(tasks) 
+	{
+
+	}
+
+	template<class T>
 	template <std::size_t N>
 	void TaskScheduler<T>::tasks(Task* (&tasks)[N])
 	{
@@ -208,6 +219,13 @@ namespace pg
 	{
 		// Calling this method requires a subsequent call to start().
 		tasks_ = container_type(const_cast<Task**>(il.begin()), il.size());
+	}
+
+	template<class T>
+	void TaskScheduler<T>::tasks(const container_type& tasks)
+	{
+		// Calling this method requires a subsequent call to start().
+		tasks_ = tasks;
 	}
 
 	template<class T>

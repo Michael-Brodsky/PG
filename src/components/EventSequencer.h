@@ -377,7 +377,7 @@ namespace pg
 	template<class T>
 	void EventSequencer<T>::event(Event* event)
 	{
-		*current_ = event;
+		current_ = std::find(events_.begin(), events_.end(), event);
 	}
 
 	template<class T>
