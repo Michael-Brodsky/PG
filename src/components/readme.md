@@ -8,7 +8,7 @@ Asynchronous GPIO analog input polling.
 Asynchronous keypad management and polling.
 
 ### DigitalInput.h 
-Asynchronous GPIO digital input polling class.
+Asynchronous GPIO digital input polling.
 
 ### EventSequencer.h 
 Asynchronous event sequencer.
