@@ -1,4 +1,4 @@
-# Arduino Hardware API mods for avr
+# Arduino Hardware API mods for avr/samd
 
 This folder contains useful modifications to the Arduino API.
 
