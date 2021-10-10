@@ -2,7 +2,7 @@
 A collection of generic, reusable objects that provide common services to programs.
 
 ### AnalogInput.h
-Asynchronous GPIO analog input polling class.
+Asynchronous GPIO analog input polling.
 
 ### AnalogKeypad.h 
 Asynchronous keypad management and polling.
