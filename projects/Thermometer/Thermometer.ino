@@ -37,6 +37,11 @@
  *  analog input, the program controls an alarm that sounds if the temperature 
  *  exceeds a specified value, and the temperature and program settings are 
  *  displayed on an LCD display, which can be edited from an attached keypad.
+ *  The program is designed for an Arduino board attached to a compatible 
+ *  LCD/Keypad Shield, although this is not a strict requirement. 
+ *  Configuration settings and program-specific types are defined in 
+ *  <Thermometer.h>. Settings, such as pin assignments, must set to appropriate 
+ *  values for the board used.
  * 
  *  The program has a normal "run" mode that displays the current temperature 
  *  and several editing modes used to edit the program settings. On power-up, 
@@ -49,7 +54,7 @@
  *  the settings, press and hold the <Select> key until the "run" screen 
  *  appears. To undo edits, quickly press and release the <Select> key. 
  *  Pressing and holding the <Up> and <Down> keys while editing will cause 
- *  them the values to rapidly scroll.
+ *  the values to rapidly scroll at an increasing rate.
  * 
  *  Alarm settings are edited in the ALARM screen. The alarm can be enabled or 
  *  disabled, set to a specific temperature and activated if the sensed 
@@ -62,12 +67,28 @@
  *  maximum values must be calibrated to the sensor being used. Incorrect 
  *  settings will cause erroneous temperatures to be displayed.
  * 
+ *  The sensor can be calibrated in the CALIBRATE screen. The current ADC 
+ *  value returned from the sensor is displayed at the top left along with the  
+ *  Lo and Hi range. Navigating to the Lo or Hi fields and pressing either the 
+ *  <Up> or <Down> keys will save the current ADC value to that field. 
+ *  Pressing the <Up> or <Down> keys in the same field will reset the value  
+ *  back to the ADC minimum or maximum value respectively. This cycle can be 
+ *  repeated until stable values are found. One way to calibrate the sensor is 
+ *  to expose it to the lowest temperature in the thermometer's display range 
+ *  and set the Lo field. Then expose the sensor to the highest temperature in 
+ *  the thermometer's display range and set the Hi field. Then set the Lo and 
+ *  Hi display ranges on the DISPLAY screen to the temperatures that the Lo  
+ *  and Hi sensor values represent. This will map the sensor ADC values to the 
+ *  correct temperature display values. The Aref field sets whether the ADC 
+ *  reference voltage is generated internaly (IN) by the board or by an 
+ *  external source (EX).
+ * 
  *  Display settings are edited in the DISPLAY screen. The minimum and maximum 
  *  displayed temperatures and the temperature units can be set. The sensor  
- *  output value is mapped to a corresponding display value within the minimum 
+ *  ADC value is mapped to a corresponding display value within the minimum 
  *  and maximum range. These values must be chosen carefully and set to the 
  *  actual temperatures that correspond to the sensor's minimum and maximum 
- *  output values. Incorrect settings will cause erroneous temperatures to be 
+ *  ADC values. Incorrect settings will cause erroneous temperatures to be 
  *  displayed.
  * 
  *  See the comments in <Thermometer.h> for more details.
@@ -76,30 +97,32 @@
 
 #include <LiquidCrystal.h>  // Arduino LCD api.
 #include <pg.h>             // Pg environment.
-#include "Thermometer.h"    // Program config file.
+#include "Thermometer.h"    // Thermometer config file.
 
 //
 // Function declarations.
 //
-void initCallback(pin_t, analog_t, const TempSensor::Range*);
-void keypadCallback(const Keypad::Button*, Keypad::Event); 
+void initCallback(pin_t, SensorSettings::value_type, const TempSensor::Range*);
 void displayCallback();
-void sensorCallback(pin_t, analog_t, const TempSensor::Range*);
+void sensorCallback(pin_t, SensorSettings::value_type, const TempSensor::Range*);
+void keypadCallback(const Keypad::Button*, Keypad::Event); 
 void keyPress(const Keypad::Button*);
 void keyRelease(const Keypad::Button*);
 void keyLongpress(const Keypad::Button*);
-void checkAlarm(analog_t);
+void keyRepeat(bool);
+void checkAlarm(SensorSettings::value_type);
 void scrollField(const Keypad::Button*);
 void menuSelect(const Display::Field*);
 void setMode(OpMode);
 void adjustSettings(const Display::Field*, const Keypad::Button*);
 void copySettings(OpMode);
 void updateSettings(OpMode);
+void restoreSettings(OpMode);
 void getSettings(OpMode);
-void adjustAlarm(const Display::Field*, int8_t);
-void adjustSensor(const Display::Field*, int8_t);
-void adjustDisplay(const Display::Field*, int8_t);
-void adjustCalibration(const Display::Field*, int8_t);
+void adjustAlarm(const Display::Field*, Adjustment::Direction);
+void adjustSensor(const Display::Field*, Adjustment::Direction);
+void adjustCalibration(const Display::Field*, Adjustment::Direction);
+void adjustDisplay(const Display::Field*, Adjustment::Direction);
 
 //
 // Keypad objects.
@@ -133,12 +156,18 @@ Display::Screen menu_screen({ &menu_run_field,&menu_alarm_field,&menu_sensor_fie
 Display::Field alarm_enable_field = { AlarmEnableCol,AlarmEnableRow,AlarmEnableLab,AlarmEnableFmt,true };
 Display::Field alarm_cmp_field = { AlarmCmpCol,AlarmCmpRow,AlarmCmpLab,AlarmCmpFmt,true };
 Display::Field alarm_setpoint_field = { AlarmSetPointCol,AlarmSetPointRow,AlarmSetPointLab,AlarmSetPointFmt,true };
-Display::Screen alarm_screen({ &alarm_enable_field,&alarm_cmp_field,&alarm_setpoint_field }, AlarmScreenLab);
+Display::Screen alarm_screen({ &alarm_enable_field,&alarm_setpoint_field,&alarm_cmp_field }, AlarmScreenLab);
 
 Display::Field sensor_low_field = { SensorLowCol,SensorLowRow,SensorLowLab,SensorLowFmt,true };
 Display::Field sensor_hi_field = { SensorHighCol,SensorHighRow,SensorHighLab,SensorHighFmt,true };
 Display::Field sensor_poll_field = { SensorPollCol,SensorPollRow,SensorPollLab,SensorPollFmt,true };
 Display::Screen sensor_screen({ &sensor_low_field,&sensor_hi_field,&sensor_poll_field }, SensorScreenLab); 
+
+Display::Field cal_sensor_field = { CalSenseCol,CalSenseRow,CalSenseLab,CalSenseFmt,true };
+Display::Field cal_low_field = { CalLowCol,CalLowRow,CalLowLab,CalLowFmt,true };
+Display::Field cal_aref_field = { CalArefCol,CalArefRow,CalArefLab,CalArefFmt,true };
+Display::Field cal_high_field = { CalHighCol,CalHighRow,CalHighLab,CalHighFmt,true };
+Display::Screen calibrate_screen({ &cal_sensor_field,&cal_low_field,&cal_high_field,&cal_aref_field }, CalScreenLab);
 
 Display::Field display_low_field = { DisplayLowCol,DisplayLowRow,DisplayLowLab,DisplayLowFmt,true };
 Display::Field display_hi_field = { DisplayHighCol,DisplayHighRow,DisplayHighLab,DisplayHighFmt,true };
@@ -155,27 +184,31 @@ TempSensor sensor(SensorInputPin, initCallback); // Set sensor callback for init
 TempFilter filter; // Sensor output is filtered through a moving average filter.
 
 //
-// Task scheduling objects.
-//
-ClockCommand keypad_clock(&keypad);
-ClockCommand display_clock(&display);
-ClockCommand sensor_clock(&sensor);
-Scheduler::Task keypad_task(KeypadPollingInterval, &keypad_clock, Scheduler::Task::State::Active);
-Scheduler::Task display_task(DisplayRefreshInterval, &display_clock, Scheduler::Task::State::Idle);
-Scheduler::Task sensor_task(SensorPollingInterval, &sensor_clock, Scheduler::Task::State::Active);
-Scheduler scheduler{ &keypad_task,&display_task,&sensor_task };
-
-//
-// Program settings objects.
+// Thermometer settings objects.
 // 
-SensorSettings::value_type sensor_in = 0;
+SensorSettings::value_type sensor_in = 0;   // Stores the currently polled ADC value from the sensor input.
 SensorSettings sensor_settings
     { SensorRangeLow,SensorRangeHigh,SensorPollingMin,SensorPollingMax,SensorPollingInterval }, sensor_copy;
 DisplaySettings display_settings
     { DisplayValueMin,DisplayValueMax,DisplayRangeLow,DisplayRangeHigh,CelsiusSymbol }, display_copy;
 AlarmSettings alarm_settings
     { AlarmOutputPin,AlarmDisabled,AlarmCmpGreater,SensorAlarmSetPoint,DisplayRangeLow }, alarm_copy;
+CalibrationSettings cal_settings{ 0, false, false, ArefInternal };
+Adjustment adjustment(SensorAdjustmentFactor, DisplayAdjustmentFactor, AdjustmentMultiplyMax);
 OpMode op_mode = OpMode::Init;
+
+//
+// Task scheduling objects.
+//
+ClockCommand keypad_clock(&keypad);
+ClockCommand display_clock(&display);
+ClockCommand sensor_clock(&sensor);
+ClockCommand adjustment_clock(&adjustment);
+Scheduler::Task keypad_task(KeypadPollingInterval, &keypad_clock, Scheduler::Task::State::Active);
+Scheduler::Task display_task(DisplayRefreshInterval, &display_clock, Scheduler::Task::State::Idle);
+Scheduler::Task sensor_task(SensorPollingInterval, &sensor_clock, Scheduler::Task::State::Active);
+Scheduler::Task adjustment_task(AdjustmentMultiplyInterval, &adjustment_clock, Scheduler::Task::State::Idle);
+Scheduler scheduler{ &keypad_task,&display_task,&sensor_task,&adjustment_task };
 
 void setup() 
 {
@@ -190,7 +223,7 @@ void loop()
     scheduler.tick();
 }
 
-void initCallback(pin_t, analog_t, const TempSensor::Range*)
+void initCallback(pin_t, SensorSettings::value_type, const TempSensor::Range*)
 {
     pinMode(AlarmOutputPin, OUTPUT);
     alarm_settings.silence(true);
@@ -201,33 +234,9 @@ void initCallback(pin_t, analog_t, const TempSensor::Range*)
     sensor.callback(sensorCallback); // Now set sensor callback for normal ops.
 }
 
-void keypadCallback(const Keypad::Button* button, Keypad::Event event)
-{
-    static bool release = true; // Suspends release event after long-press event.
-
-    switch (event)
-    {
-    case Keypad::Event::Press:
-        keyPress(button);
-        break;
-    case Keypad::Event::Longpress:
-        keyLongpress(button);
-        release = false;
-        break;
-    case Keypad::Event::Release:
-        if (!release)
-            release = true;
-        else
-            keyRelease(button);
-        break;
-    default:
-        break;
-    }
-}
-
 void displayCallback()
 {
-    // Call display.refresh() with the params for the current screen/mode.
+    // Call display.refresh() with values for the current screen/mode.
     switch (op_mode)
     {
     case OpMode::Run:
@@ -245,6 +254,10 @@ void displayCallback()
     case OpMode::Sensor:
         display.refresh(sensor_copy.low_, sensor_copy.high_, sensor_copy.tpoll_);
         break;
+    case OpMode::Calibrate:
+        display.refresh((cal_settings.value_ = filter.avg()), sensor_settings.low_, cal_settings.aref_.second, sensor_settings.high_);
+        display.update();
+        break;
     case OpMode::Display:
         display.refresh(display_copy.low_, display_copy.high_, display_copy.unit_);
         break;
@@ -253,9 +266,34 @@ void displayCallback()
     }
 }
 
-void sensorCallback(pin_t pin, analog_t value, const TempSensor::Range* range)
+void sensorCallback(pin_t pin, SensorSettings::value_type value, const TempSensor::Range* range)
 {
-    checkAlarm((sensor_in = filter.avg(value)));
+    checkAlarm((sensor_in = clamp(filter.avg(value), sensor_settings.low_, sensor_settings.high_)));
+}
+
+void keypadCallback(const Keypad::Button* button, Keypad::Event event)
+{
+    static bool release = true; // Suspends release event after long-press event.
+
+    switch (event)
+    {
+    case Keypad::Event::Press:
+        keyPress(button);
+        break;
+    case Keypad::Event::Longpress:
+        keyLongpress(button);
+        release = false;
+        break;
+    case Keypad::Event::Release:
+        keyRepeat(false);
+        if (!release)
+            release = true;
+        else
+            keyRelease(button);
+        break;
+    default:
+        break;
+    }
 }
 
 void keyPress(const Keypad::Button* button)
@@ -266,8 +304,9 @@ void keyPress(const Keypad::Button* button)
         break;
     case OpMode::Menu:
         break;
-    case OpMode::Sensor:
     case OpMode::Alarm:
+    case OpMode::Sensor:
+    case OpMode::Calibrate:
     case OpMode::Display:
     {
         if (button->id() == up_button.id() || button->id() == down_button.id())
@@ -281,7 +320,7 @@ void keyPress(const Keypad::Button* button)
 
 void keyRelease(const Keypad::Button* button)
 {
-    keypad.repeat(false);
+    keyRepeat(false);
     switch (op_mode)
     {
     case OpMode::Init:
@@ -295,8 +334,12 @@ void keyRelease(const Keypad::Button* button)
         else if (button->id() == left_button.id() || button->id() == right_button.id())
             scrollField(button);
         break;
-    case OpMode::Sensor:
+    case OpMode::Calibrate:
+        // Sensor settings must be restored on cancel edit event, since we editted them directly.
+        if (button->id() == select_button.id())
+            restoreSettings(OpMode::Calibrate);
     case OpMode::Alarm:
+    case OpMode::Sensor:
     case OpMode::Display:
         if (button->id() == select_button.id())
             setMode(OpMode::Run);
@@ -322,18 +365,28 @@ void keyLongpress(const Keypad::Button* button)
             break;
         case OpMode::Alarm:
         case OpMode::Sensor:
+        case OpMode::Calibrate:
         case OpMode::Display:
             updateSettings(op_mode);
             setMode(OpMode::Run);
+            break;
         default:
             break;
         }
     }
     else if ((button->id() == down_button.id() || button->id() == up_button.id()) && op_mode != OpMode::Run)
-        keypad.repeat(true);
+        keyRepeat(true);
 }
 
-void checkAlarm(analog_t value)
+void keyRepeat(bool enabled)
+{
+    keypad.repeat(enabled);
+    adjustment.reset();
+    adjustment_task.state(enabled ? Scheduler::Task::State::Active : Scheduler::Task::State::Idle);
+    adjustment_task.reset();
+}
+
+void checkAlarm(SensorSettings::value_type value)
 {
     // Activate the alarm if it's not currently active.
     bool alarm_now = alarm_settings.cmp_.first(value, alarm_settings.set_point_);
@@ -359,6 +412,8 @@ void menuSelect(const Display::Field* field)
         setMode(OpMode::Alarm);
     else if (field == &menu_sensor_field)
         setMode(OpMode::Sensor);
+    else if (field == &menu_cal_field)
+        setMode(OpMode::Calibrate);
     else if (field == &menu_display_field)
         setMode(OpMode::Display);
 }
@@ -388,6 +443,10 @@ void setMode(OpMode mode)
         case OpMode::Sensor:
             display.screen(&sensor_screen);
             break;
+        case OpMode::Calibrate:
+            cal_settings.set_low_ = cal_settings.set_high_ = false;
+            display.screen(&calibrate_screen);
+            break;
         case OpMode::Display:
             display.screen(&display_screen);
             break;
@@ -405,9 +464,9 @@ void setMode(OpMode mode)
 
 void adjustSettings(const Display::Field* field, const Keypad::Button* button)
 {
-    int8_t adjustment = button == &up_button
-        ? +1
-        : -1;
+    Adjustment::Direction dir = button == &up_button
+        ? Adjustment::Direction::Up
+        : Adjustment::Direction::Down;
 
     // Adjust one of the current screen/mode settings.
     switch (op_mode)
@@ -415,13 +474,16 @@ void adjustSettings(const Display::Field* field, const Keypad::Button* button)
     case OpMode::Run:
         break;
     case OpMode::Alarm:
-        adjustAlarm(field, adjustment);
+        adjustAlarm(field, dir);
         break;
     case OpMode::Sensor:
-        adjustSensor(field, adjustment);
+        adjustSensor(field, dir);
+        break;
+    case OpMode::Calibrate:
+        adjustCalibration(field, dir);
         break;
     case OpMode::Display:
-        adjustDisplay(field, adjustment);
+        adjustDisplay(field, dir);
         break;
     default:
         break;
@@ -441,6 +503,11 @@ void copySettings(OpMode mode)
         break;
     case OpMode::Sensor:
         sensor_copy = sensor_settings;
+        break;
+    case OpMode::Calibrate:
+        sensor_copy = sensor_settings;
+        sensor_settings.low_ = 0;       // Set sensor range [0,AnalogMax] so it's not limited to its current range.
+        sensor_settings.high_ = AnalogMax<board_type>();
         break;
     case OpMode::Display:
         display_copy = display_settings;
@@ -467,8 +534,38 @@ void updateSettings(OpMode mode)
     case OpMode::Sensor:
         sensor_settings = sensor_copy;
         break;
+    case OpMode::Calibrate:
+        // Restore sensor settings not set in calibration mode.
+        if (!cal_settings.set_high_)
+            sensor_settings.high_ = sensor_copy.high_;
+        if (!cal_settings.set_low_)
+            sensor_settings.low_ = sensor_copy.low_;
+        // Set the aref source.
+        analogReference(cal_settings.aref_.first == CalibrationSettings::ArefSource::Internal
+            ? DEFAULT : EXTERNAL);
+        break;
     case OpMode::Display:
         display_settings = display_copy;
+        break;
+    default:
+        break;
+    }
+}
+
+void restoreSettings(OpMode mode)
+{
+    switch (mode)
+    {
+    case OpMode::Run:
+        break;
+    case OpMode::Alarm:
+        break;
+    case OpMode::Sensor:
+        break;
+    case OpMode::Calibrate:
+        sensor_settings = sensor_copy;
+        break;
+    case OpMode::Display:
         break;
     default:
         break;
@@ -484,12 +581,18 @@ void getSettings(OpMode mode)
         break;
     case OpMode::Alarm:
         break;
+    case OpMode::Sensor:
+        break;
+    case OpMode::Calibrate:
+        break;
+    case OpMode::Display:
+        break;
     default:
         break;
     }
 }
 
-void adjustAlarm(const Display::Field* field, int8_t adjustment)
+void adjustAlarm(const Display::Field* field, Adjustment::Direction dir)
 {
     if (field == &alarm_enable_field)
         alarm_copy.enabled_ = alarm_copy.enabled_ == AlarmDisabled
@@ -501,46 +604,68 @@ void adjustAlarm(const Display::Field* field, int8_t adjustment)
             : AlarmCmpLess;
     else if (field == &alarm_setpoint_field)
     {
-        DisplaySettings::value_type inc = adjustment > 0
-            ? 0.1
-            : -0.1;
+        auto inc = adjustment.value(Adjustment::display_type(), dir);
 
         alarm_copy.display_value_ = wrap<DisplaySettings::value_type, DisplaySettings::value_type>(
             alarm_copy.display_value_, inc, display_settings.low_, display_settings.high_);
     }
 }
 
-void adjustSensor(const Display::Field* field, int8_t adjustment)
+void adjustSensor(const Display::Field* field, Adjustment::Direction dir)
 {
+    auto inc = adjustment.value(Adjustment::sensor_type(), dir);
 
     if (field == &sensor_low_field)
-        sensor_copy.low_ = wrap<SensorSettings::value_type, int8_t>(
-            sensor_copy.low_, adjustment, 0, AnalogMax<board_type>());
+        sensor_copy.low_ = wrap<SensorSettings::value_type, Adjustment::sensordiff_type>(
+            sensor_copy.low_, inc, 0, AnalogMax<board_type>());
     else if (field == &sensor_hi_field)
-        sensor_copy.high_ = wrap<SensorSettings::value_type, int8_t>(
-            sensor_copy.high_, adjustment, 0, AnalogMax<board_type>());
+        sensor_copy.high_ = wrap<SensorSettings::value_type, Adjustment::sensordiff_type>(
+            sensor_copy.high_, inc, 0, AnalogMax<board_type>());
     else if (field == &sensor_poll_field)
         sensor_copy.tpoll_ = SensorSettings::duration_type(
-            wrap<SensorSettings::value_type, int8_t>(
-                sensor_copy.tpoll_.count(), adjustment, sensor_copy.tmin_.count(), sensor_copy.tmax_.count()));
+            wrap<SensorSettings::value_type, Adjustment::sensordiff_type>(
+                sensor_copy.tpoll_.count(), inc, sensor_copy.tmin_.count(), sensor_copy.tmax_.count()));
 }
 
-void adjustDisplay(const Display::Field* field, int8_t adjustment)
+void adjustCalibration(const Display::Field* field, Adjustment::Direction dir)
 {
-    DisplaySettings::value_type inc = adjustment > 0 
-        ? 0.1 
-        : -0.1;
+    if (field == &cal_aref_field)
+        cal_settings.aref_ = cal_settings.aref_ == ArefInternal 
+            ? ArefExternal
+            : ArefInternal;
+    else if (field == &cal_low_field)
+    {
+        sensor_settings.low_ = (cal_settings.set_low_ = !cal_settings.set_low_)
+            ? cal_settings.value_
+            : 0;
+    }
+    else if (field == &cal_high_field)
+    {
+        sensor_settings.high_ = (cal_settings.set_high_ = !cal_settings.set_high_)
+            ? cal_settings.value_
+            : AnalogMax<board_type>();
+    }
+}
 
-    if (field == &display_low_field)
-        display_copy.low_ = wrap<DisplaySettings::value_type, DisplaySettings::value_type>(
-            display_copy.low_, inc, display_copy.min_, display_copy.max_);
-    else if (field == &display_hi_field)
-        display_copy.high_ = wrap<DisplaySettings::value_type, DisplaySettings::value_type>(
-            display_copy.high_, inc, display_copy.min_, display_copy.max_);
-    else if (field == &display_unit_field)
+void adjustDisplay(const Display::Field* field, Adjustment::Direction dir)
+{
+
+    if (field == &display_unit_field)
         display_copy.unit_ = display_copy.unit_ == CelsiusSymbol
             ? FarenheitSymbol
             : display_copy.unit_ == FarenheitSymbol
                 ? KelvinSymbol
                 : CelsiusSymbol;
+    else
+    {
+        auto inc = adjustment.value(Adjustment::display_type(), dir);
+
+        if (field == &display_low_field)
+            display_copy.low_ = wrap<DisplaySettings::value_type, DisplaySettings::value_type>(
+                display_copy.low_, inc, display_copy.min_, display_copy.max_);
+        else if (field == &display_hi_field)
+            display_copy.high_ = wrap<DisplaySettings::value_type, DisplaySettings::value_type>(
+                display_copy.high_, inc, display_copy.min_, display_copy.max_);
+
+    }
 }
