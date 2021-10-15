@@ -15,3 +15,6 @@ Asynchronous event sequencer.
 
 ### LCDDisplay.h 
 Asynchronous lcd display configuration and management.
+
+### SerialControl.h 
+Asynchronous Command object execution over the serial port.
