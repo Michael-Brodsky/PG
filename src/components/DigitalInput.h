@@ -34,7 +34,7 @@
  *	triggers it. Input triggering can be disable, edge or level triggered, 
  *  active low (0) or active high (1) and configured to enable/disable the 
  *	built-in pullup resistor. Input values are read by the Arduino 
- *	digitalRead() API function and input modes set by the pinMode() function.
+ *	digitalRead() function and input modes are set by the pinMode() function.
  *	
  *	DigitalInput objects must be attached to a valid GPIO digital input, 
  *	either in the constructor or the attach() method. The trigger type and 
@@ -103,15 +103,18 @@ namespace pg
 			Input_Pullup = 2	// Internal pullup resistor is enabled.
 		};
 
-		using callback_type = typename callback<void, void, pin_t, bool>::type;
+		using callback_type = typename callback<void>::type;
 
 	public:
 		// Constructs an uninitialized DigitalInput.
 		DigitalInput();
+		// Constructs a DigitalInput attached to the given pin.
+		explicit DigitalInput(pin_t);
 		// Constructs a DigitalInput attached to the given pin and configured with the specified 
 		// mode, trigger, level and callback.
-		explicit DigitalInput(pin_t, PinMode = PinMode::Input_Pullup, Trigger = Trigger::Edge, 
-			bool = false, callback_type = nullptr);
+		explicit DigitalInput(pin_t, callback_type, PinMode = PinMode::Input_Pullup, Trigger = Trigger::Edge, bool = false);
+		// Move constructor.
+		DigitalInput(DigitalInput&&) = default;
 		// No copy constructor.
 		DigitalInput(const DigitalInput&) = delete;
 		// No copy assignment operator.
@@ -162,7 +165,13 @@ namespace pg
 
 	}
 
-	DigitalInput::DigitalInput(pin_t pin, PinMode mode, Trigger trigger, bool level, callback_type callback) :
+	DigitalInput::DigitalInput(pin_t pin) :
+		pin_(pin), mode_(), value_(), trigger_(), level_(), callback_()
+	{
+
+	}
+
+	DigitalInput::DigitalInput(pin_t pin, callback_type callback, PinMode mode, Trigger trigger, bool level) :
 		pin_(), mode_(), value_(), trigger_(trigger), level_(level), callback_(callback)
 	{
 		attach(pin, mode);
@@ -218,7 +227,7 @@ namespace pg
 	void DigitalInput::poll()
 	{
 		if (triggered() && callback_)
-			(*callback_)(pin_, value_);
+			(*callback_)();
 	}
 
 	bool DigitalInput::triggered()

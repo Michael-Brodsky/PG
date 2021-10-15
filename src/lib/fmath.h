@@ -73,7 +73,9 @@
  *	newton(x, f(x), f'(x), e): returns an approximation of f(x) using the Newton-Raphson method.
  *	secant(x0, x1, f(x), e): returns an approximation of f(x) using the Secant method.
  *	quadratic(a,b,c): returns the roots of f(x)=ax**2+bx+c as a pair of complex numbers.
- *
+ *	hart(r,a,b,c): Evaluates the Steinhart-Hart thermistor eqn.
+ *	rsense(v,v0,r0): returns the unkown resistance in a two-node voltage divider network.
+ * 
  *	Notes:
  *
  *		Functions are enabled using template substitution based on the type of
@@ -134,6 +136,8 @@
 #  undef newton
 #  undef secant
 #  undef quadratic
+#  undef hart
+#  undef rsense
 
 namespace pg
 {
@@ -402,12 +406,13 @@ namespace pg
 	}
 
 	/* Normalizes x in [xmin,xmax] to x in [ymin,ymax]. */
-	template<class T>
-	T norm(T x, T xmin, T xmax, T ymin, T ymax)
+	template<class T, class U = T>
+	U norm(T x, T xmin, T xmax, U ymin, U ymax)
 	{
 		assert(xmax != xmin);
 
-		return (ymax - ymin) / (xmax - xmin) * (x - xmax) + ymax;
+		return static_cast<U>((ymax - ymin) / (static_cast<U>(xmax) - static_cast<U>(xmin)) *
+			(static_cast<U>(x) - static_cast<U>(xmax)) + ymax);
 	}
 
 	/* Returns the linear interpolant of x between two known points. */
@@ -578,6 +583,24 @@ namespace pg
 
 		return result;
 	}
+
+	// Steinhart-Hart thermistor eqn.
+	template<class T>
+	T hart(T r, T a, T b, T c)
+	{
+		const T lnR = std::log(r);
+
+		return 1 / (a + b * lnR + c * cube(lnR));
+}
+
+	// Returns unknown resistance in a two-node voltage divider network.
+	// vnode = divider node voltage, vss = divider supply voltage, r0 = known divider resistance.
+	template<class T>
+	T rsense(T vnode, T vss, T r0)
+	{
+		return ((vss * r0) / vnode) - r0;
+	}
+
 
 } // namespace pg
 

@@ -68,12 +68,18 @@ namespace pg
 			const char* fmt_;		// format string.
 			bool		visible_;	// is visible.
 
-			friend bool operator==(const Field& lhs, const Field& rhs) { return lhs.col_ == rhs.col_ && lhs.row_ == rhs.row_; }
-			friend bool operator!=(const Field& lhs, const Field& rhs) { return !(lhs == rhs); }
-			friend bool operator<(const Field& lhs, const Field& rhs) { return lhs.row_ < rhs.row_ || (lhs.row_ == rhs.row_ && lhs.col_ < rhs.col_); }
-			friend bool operator>(const Field& lhs, const Field& rhs) { return (rhs < lhs); }
-			friend bool operator<=(const Field& lhs, const Field& rhs) { !(rhs < lhs); }
-			friend bool operator>=(const Field& lhs, const Field& rhs) { return !(lhs < rhs); }
+			friend bool operator==(const Field& lhs, const Field& rhs) 
+			{ return lhs.col_ == rhs.col_ && lhs.row_ == rhs.row_; }
+			friend bool operator!=(const Field& lhs, const Field& rhs) 
+			{ return !(lhs == rhs); }
+			friend bool operator<(const Field& lhs, const Field& rhs) 
+			{ return lhs.row_ < rhs.row_ || (lhs.row_ == rhs.row_ && lhs.col_ < rhs.col_); }
+			friend bool operator>(const Field& lhs, const Field& rhs) 
+			{ return (rhs < lhs); }
+			friend bool operator<=(const Field& lhs, const Field& rhs) 
+			{ !(rhs < lhs); }
+			friend bool operator>=(const Field& lhs, const Field& rhs) 
+			{ return !(lhs < rhs); }
 		};
 
 		// Encapsulates a collection of display fields.
@@ -193,6 +199,8 @@ namespace pg
 	public:
 		// Constructs an LCDDisplay.
 		explicit LCDDisplay(LiquidCrystal*, callback_type = nullptr, Screen* = nullptr);
+		// Move constructor.
+		LCDDisplay(LCDDisplay&&) = default;
 		// No copy constructor.
 		LCDDisplay(const LCDDisplay&) = delete;
 		// No copy assignment operator.

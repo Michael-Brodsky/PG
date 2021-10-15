@@ -104,6 +104,8 @@ namespace pg
 			void state(State);
 			// Returns the current task state.
 			const State& state() const;
+			// Resets the task timer.
+			void reset();
 			
 		private:
 			timer_type	timer_; // Task timer and executor.
@@ -300,6 +302,12 @@ namespace pg
 	const typename TaskScheduler<T>::Task::State& TaskScheduler<T>::Task::state(void) const
 	{
 		return state_;
+	}
+
+	template<class T>
+	void TaskScheduler<T>::Task::reset()
+	{
+		timer_.reset();
 	}
 
 #pragma endregion

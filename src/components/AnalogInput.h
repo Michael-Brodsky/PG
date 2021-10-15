@@ -32,8 +32,10 @@
  *	The `AnalogInput' class is used to poll analog input pins and issue client 
  *	callbacks if the value read from the attached input falls within a 
  *	specified range. The nested `Range' type encapsulates information about  
- *	input ranges. Ranges are compared to values read from an attached input pin 
- *	by the Arduino analogRead() function.
+ *	input ranges. Ranges are compared to values returned by the Arduino 
+ *	analogRead() function from the attached input pin. The template parameter 
+ *	`T' determines the data type and should be the same as that returned by 
+ *	analogRead().
  * 
  *	AnalogInput objects must be attached to a valid GPIO analog input, either 
  *	in the constructor or the attach() method. If range checking and callbacks 
@@ -41,15 +43,16 @@
  *	and callback() methods respectively. If ranges and callbacks are not used, 
  *	these parameters should be omitted.
  * 
- *	Range objects have a `range_' field that specifies a range of input values, 
- *	and inherit the `id()' method from their base class `Unique', which clients 
- *	use to to uniquely identify Range instances. The `range_' field is of type 
- *	std:pair<analog_t, analog_t>, where `first; is the range minimum and 
- *	`second' the range maximum value. A client callback is triggered on each 
- *	call to the `poll()' method if the `match_any_' flag is set or if the 
- *	polled value falls within [first, second]. The match_any_ flag is set in 
- *	the constructor or the `matchAny()' method. The`clock()' method can be 
- *	used to poll inputs asynchronously. 
+ *	Range objects have a `range_' field that specifies a range of input 
+ *	values, and inherit the `id()' method from the base class `Unique', which 
+ *	can be use to to uniquely identify Range instances. The `range_' field is 
+ *	of type std:pair<value_type, value_type>, where `first; is the range 
+ *	minimum and `second' the range maximum value. A client callback is 
+ *	triggered on each call to the `poll()' method if the `match_any_' flag is 
+ *	set or if the polled value falls within [first, second]. The match_any_ 
+ *	flag is set in the constructor or the `matchAny()' method and is always 
+ *	set if no ranges are specified. The`clock()' method can be used to poll 
+ *	inputs asynchronously. 
  *
  *	The function call operator `operator()' returns the current input value.
  *	AnalogInput also specializes six non-member comparison functions which can 
@@ -82,13 +85,16 @@
 namespace pg
 {
 	// Asyncronous analog input polling class.
+	template<class T = analog_t>
 	class AnalogInput : public icomponent, public iclockable 
 	{
 	public:
+		using value_type = T;
+
 		// Encapsulates information about a range of analog input values.
 		struct Range : public Unique 
 		{
-			using range_type = std::pair<analog_t, analog_t>; // first is low, second is high.
+			using range_type = std::pair<value_type, value_type>; // first is low, second is high.
 
 			range_type	range_;	// The input range, low, high.
 
@@ -96,7 +102,7 @@ namespace pg
 			Range(const range_type& range) : range_(range) {}
 
 			// Checks whether value is within the range.
-			bool in_range(analog_t value) { return value >= range_.first && value <= range_.second; }
+			bool in_range(value_type value) { return value >= range_.first && value <= range_.second; }
 
 			// Checks whether two ranges are equal.
 			friend bool operator==(const Range& lhs, const Range& rhs)
@@ -111,7 +117,7 @@ namespace pg
 			}
 		};
 
-		using callback_type = typename callback<void, void, pin_t, analog_t, const Range*>::type;
+		using callback_type = typename callback<void>::type;
 		using container_type = std::ArrayWrapper<Range*>;
 		using iterator = typename container_type::iterator;
 
@@ -131,6 +137,8 @@ namespace pg
 		AnalogInput(pin_t, callback_type, std::initializer_list<Range*>, bool = false);
 		// Constructs an AnalogInput attached to the given pin and with input ranges specified by a container.
 		AnalogInput(pin_t, callback_type, container_type&, bool = false);
+		// Move constructor.
+		AnalogInput(AnalogInput&&) = default;
 		// No copy constructor.
 		AnalogInput(const AnalogInput&) = delete;
 		// No copy assignment operator.
@@ -160,10 +168,12 @@ namespace pg
 		bool matchAny() const;
 		// Sets the client callback.
 		void callback(callback_type);
-		// Returns the last read input value.
-		analog_t value() const;
 		// Reads and returns the current input value.
-		analog_t operator()();
+		value_type operator()();
+		// Returns the last read input value.
+		value_type value() const;
+		// Returns the last matched range, if any.
+		Range* range() const;
 		// Polls the input and executes a callback if any input ranges were matched.
 		void poll();
 
@@ -173,13 +183,13 @@ namespace pg
 		// Reads the current input value and returns the matched range, if any.
 		iterator read_input();
 		// Executes the current client callback, if any.
-		void doCallback(const Range*);
+		void doCallback();
 		// Polls the input and executes a callback if any input ranges were matched.
 		void clock() override;
 
 	private:
 		pin_t			pin_;		// The attached GPIO analog input pin.
-		analog_t		value_;		// The last value read from the input.
+		value_type		value_;		// The last value read from the input.
 		container_type	ranges_;	// The collection of input ranges.
 		iterator		current_;	// The last range matched by the last input value, if any.
 		bool			match_any_;	// Flag indicating whether any matched range triggers a callback.
@@ -188,51 +198,58 @@ namespace pg
 
 #pragma region member_funcs
 
-	AnalogInput::AnalogInput() :
-		pin_(InvalidPin), value_(), callback_(), ranges_(), current_(), match_any_()
+	template<class T>
+	AnalogInput<T>::AnalogInput() :
+		pin_(InvalidPin), value_(), callback_(), ranges_(), current_(), match_any_(ranges_.size() == 0)
 	{
 
 	}
 
-	AnalogInput::AnalogInput(pin_t pin) : 
-		pin_(pin), value_(), callback_(), ranges_(), current_(), match_any_()
+	template<class T>
+	AnalogInput<T>::AnalogInput(pin_t pin) :
+		pin_(pin), value_(), callback_(), ranges_(), current_(), match_any_(ranges_.size() == 0)
 	{
 		setPinMode(pin);
 	}
 
+	template<class T>
 	template<std::size_t N>
-	AnalogInput::AnalogInput(pin_t pin, callback_type callback, Range* (&ranges)[N], bool match_any) :
+	AnalogInput<T>::AnalogInput(pin_t pin, callback_type callback, Range* (&ranges)[N], bool match_any) :
 		pin_(pin), value_(), callback_(callback), ranges_(ranges), 
-		current_(std::end(ranges_)), match_any_(match_any)
+		current_(std::end(ranges_)), match_any_(ranges_.size() == 0 || match_any)
 	{
 		setPinMode(pin);
 	}
 
-	AnalogInput::AnalogInput(pin_t pin, callback_type callback, Range* ranges[], std::size_t n, bool match_any) :
+	template<class T>
+	AnalogInput<T>::AnalogInput(pin_t pin, callback_type callback, Range* ranges[], std::size_t n, bool match_any) :
 		pin_(pin), value_(), callback_(callback), ranges_(ranges, n), 
-		current_(std::end(ranges_)), match_any_(match_any)
+		current_(std::end(ranges_)), match_any_(ranges_.size() == 0 || match_any)
 	{
 		setPinMode(pin);
 	}
 
-	AnalogInput::AnalogInput(pin_t pin, callback_type callback, Range** first, Range** last, bool match_any) :
+	template<class T>
+	AnalogInput<T>::AnalogInput(pin_t pin, callback_type callback, Range** first, Range** last, bool match_any) :
 		pin_(pin), value_(), callback_(callback), ranges_(first, last), 
-		current_(std::end(ranges_)), match_any_(match_any)
+		current_(std::end(ranges_)), match_any_(ranges_.size() == 0 || match_any)
 	{
 		setPinMode(pin);
 	}
 
-	AnalogInput::AnalogInput(pin_t pin, callback_type callback, container_type& ranges, bool match_any) :
+	template<class T>
+	AnalogInput<T>::AnalogInput(pin_t pin, callback_type callback, container_type& ranges, bool match_any) :
 		pin_(pin), value_(), callback_(callback), 
-		ranges_(ranges), current_(std::end(ranges_)), match_any_(match_any)
+		ranges_(ranges), current_(std::end(ranges_)), match_any_(ranges_.size() == 0 || match_any)
 	{
 		setPinMode(pin);
 	}
 
-	AnalogInput::AnalogInput(pin_t pin, callback_type callback, std::initializer_list<Range*> il, bool match_any) :
+	template<class T>
+	AnalogInput<T>::AnalogInput(pin_t pin, callback_type callback, std::initializer_list<Range*> il, bool match_any) :
 		pin_(pin), value_(), callback_(callback),
 		ranges_(const_cast<Range**>(il.begin()), il.size()), 
-		current_(std::end(ranges_)), match_any_(match_any)
+		current_(std::end(ranges_)), match_any_(ranges_.size() == 0 || match_any)
 	{
 		std::size_t i = 0;
 
@@ -240,36 +257,45 @@ namespace pg
 			*ranges_[i++] = *j;
 	}
 
-	void AnalogInput::attach(pin_t pin)
+	template<class T>
+	void AnalogInput<T>::attach(pin_t pin)
 	{
 		setPinMode(pin);
 	}
 
-	pin_t AnalogInput::attach() const
+	template<class T>
+	pin_t AnalogInput<T>::attach() const
 	{
 		return pin_;
 	}
 
+	template<class T>
 	template<std::size_t N>
-	void AnalogInput::ranges(Range* (&ranges)[N])
+	void AnalogInput<T>::ranges(Range* (&ranges)[N])
 	{
 		ranges_ = container_type(ranges);
 		current_ = std::end(ranges_);
+		matchAny(match_any_);
 	}
 
-	void AnalogInput::ranges(Range* ranges[], std::size_t n)
+	template<class T>
+	void AnalogInput<T>::ranges(Range* ranges[], std::size_t n)
 	{
 		ranges_ = container_type(ranges, n);
 		current_ = std::end(ranges_);
+		matchAny(match_any_);
 	}
 
-	void AnalogInput::ranges(Range** first, Range** last)
+	template<class T>
+	void AnalogInput<T>::ranges(Range** first, Range** last)
 	{
 		ranges_ = container_type(first, last);
 		current_ = std::end(ranges_);
+		matchAny(match_any_);
 	}
 
-	void AnalogInput::ranges(std::initializer_list<Range*> il)
+	template<class T>
+	void AnalogInput<T>::ranges(std::initializer_list<Range*> il)
 	{
 		ranges_ = container_type(const_cast<Range**>(il.begin()), il.size());
 		std::size_t i = 0;
@@ -277,66 +303,80 @@ namespace pg
 		for (auto j : il)
 			*ranges_[i++] = *j;
 		current_ = std::end(ranges_);
+		matchAny(match_any_);
 	}
 
-	void AnalogInput::ranges(container_type& ranges)
+	template<class T>
+	void AnalogInput<T>::ranges(container_type& ranges)
 	{
 		ranges_ = ranges;
 		current_ = std::end(ranges_);
+		matchAny(match_any_);
 	}
 
-	const typename AnalogInput::container_type& AnalogInput::ranges() const
+	template<class T>
+	const typename AnalogInput<T>::container_type& AnalogInput<T>::ranges() const
 	{
 		return ranges_;
 	}
 
-	void AnalogInput::matchAny(bool value)
+	template<class T>
+	void AnalogInput<T>::matchAny(bool value)
 	{
-		match_any_ = value;
+		match_any_ = ranges_.size() == 0 || value;
 	}
 
-	bool AnalogInput::matchAny() const
+	template<class T>
+	bool AnalogInput<T>::matchAny() const
 	{
 		return match_any_;
 	}
 
-	void AnalogInput::callback(callback_type callback)
+	template<class T>
+	void AnalogInput<T>::callback(callback_type callback)
 	{
 		callback_ = callback;
 	}
 
-	analog_t AnalogInput::operator()()
+	template<class T>
+	typename AnalogInput<T>::value_type AnalogInput<T>::operator()()
 	{
 		return (value_ = analogRead(pin_));
 	}
 
-	analog_t AnalogInput::value() const
+	template<class T>
+	typename AnalogInput<T>::value_type AnalogInput<T>::value() const
 	{
 		return value_;
 	}
 
-	void AnalogInput::poll()
+	template<class T>
+	typename AnalogInput<T>::Range* AnalogInput<T>::range() const
+	{
+		return *current_;
+	}
+
+	template<class T>
+	void AnalogInput<T>::poll()
 	{
 		iterator i = read_input();
 
-		if (ranges_.size() == 0)
+		if (match_any_ || i != current_) 
 		{
-			doCallback(nullptr); // Always callback if no ranges set.
-		}
-		else if (match_any_ || i != current_) 
-		{
-			doCallback(i != std::end(ranges_) ? *i : nullptr); // Callback if match any set or new match.
 			current_ = i;
+			doCallback(); // Callback if match any set or new match.
 		}
 	}
 
-	void AnalogInput::setPinMode(pin_t pin)
+	template<class T>
+	void AnalogInput<T>::setPinMode(pin_t pin)
 	{
 		pinMode(pin, INPUT);
 		pin_ = pin;
 	}
 
-	typename AnalogInput::iterator AnalogInput::read_input()
+	template<class T>
+	typename AnalogInput<T>::iterator AnalogInput<T>::read_input()
 	{
 		iterator i = std::end(ranges_);
 
@@ -353,13 +393,15 @@ namespace pg
 		return i;
 	}
 
-	void AnalogInput::doCallback(const Range* range)
+	template<class T>
+	void AnalogInput<T>::doCallback()
 	{
 		if (callback_)
-			(*callback_)(pin_, value_, range);
+			(*callback_)();
 	}
 
-	void AnalogInput::clock()
+	template<class T>
+	void AnalogInput<T>::clock()
 	{
 		poll();
 	}
@@ -367,32 +409,38 @@ namespace pg
 #pragma endregion
 #pragma region non-member_funcs
 
-	inline bool operator==(const AnalogInput& lhs, const AnalogInput& rhs)
+	template<class T>
+	inline bool operator==(const AnalogInput<T>& lhs, const AnalogInput<T>& rhs)
 	{
 		return lhs.value() == rhs.value();
 	}
 
-	inline bool operator!=(const AnalogInput& lhs, const AnalogInput& rhs)
+	template<class T>
+	inline bool operator!=(const AnalogInput<T>& lhs, const AnalogInput<T>& rhs)
 	{
 		return !(lhs == rhs);
 	}
 
-	inline bool operator<(const AnalogInput& lhs, const AnalogInput& rhs)
+	template<class T>
+	inline bool operator<(const AnalogInput<T>& lhs, const AnalogInput<T>& rhs)
 	{
 		return lhs.value() < rhs.value();
 	}
 
-	inline bool operator>(const AnalogInput& lhs, const AnalogInput& rhs)
+	template<class T>
+	inline bool operator>(const AnalogInput<T>& lhs, const AnalogInput<T>& rhs)
 	{
 		return (rhs < lhs);
 	}
 
-	inline bool operator<=(const AnalogInput& lhs, const AnalogInput& rhs)
+	template<class T>
+	inline bool operator<=(const AnalogInput<T>& lhs, const AnalogInput<T>& rhs)
 	{
 		return !(rhs < lhs);
 	}
 
-	inline bool operator>=(const AnalogInput& lhs, const AnalogInput& rhs)
+	template<class T>
+	inline bool operator>=(const AnalogInput<T>& lhs, const AnalogInput<T>& rhs)
 	{
 		return !(lhs < rhs);
 	}

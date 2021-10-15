@@ -61,10 +61,12 @@
 # include "interfaces/iclockable.h"	// `iclockable" and `icommand' interfaces.
 # include "utilities/Timer.h"		// `Timer' class.
 
+using namespace std::chrono;
+
 namespace pg
 {
 	// Asynchronous event sequencer.
-	template<class T = Timer<std::chrono::milliseconds>>
+	template<class T = Timer<milliseconds>>
 	class EventSequencer : public iclockable, public icomponent
 	{
 	public:
