@@ -69,7 +69,7 @@ namespace pg
 		// Constructs a pwm output attached to a digital output pin with a given duty cycle and state.
 		Pwm(pin_t, duty_cycle_t = 0, bool = false);
 		// Move constructor.
-		Pwm(Pwm&&) = delete;
+		Pwm(Pwm&&) = default;
 		// No copy constructor.
 		Pwm(const Pwm&) = delete;
 		// No copy assignment operator.
