@@ -1,6 +1,6 @@
 /*
- *	This files defines a class that asynchronously controls a pulse-width-
- *	modulated (PWM) output.
+ *	This files defines a class that controls a pulse-width-modulated (PWM) 
+ *	output.
  *
  *	***************************************************************************
  *
