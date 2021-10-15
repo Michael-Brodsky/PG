@@ -137,6 +137,7 @@
 #  undef secant
 #  undef quadratic
 #  undef hart
+#  undef tbeta
 #  undef rsense
 
 namespace pg
@@ -591,7 +592,14 @@ namespace pg
 		const T lnR = std::log(r);
 
 		return 1 / (a + b * lnR + c * cube(lnR));
-}
+	}
+
+	// Beta thermistor eqn.
+	template<class T>
+	T tbeta(T r, T rinf, T B)
+	{
+		return B / std::log(r / rinf);
+	}
 
 	// Returns unknown resistance in a two-node voltage divider network.
 	// vnode = divider node voltage, vss = divider supply voltage, r0 = known divider resistance.
