@@ -6,8 +6,7 @@
 using namespace pg;
 using namespace std::chrono;
 using Sequencer = EventSequencer<>; // Alias for default EventSequencer.
-using Keypad = AnalogKeypad<>; // Alias for default AnalogKeypad
-
+using Keypad = AnalogKeypad<>; // Alias for default AnalogKeypad.
 // Keypad callback func decl.
 void keypadCallback(const Keypad::Button*, Keypad::Event); 
 

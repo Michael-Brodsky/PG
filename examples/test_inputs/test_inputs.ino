@@ -1,45 +1,47 @@
-#include <pg.h>
-#include "components/AnalogInput.h"
+// This program demonstrates the use of the Pg AnalogInput class, how 
+// to configure and poll an analog input, and issue a callback if the 
+// input value falls within a specified set of ranges. Description and 
+// usage info can be found at the top of the <AnalogInput.h> file.
+// Note: this program uses named namespaces which are supported by the 
+// Arduino IDE v1.8 and later. Pg promotes strongly-typed, 
+// const-correct, modern object-oriented design methodologies. There 
+// are no macros, "magic numbers" and almost nothing is of type <int>. 
+// Join the 21st century!!
+
+#include <pg.h> // https://github.com/Michael-Brodsky/pg
+#include <components/AnalogInput.h>
 using namespace pg;
 
-// This program demonstrates how to configure and poll an analog input and 
-// issue a callback if the input value falls within a specified set of ranges.
+// Callback function declaration. 
+void inputCallback();
 
-// Range tags, these should be descriptive, e.g. LowRange, HiRange, etc. as 
-// they identify any input ranges you define.
-enum class AnalogInput::Range::Tag
-{
-  A = 0,
-  B,
-  C, 
-  D, 
-  E
-};
+// Range objects (nested type defined in AnalogInput), are constructed 
+// from a `range_type' which is of type std::pair<analog_t, analog_t>,  
+// where member `first' represents the low value of the range and 
+// `second' the high value. A match occurs if the value returned by 
+// analogRead() is in [first, second]. `std::pair' is a type defined by 
+// the C++ Standard Library in header <utility>. `analog_t' is a 
+// descriptive type alias that holds values of the type returned by the 
+// analogRead() function. 
+AnalogInput<>::Range rangeA{ AnalogInput<>::Range::range_type { 0, 60 } };
+AnalogInput<>::Range rangeB{ AnalogInput<>::Range::range_type { 61,200 } };
+AnalogInput<>::Range rangeC{ AnalogInput<>::Range::range_type { 201,400 } };
+AnalogInput<>::Range rangeD{ AnalogInput<>::Range::range_type { 401,600 } };
+AnalogInput<>::Range rangeE{ AnalogInput<>::Range::range_type { 601,800 } };
 
-// Callback function. 
-void input_cb(pin_t pin, analog_t value, AnalogInput::Range* range)
-{
-  Serial.print("input("); Serial.print(pin); Serial.print(") = "); Serial.println(value);
-  if (range)
-  {
-    Serial.print("range {"); Serial.print(range->range_.first); Serial.print(",");
-    Serial.print(range->range_.second); Serial.println("}");
-  }
-}
+// Analog input pin. AnalogInput objects must be attached to a valid GPIO 
+// analog input pin. `pin_t is a descriptive type alias that holds values 
+// of GPIO pin number.
+const pin_t AnalogInputPin = 0; // Attach to AN0.
 
-// Input ranges, range_type is std::pair<analog_t, analog_t>, first is range low, second is range hi.
-// analog_t is a descriptive alias for uint16_t, the type returned by Arduino `analogRead()'.
-// Also pin_t is a descriptive alias for uint8_t, a type that can hold any valid GPIO pin number, 
-// unlike Arduino's int (everything is int), which is not type-safe because int is a signed integer 
-// type that can hold negative values which are not valid pin numbers and poor programming practice.
-// Or, if you're lazy, screw it, everything's an int.
-AnalogInput::Range rangeA{ AnalogInput::Range::range_type(0,60), AnalogInput::Range::Tag::A };
-AnalogInput::Range rangeB{ AnalogInput::Range::range_type(61,200), AnalogInput::Range::Tag::B };
-AnalogInput::Range rangeC{ AnalogInput::Range::range_type(201,400), AnalogInput::Range::Tag::C };
-AnalogInput::Range rangeD{ AnalogInput::Range::range_type(401,600), AnalogInput::Range::Tag::D };
-AnalogInput::Range rangeE{ AnalogInput::Range::range_type(601,800), AnalogInput::Range::Tag::E };
-// AnalogInput object attached to AN0, will issue callback if input level is within any of the defined ranges.
-AnalogInput in(0, &input_cb, { &rangeA,&rangeB,&rangeC,&rangeD,&rangeE });
+// AnalogInput objects are constructed from the input pin, callback method and 
+// optinally a list of ranges. Here a callback will be generated whenever the 
+// polled input value falls within one of the specified ranges and the matched 
+// range is different from the previously matched range. Thus, this configuration 
+// only notifies the client on changes in input conditions that satisfy some 
+// criteria - all with one line of code. Brilliant!! This behavior can be 
+// changed by the client (see decription in <AnalogInput.h>).
+AnalogInput<> analog_input(AnalogInputPin, inputCallback, { &rangeA,&rangeB,&rangeC,&rangeD,&rangeE });
 
 void setup() 
 {
@@ -48,6 +50,21 @@ void setup()
 
 void loop() 
 {
-  in.poll();
+  analog_input.poll();
   delay(100); // Input switch debounce.
+}
+
+// Method that handles AnalogInput callbacks. Depending on how an AnalogInput 
+// object is configured, callbacks can be issued when: the object is polled,   
+// the polled input value falls within any specified range, or the polled value 
+// matches a range different from the previously matched range. Here we simply 
+// print the callback arguments to the serial monitor.
+void inputCallback()
+{
+  Serial.print("input("); Serial.print(analog_input.attach()); Serial.print(") = "); Serial.println(analog_input.value());
+  if (analog_input.range())
+  {
+    Serial.print("range {"); Serial.print(analog_input.range()->range_.first); Serial.print(",");
+    Serial.print(analog_input.range()->range_.second); Serial.println("}");
+  }
 }

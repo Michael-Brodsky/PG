@@ -6,6 +6,7 @@ using namespace pg;
 using namespace std::chrono;
 using Sequencer = EventSequencer<>;
 using Scheduler = TaskScheduler<>;
+using Keypad = AnalogKeypad<>;
 
 // This program demonstrates how a TaskScheduler can be used to trigger tasks asynchronously,  
 // at predefined intervals and start/stop tasks based on criteria. This can greatly improve 
@@ -13,15 +14,6 @@ using Scheduler = TaskScheduler<>;
 // overload the CPU or prevent other tasks from timely execution.
 
 // Func fwd decls.
-
-enum class pg::ButtonTag // Must be fully scoped as pg::ButtonTag
-{
-  Right = 0,
-  Up,
-  Down,
-  Left,
-  Select
-};
 void keypad_cb(const Keypad::Button*, Keypad::Event); 
 void toggle(Sequencer::Status);
 
@@ -42,20 +34,11 @@ Sequencer seq({ &event1,&event2 }, nullptr, true);
 
 // Keypad Shield parameters & objects.
 const pin_t KeypadInputPin = 0;
+const analog_t ButtonTriggerLevel = 800;
 
-const analog_t RightButtonTriggerLevel = 60;
-const analog_t UpButtonTriggerLevel = 200;
-const analog_t DownButtonTriggerLevel = 400;
-const analog_t LeftButtonTriggerLevel = 600;
-const analog_t SelectButtonTriggerLevel = 800;
+Keypad::Button any_button(ButtonTriggerLevel);
 
-Keypad::Button right_button(ButtonTag::Right, RightButtonTriggerLevel);
-Keypad::Button up_button(ButtonTag::Up, UpButtonTriggerLevel);
-Keypad::Button down_button(ButtonTag::Down, DownButtonTriggerLevel);
-Keypad::Button left_button(ButtonTag::Left, LeftButtonTriggerLevel);
-Keypad::Button select_button(ButtonTag::Select, SelectButtonTriggerLevel);
-
-Keypad keypad({ &right_button,&up_button,&down_button,&left_button,&select_button }, KeypadInputPin, &keypad_cb);
+Keypad keypad(KeypadInputPin, keypad_cb, { &any_button });
 
 // Task scheduling parameters & objects.
 const milliseconds KeypadPollingInterval = milliseconds(100); // Keypad is polled every 100ms.
@@ -83,21 +66,8 @@ void loop()
 
 void keypad_cb(const Keypad::Button* button, Keypad::Event event)
 {
-  switch (event)
-  {
-  case Keypad::Event::Press:
-    switch (button->tag_)
-    {
-    case ButtonTag::Select: // Toggle the sequencer's status on each press of <Select> button.
+  if(event == Keypad::Event::Press)
       toggle(seq.status());
-      break;
-    default:
-      break;
-    };
-    break;
-  default:
-    break;
-  };
 }
 
 void toggle(Sequencer::Status status) 

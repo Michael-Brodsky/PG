@@ -19,9 +19,9 @@ Clockable object2("frobnicate");
 Clockable object3("blueberry frogurt");
 
 // A collection of commands to "clock" the objects.
-pg::ClockCommand command1(object1);
-pg::ClockCommand command2(object2);
-pg::ClockCommand command3(object3);
+pg::ClockCommand command1(&object1);
+pg::ClockCommand command2(&object2);
+pg::ClockCommand command3(&object3);
 pg::icommand* commands[] = { &command1,&command2,&command3 };
 auto it = std::begin(commands);
 

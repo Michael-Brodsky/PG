@@ -1,171 +1,69 @@
-#include <pg.h>
+// This program demonstrates the use of the Pg Keypad class and how 
+// to setup a pollable keypad that responds to button events. This 
+// program simply prints the button and event to the serial monitor. 
+// Description and usage info can be found at the top of the 
+// <AnalogKeypad.h> file. Note: this program uses named namespaces 
+// which are supported in the Arduino IDE v1.8 and later. Pg 
+// promotes strongly-typed, const-correct, modern object-oriented 
+// design methodologies. There are no macros, "magic numbers" and 
+// almost nothing is of type <int>. Join the 21st century!!
+
+#include <pg.h> // https://github.com/Michael-Brodsky/pg
 #include <components/AnalogKeypad.h>
 using namespace pg;
 using namespace std::chrono;
 
-// This program demonstrates the use of the Keypad class and how to setup
-// a pollable Keypad Shield and respond to keypad events. The program 
-// simply prints the button and event on the serial monitor. Description 
-// and usage info can be found at the top of the <components/AnalogKeypad.h>
-// file.
+using Keypad = AnalogKeypad<>;
 
-const char* button_name[] = { "down","up","left","right","select" }; // printable button names, just for demo.
+// Keypad event-handling function declarations. 
+void keypadPressEvent(const Keypad::Button*);
+void keypadReleaseEvent(const Keypad::Button*);
+void keypadLongpressEvent(const Keypad::Button* button);
+void keypadCallback(const Keypad::Button*, Keypad::Event);
 
-enum class Keypad::Button::Tag  // Enumerates valid tags that identify Keypad::Button objects.
-{
-  Right = 0,
-  Up,
-  Down,
-  Left,
-  Select
-};
+// Printable button names, only needed for this demo.
+const char* button_name[] = { "down","up","left","right","select" }; 
 
-// Button press event handler.
-void keypadPressEvent(const Keypad::Button* button)
-{
-  const char* event_type = " button pressed";
-  const char* btn = nullptr;
+// Keypad analog input pin. All buttons must be wired to this pin.
+// If using an LCD/Keypad shield, check the documentation. `pin_t is a 
+// descriptive type alias that holds values of any valid GPIO pin number.
+const pin_t KeypadInputPin = 0; 
+// Keypad long press interval - how long it takes to fire the longpress 
+// event after a button is pressed. Note: milliseconds and seconds are 
+// std::chrono::duration types, defined by the C++ Standard Library in  
+// the header <chrono>.
+const milliseconds KeypadLongPressInterval = seconds(1); 
 
-  switch (button->tag_)
-  {
-  case Keypad::Button::Tag::Down:
-    btn = button_name[0];
-    break;
-  case Keypad::Button::Tag::Up:
-    btn = button_name[1];
-    break;
-  case Keypad::Button::Tag::Left:
-    btn = button_name[2];
-    break;
-  case Keypad::Button::Tag::Right:
-    btn = button_name[3];
-    break;
-  case Keypad::Button::Tag::Select:
-    btn = button_name[4];
-    break;
-  default:
-    break;
-  }
-  if (btn)
-  {
-    Serial.print(btn);
-    Serial.println(event_type);
-  }
-}
-
-// Button release event handler.
-void keypadReleaseEvent(const Keypad::Button* button)
-{
-  const char* event_type = " button released";
-  const char* btn = nullptr;
-
-  switch (button->tag_)
-  {
-  case Keypad::Button::Tag::Down:
-    btn = button_name[0];
-    break;
-  case Keypad::Button::Tag::Up:
-    btn = button_name[1];
-    break;
-  case Keypad::Button::Tag::Left:
-    btn = button_name[2];
-    break;
-  case Keypad::Button::Tag::Right:
-    btn = button_name[3];
-    break;
-  case Keypad::Button::Tag::Select:
-    btn = button_name[4];
-    break;
-  default:
-    break;
-  }
-  if (btn)
-  {
-    Serial.print(btn);
-    Serial.println(event_type);
-  }
-}
-
-// Button long-press event handler.
-void keypadLongpressEvent(const Keypad::Button* button)
-{
-  const char* event_type = " button long pressed";
-  const char* btn = nullptr;
-
-  switch (button->tag_)
-  {
-  case Keypad::Button::Tag::Down:
-    btn = button_name[0];
-    break;
-  case Keypad::Button::Tag::Up:
-    btn = button_name[1];
-    break;
-  case Keypad::Button::Tag::Left:
-    btn = button_name[2];
-    break;
-  case Keypad::Button::Tag::Right:
-    btn = button_name[3];
-    break;
-  case Keypad::Button::Tag::Select:
-    btn = button_name[4];
-    break;
-  default:
-    break;
-  }
-  if (btn)
-  {
-    Serial.print(btn);
-    Serial.println(event_type);
-  }
-}
-
-// Keypad callback function.
-void keypad_cb(const Keypad::Button* button, Keypad::Event event)
-{
-  static bool lp = false;
-
-  switch (event)
-  {
-  case Keypad::Event::Press:
-    keypadPressEvent(button);
-    lp = false;
-    break;
-  case Keypad::Event::Longpress:
-    if (!lp)
-    {
-      keypadLongpressEvent(button);
-      lp = true; // prevents repetitious printing.
-    }
-    break;
-  case Keypad::Event::Release:
-    keypadReleaseEvent(button);
-    lp = false;
-    break;
-  default:
-    break;
-  }
-}
-
-const pin_t KeypadInputPin = 0; // Keypad analog input pin (check Keypad Shield mfg specs.)
-const milliseconds KeypadLongPressInterval = seconds(1); // Keypad long press interval.
-
-// Button trigger level (check Keypad Shield mfg specs.)
+// Button trigger levels. These depend on how buttons are physically wired 
+// to the input pin. They represent the value returned by analogRead() when 
+// the button is pressed down. If using an LCD/Keypad shield, check the 
+// documentation. `analog_t' is a descriptive type alias that holds values 
+// of the type returned by the analogRead() function. 
 const analog_t RightButtonTriggerLevel = 60;
 const analog_t UpButtonTriggerLevel = 200;
 const analog_t DownButtonTriggerLevel = 400;
 const analog_t LeftButtonTriggerLevel = 600;
 const analog_t SelectButtonTriggerLevel = 800;
 
-// Keypad button objects.
-Keypad::Button right_button(Keypad::Button::Tag::Right, RightButtonTriggerLevel);
-Keypad::Button up_button(Keypad::Button::Tag::Up, UpButtonTriggerLevel);
-Keypad::Button down_button(Keypad::Button::Tag::Down, DownButtonTriggerLevel);
-Keypad::Button left_button(Keypad::Button::Tag::Left, LeftButtonTriggerLevel);
-Keypad::Button select_button(Keypad::Button::Tag::Select, SelectButtonTriggerLevel);
-Keypad::Button buttons[] = { right_button, up_button, down_button, left_button, select_button };
+// Button objects (nested type defined in Keypad class) are constructed from 
+// their trigger levels.
+Keypad::Button right_button(RightButtonTriggerLevel);
+Keypad::Button up_button(UpButtonTriggerLevel);
+Keypad::Button down_button(DownButtonTriggerLevel);
+Keypad::Button left_button(LeftButtonTriggerLevel);
+Keypad::Button select_button(SelectButtonTriggerLevel);
 
-// Keypad object.
-Keypad keypad({ &right_button,&up_button,&down_button,&left_button,&select_button }, KeypadInputPin, &keypad_cb, Keypad::LongPress::Hold, KeypadLongPressInterval);
+// The Keypad object is constructed from a list of buttons, the input pin, 
+// callback method, and lonpress mode and interval. The lp_mode and 
+// lp_interval params default to Keypad::LongPress::None and milliseconds(0) 
+// if omitted.
+Keypad keypad(
+  KeypadInputPin, 
+  keypadCallback, 
+  { &right_button,&up_button,&down_button,&left_button,&select_button }, 
+  Keypad::LongPress::Hold, // Longpress mode = Hold, Release or None. 
+  KeypadLongPressInterval  // Longpress interval = std::chrono::duration type.
+);
 
 void setup() 
 {
@@ -174,6 +72,107 @@ void setup()
 
 void loop() 
 {
-  while (1)
-    keypad.poll();
+  keypad.poll(); // Can also be polled asynchronously with the clock() method.
+}
+
+// Button press event handler.
+void keypadPressEvent(const Keypad::Button* button)
+{
+  const char* event_type = " button pressed";
+  int8_t i = -1;
+
+  // Buttons are identified by a unique number generated by their base class Unique, 
+  // and returned by the id() method. id() doesn't return a constexpr so we can't 
+  // use a switch() statement. 
+  if (button->id() == down_button.id())
+      i = 0;
+  else if (button->id() == up_button.id())
+      i = 1;
+  else if (button->id() == left_button.id())
+      i = 2;
+  else if (button->id() == right_button.id())
+      i = 3;
+  else if (button->id() == select_button.id())
+      i = 4;
+  if (i != -1)
+  {
+      Serial.print(button_name[i]);
+      Serial.println(event_type);
+  }
+}
+
+// Button release event handler.
+void keypadReleaseEvent(const Keypad::Button* button)
+{
+  const char* event_type = " button released";
+  int8_t i = -1;
+
+  // Buttons are identified by a unique number generated by their base class Unique, 
+  // and returned by the id() method. id() doesn't return a constexpr so we can't 
+  // use a switch() statement. 
+  if (button->id() == down_button.id())
+      i = 0;
+  else if (button->id() == up_button.id())
+      i = 1;
+  else if (button->id() == left_button.id())
+      i = 2;
+  else if (button->id() == right_button.id())
+      i = 3;
+  else if (button->id() == select_button.id())
+      i = 4;
+  if (i != -1)
+  {
+      Serial.print(button_name[i]);
+      Serial.println(event_type);
+  }
+}
+
+// Button long-press event handler.
+void keypadLongpressEvent(const Keypad::Button* button)
+{
+  const char* event_type = " button longpressed";
+  int8_t i = -1;
+
+  // Buttons are identified by a unique number generated by their base class Unique, 
+  // and returned by the id() method. id() doesn't return a constexpr so we can't 
+  // use a switch() statement. 
+  if (button->id() == down_button.id())
+      i = 0;
+  else if (button->id() == up_button.id())
+      i = 1;
+  else if (button->id() == left_button.id())
+      i = 2;
+  else if (button->id() == right_button.id())
+      i = 3;
+  else if (button->id() == select_button.id())
+      i = 4;
+  if (i != -1)
+  {
+      Serial.print(button_name[i]);
+      Serial.println(event_type);
+  }
+}
+
+// Keypad callback method. This is called by the Keypad object whenever a 
+// button event occurs. It in turn calls one of the event handling functions.
+void keypadCallback(const Keypad::Button* button, Keypad::Event event)
+{
+  // Button event types are used to distinguish between events and allow 
+  // individal handling of events for each button separately. They are 
+  // defined in <AnalogKeypad.h>. Keypad::Event is a constexpr so we can 
+  // use a switch() statement.
+  switch (event)
+  {
+  case Keypad::Event::Press:      // Button press event.
+    keypadPressEvent(button);
+    break;
+  case Keypad::Event::Longpress:  // Button long-press event.
+    keypadLongpressEvent(button);
+    break;
+  case Keypad::Event::Release:    // Button release event.
+    keypadReleaseEvent(button);
+    break;
+  default:
+    break;
+  }
 }
