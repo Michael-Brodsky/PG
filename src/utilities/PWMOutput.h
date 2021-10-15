@@ -1,5 +1,6 @@
 /*
- *	This files defines a class that asynchronously polls a GPIO analog input.
+ *	This files defines a class that asynchronously controls a pulse-width-
+ *	modulated (PWM) output.
  *
  *	***************************************************************************
  *
