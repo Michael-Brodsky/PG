@@ -1,3 +1,32 @@
+/*
+ *	This files defines a class that asynchronously polls a GPIO analog input.
+ *
+ *	***************************************************************************
+ *
+ *	File: PWMOutput.h
+ *	Date: October 5, 2021
+ *	Version: 1.0
+ *	Author: Michael Brodsky
+ *	Email: mbrodskiis@gmail.com
+ *	Copyright (c) 2012-2021 Michael Brodsky
+ *
+ *	***************************************************************************
+ *
+ *  This file is part of "Pretty Good" (Pg). "Pg" is free software:
+ *	you can redistribute it and/or modify it under the terms of the
+ *	GNU General Public License as published by the Free Software Foundation,
+ *	either version 3 of the License, or (at your option) any later version.
+ *
+ *  This file is distributed in the hope that it will be useful, but
+ *	WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	**************************************************************************/
+
 #if !defined __PG_PWMOUTPUT_H
 # define __PG_PWMOUTPUT_H 20211004L
 
@@ -10,11 +39,12 @@
 
 namespace pg
 {
+	// Converts fractional duty cycle values to unsinged integer values and vice-versa.
 	template<class FracType, class UIntType>
 	struct duty_cycle
 	{
-		static constexpr FracType frac_min = FracType(0);
-		static constexpr FracType frac_max = FracType(1.0);
+		static constexpr FracType frac_min = FracType(0);		// Minimum range of fractional values.
+		static constexpr FracType frac_max = FracType(1.0);		// Maximum range of fractional values.
 		static constexpr UIntType frac_to_uint(FracType frac)
 		{
 			return (UIntType)(clamp(frac, frac_min, frac_max) * FracType(std::numeric_limits<UIntType>::max()));
@@ -25,27 +55,39 @@ namespace pg
 		}
 	};
 
+	// Type that outputs a pwm wave with a specified duty cycle.
 	class Pwm
 	{
 	public:
-		using duty_cycle_t = frequency_t; // Fractional duty cycle type.
-		using dc_type = uint8_t; 
+		using duty_cycle_t = frequency_t;	// Fractional duty cycle type.
+		using dc_type = uint8_t;			// Integral duty cycle type suitable for analogWrite() function.
 
 	public:
+		// Constructs an uninitialized pwm output.
 		Pwm();
+		// Constructs a pwm output attached to a digital output pin with a given duty cycle and state.
 		Pwm(pin_t, duty_cycle_t = 0, bool = false);
+		// Move constructor.
+		Pwm(Pwm&&) = delete;
 		// No copy constructor.
 		Pwm(const Pwm&) = delete;
 		// No copy assignment operator.
 		Pwm& operator=(const Pwm&) = delete;
 
 	public:
+		// Attaches the pwm output to a digital output pin.
 		void attach(pin_t);
+		// Returns the currently attached digital output pin.
 		pin_t attach() const;
+		// Returns the current pwm output frequency in Hz.
 		frequency_t frequency() const;
+		// Sets the pwm duty cycle.
 		void duty_cycle(duty_cycle_t);
+		// Returns the current pwm duty cycle.
 		duty_cycle_t duty_cycle() const;
+		// Sets the pwm output state.
 		void enabled(bool);
+		// Returns the current pwm output state.
 		bool enabled() const;
 
 	private:
@@ -53,10 +95,10 @@ namespace pg
 		void set_output();
 
 	private:
-		pin_t pin_;
-		frequency_t frequency_;
-		duty_cycle_t duty_cycle_;
-		bool enabled_;
+		pin_t			pin_;			// The attached output pin number.
+		frequency_t		frequency_;		// Current output frequency.
+		duty_cycle_t	duty_cycle_;	// Current output duty cycle.
+		bool			enabled_;		// Flag indicating whether the pwm output is currently enabled.
 	};
 
 	Pwm::Pwm() :
@@ -122,11 +164,8 @@ namespace pg
 
 	void Pwm::set_output()
 	{
-		//if (pin_ != InvalidPin)
-		//	analogWrite(pin_, (enabled_ && frequency_ != 0) ? pg::duty_cycle<duty_cycle_t, dc_type>::frac_to_uint(duty_cycle_) : 0);
 		if (pin_ != InvalidPin)
 			analogWrite(pin_, (enabled_) ? pg::duty_cycle<duty_cycle_t, dc_type>::frac_to_uint(duty_cycle_) : 0);
-
 	}
 
 } // namespace pg
