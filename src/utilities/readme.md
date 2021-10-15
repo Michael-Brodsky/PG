@@ -1,5 +1,5 @@
 # Pg Utility Library
-This library contains a collection of classes and functions that provide commonly needed services in embedded systems development.
+The Pg Utility Library contains a collection of classes and functions that provide commonly needed services in embedded systems development.
 
 ### Timer.h
 Defines a simple interval timer class for timing and scheduling events. Timers can be set, started, stopped, resumed and queried by clients.
