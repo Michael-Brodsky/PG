@@ -74,6 +74,7 @@
  *	secant(x0, x1, f(x), e): returns an approximation of f(x) using the Secant method.
  *	quadratic(a,b,c): returns the roots of f(x)=ax**2+bx+c as a pair of complex numbers.
  *	hart(r,a,b,c): Evaluates the Steinhart-Hart thermistor eqn.
+ *	tbeta(r,rinf,B) : evaluates the beta-parameter thermistor eqn.
  *	rsense(v,v0,r0): returns the unkown resistance in a two-node voltage divider network.
  * 
  *	Notes:
@@ -585,7 +586,7 @@ namespace pg
 		return result;
 	}
 
-	// Steinhart-Hart thermistor eqn.
+	// Evaluates the Steinhart-Hart thermistor equation for resistance r and coefficients a,b and c.
 	template<class T>
 	T hart(T r, T a, T b, T c)
 	{
@@ -594,7 +595,7 @@ namespace pg
 		return 1 / (a + b * lnR + c * cube(lnR));
 	}
 
-	// Beta thermistor eqn.
+	// Evaluates the beta-parameter thermistor equation for resistance r and rinf and beta B.
 	template<class T>
 	T tbeta(T r, T rinf, T B)
 	{
