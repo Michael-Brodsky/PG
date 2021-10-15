@@ -5,4 +5,4 @@ A collection of projects built with the Pg Libraries demonstrating modern, objec
 A simple stopwatch program that uses Pg components to provide a fully functioning user interface.
 
 ### ProgrammableThermometer
-A simple programmable digital thermometer with a fully functioning user interface, editable settings and EEPROM storage/recall.
+A programmable digital thermometer with a fully functioning user interface, alarm, editable settings and EEPROM storage/recall.
