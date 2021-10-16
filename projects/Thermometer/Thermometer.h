@@ -42,10 +42,11 @@
 using namespace pg;
 using namespace std::chrono;
 
-// Returns the temperature, in degrees K, represented by a voltage present 
-// at an analog input.
-template<class T, class U>
-T tsense(U ain, U amax)
+// Returns the temperature, in degrees K, from a sampled voltage converted
+// to aout by the ADC. amax is the ADC's maximum output value 2**n, where n 
+// is the ADC resolution in bits.
+template<class T, class ADCType>
+T tsense(ADCType aout, ADCType amax)
 {
 	// The following assume a 10K thermistor forming a voltage divider with 
 	// known resistor R, connected to a common-emitter amplifier having a 
@@ -56,8 +57,8 @@ T tsense(U ain, U amax)
 	// Hart equation for the thermistor's resistance in the voltage divider  
 	// network rsense. If a current amplifier is not used, set Vbe = 0.
 	const T a = 1.125e-3, b = 2.347e-4, c = 8.566e-8;	// Steinhart-Hart coefficients for 10K thermistor.
-	const T R = 10030.0, Vss = 4.97, Vbe = 0.6;			// Measured voltage divider parameters.
-	const T Vsense = static_cast<T>(ain) / static_cast<T>(amax) * Vss + Vbe; // Voltage represented by ADC value ain.
+	const T R = 10030.0, Vss = 4.97, Vbe = 0.6;			// Measured thermistor circuit parameters.
+	const T Vsense = static_cast<T>(aout) / static_cast<T>(amax) * Vss + Vbe; // Voltage represented by ADC value ain.
 
 	return hart(rsense(Vsense, Vss, R), a, b, c);
 }
@@ -274,7 +275,7 @@ public:
 	using sensordiff_type = typename std::make_signed<sensor_type>::type;
 
 public:
-	AdjustmentType(sensor_type sval, display_type dval, unsigned mulmax) :
+	AdjustmentType(sensor_type sval, display_type dval, factor_type mulmax) :
 		sval_(sval), dval_(dval), mul_(1), mulmax_(mulmax) {}
 
 public:

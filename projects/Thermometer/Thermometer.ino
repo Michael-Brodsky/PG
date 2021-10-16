@@ -592,10 +592,12 @@ void switchUnits(ThermometerAlarm& alarm, ThermometerDisplay& display, Thermomet
         cv = units::convert<units::celsius, units::kelvin>;
     if (cv)
     {
+        // Convert to Kelvin, ...
         display.low = cv(display.low);
         display.high = cv(display.high);
         alarm.setpoint = cv(alarm.setpoint);
     }
+    // ... then to_units.
     display.units = to_units;
     display.low = display.units.first(display.low);
     display.high = display.units.first(display.high);
