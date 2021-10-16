@@ -25,11 +25,29 @@
  *
  *  You should have received a copy of the GNU General Public License
  *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ * 
+ *	Description:
+ * 
+ *	The `PWMOutput' class provides a simple way of a managing a pulse-width-
+ *	modulated (PWM) signal at on a digital output, usually with single lines 
+ *	of code. Duty cycles are expressable in more natural fractional formats 
+ *	(e.g. a percentage) before being converted to the appropriate type and 
+ *	value for the analogWrite() function.
  *
+ *	PWMOutput objects must be attached to a valid GPIO output pin that 
+ *	supports PWM outputs. The duty cycle is set by the duty_cycle() method and 
+ *	the output can be enabled or disabled with the enabled() method.
+ * 
+ *	Notes:
+ * 
+ *	Currently, only the board's native PWM frequencies are supported. If 
+ *	available, they are found by calling pwm_frequency<board_type>(pin) 
+ *	function for the type of board an attached pin (see <lib/boards.h>). 
+ * 
  *	**************************************************************************/
 
 #if !defined __PG_PWMOUTPUT_H
-# define __PG_PWMOUTPUT_H 20211004L
+# define __PG_PWMOUTPUT_H 20211005L
 
 # include "cassert"
 # include "limits"
@@ -57,23 +75,24 @@ namespace pg
 	};
 
 	// Type that outputs a pwm wave with a specified duty cycle.
-	class Pwm
+	template<class T = float>
+	class PWMOutput
 	{
 	public:
-		using duty_cycle_t = frequency_t;	// Fractional duty cycle type.
-		using dc_type = uint8_t;			// Integral duty cycle type suitable for analogWrite() function.
+		using value_type = T;
+		using dc_type = uint8_t;	// Integral duty cycle type suitable for analogWrite() function.
 
 	public:
 		// Constructs an uninitialized pwm output.
-		Pwm();
+		PWMOutput();
 		// Constructs a pwm output attached to a digital output pin with a given duty cycle and state.
-		Pwm(pin_t, duty_cycle_t = 0, bool = false);
+		PWMOutput(pin_t, value_type = 0, bool = false);
 		// Move constructor.
-		Pwm(Pwm&&) = default;
+		PWMOutput(PWMOutput&&) = default;
 		// No copy constructor.
-		Pwm(const Pwm&) = delete;
+		PWMOutput(const PWMOutput&) = delete;
 		// No copy assignment operator.
-		Pwm& operator=(const Pwm&) = delete;
+		PWMOutput& operator=(const PWMOutput&) = delete;
 
 	public:
 		// Attaches the pwm output to a digital output pin.
@@ -81,92 +100,102 @@ namespace pg
 		// Returns the currently attached digital output pin.
 		pin_t attach() const;
 		// Returns the current pwm output frequency in Hz.
-		frequency_t frequency() const;
+		value_type frequency() const;
 		// Sets the pwm duty cycle.
-		void duty_cycle(duty_cycle_t);
+		void duty_cycle(value_type);
 		// Returns the current pwm duty cycle.
-		duty_cycle_t duty_cycle() const;
+		value_type duty_cycle() const;
 		// Sets the pwm output state.
 		void enabled(bool);
 		// Returns the current pwm output state.
 		bool enabled() const;
 
 	private:
-		frequency_t set_frequency(frequency_t);
+		value_type set_frequency(value_type);
 		void set_output();
 
 	private:
-		pin_t			pin_;			// The attached output pin number.
-		frequency_t		frequency_;		// Current output frequency.
-		duty_cycle_t	duty_cycle_;	// Current output duty cycle.
-		bool			enabled_;		// Flag indicating whether the pwm output is currently enabled.
+		pin_t		pin_;			// The attached output pin number.
+		value_type	frequency_;		// Current output frequency.
+		value_type	duty_cycle_;	// Current output duty cycle.
+		bool		enabled_;		// Flag indicating whether the pwm output is currently enabled.
 	};
 
-	Pwm::Pwm() :
+	template<class T>
+	PWMOutput<T>::PWMOutput() :
 		pin_(InvalidPin), duty_cycle_(), frequency_(), enabled_()
 	{
 
 	}
 
-	Pwm::Pwm(pin_t pin, duty_cycle_t duty_cycle, bool enabled) :
+	template<class T>
+	PWMOutput<T>::PWMOutput(pin_t pin, value_type duty_cycle, bool enabled) :
 		pin_(board_traits<board_type>::pwm_frequency(pin) != 0 ? pin : InvalidPin),
 		duty_cycle_(duty_cycle), frequency_(set_frequency(0)), enabled_(enabled)
 	{
 		set_output();
 	}
 
-
-	void Pwm::attach(pin_t pin)
+	template<class T>
+	void PWMOutput<T>::attach(pin_t pin)
 	{
 		pin_ = pin;
 		frequency_ = set_frequency(0);
 		set_output();
 	}
 
-	pin_t Pwm::attach() const
+	template<class T>
+	pin_t PWMOutput<T>::attach() const
 	{
 		return pin_;
 	}
 
-	frequency_t Pwm::frequency() const
+	template<class T>
+	typename PWMOutput<T>::value_type PWMOutput<T>::frequency() const
 	{
 		return frequency_;
 	}
 
-	void Pwm::duty_cycle(duty_cycle_t value)
+	template<class T>
+	void PWMOutput<T>::duty_cycle(value_type value)
 	{
-		const duty_cycle_t min = pg::duty_cycle<duty_cycle_t, dc_type>::frac_min, 
-			max = pg::duty_cycle<duty_cycle_t, dc_type>::frac_max;
+		const value_type min = pg::duty_cycle<value_type, dc_type>::frac_min,
+			max = pg::duty_cycle<value_type, dc_type>::frac_max;
 		duty_cycle_ = clamp(value, min, max);
 		set_output();
 	}
 
-	Pwm::duty_cycle_t Pwm::duty_cycle() const
+	template<class T>
+	typename PWMOutput<T>::value_type PWMOutput<T>::duty_cycle() const
 	{
 		return duty_cycle_;
 	}
 
-	void Pwm::enabled(bool value)
+	template<class T>
+	void PWMOutput<T>::enabled(bool value)
 	{
 		enabled_ = value;
 		set_output();
 	}
 
-	bool Pwm::enabled() const
+	template<class T>
+	bool PWMOutput<T>::enabled() const
 	{
 		return enabled_;
 	}
 
-	frequency_t Pwm::set_frequency(frequency_t ideal)
+	template<class T>
+	typename PWMOutput<T>::value_type PWMOutput<T>::set_frequency(value_type ideal)
 	{
 		assert(ideal < board_traits<board_type>::clock_frequency);
 		return pin_ != InvalidPin ? board_traits<board_type>::pwm_frequency(pin_) : 0;
 	}
 
-	void Pwm::set_output()
+	template<class T>
+	void PWMOutput<T>::set_output()
 	{
 		if (pin_ != InvalidPin)
-			analogWrite(pin_, (enabled_) ? pg::duty_cycle<duty_cycle_t, dc_type>::frac_to_uint(duty_cycle_) : 0);
+			analogWrite(pin_, (enabled_) ? pg::duty_cycle<value_type, dc_type>::frac_to_uint(duty_cycle_) : 0);
 	}
 
 } // namespace pg
