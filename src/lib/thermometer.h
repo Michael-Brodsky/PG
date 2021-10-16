@@ -1,9 +1,9 @@
 /*
- *	Type definitions file for <Thermometer.ino>
+ *	This file defines some standard algorithms for computing temperatures.
  *
  *	***************************************************************************
  *
- *	File: Thermometer.h
+ *	File: thermometer.h
  *	Date: October 14, 2021
  *	Version: 1.0
  *	Author: Michael Brodsky
