@@ -27,6 +27,7 @@
  *	along with this file. If not, see <http://www.gnu.org/licenses/>.
  *
  *	**************************************************************************/
+
 #if !defined __PG_SERIALCONTROL_H 
 # define __PG_SERIALCONTROL_H 20211014L
 
@@ -39,7 +40,7 @@
 
 namespace pg
 {
-	// Type that executes Command objects in response to key strings received in the serial port.
+	// Type that executes Command objects over the serial port.
 	template<std::size_t N, class T = char>
 	class SerialControl : public iclockable, public icomponent 
 	{
@@ -49,19 +50,19 @@ namespace pg
 		{
 			using value_type = T;
 			using key_type = const T*;
-			using command_type = icommand*;
-			using program_type = std::pair<key_type, command_type>;
+			using program_type = icommand*;
+			using command_type = std::pair<key_type, program_type>; // Key/Command pair.
 
-			program_type program_; // Key/Command pair.
+			command_type command_;
 
-			const key_type& key() const { return program_.first; }
-			const command_type& command() const { return program_.second; }
+			const key_type& key() const { return command_.first; }
+			const program_type& program() const { return command_.second; }
 
 			// Check if this key matches another.
 			bool operator==(const Command& other) const { return !std::strncmp(key(), other.key(), std::strlen(key())); }
 		};
 		using value_type = typename Command::value_type;
-		using program_type = typename Command::program_type;
+		using command_type = typename Command::command_type;
 		using container_type = std::ArrayWrapper<Command>;
 		using iterator = typename container_type::iterator;
 		using pointer = value_type*;
@@ -73,7 +74,7 @@ namespace pg
 		SerialControl(Command (&)[Size], bool = false);
 		SerialControl(Command [], std::size_t, bool = false);
 		explicit SerialControl(Command* = nullptr, Command* = nullptr, bool = false);
-		SerialControl(std::initializer_list<Command>, bool = false);
+		SerialControl(std::initializer_list<Command*>, bool = false);
 
 	public:
 		// Sets/clears the echo flag.
@@ -121,8 +122,9 @@ namespace pg
 	}
 
 	template<std::size_t N, class T>
-	SerialControl<N, T>::SerialControl(std::initializer_list<Command> il, bool echo) :
-		buf_(), data_(buf_), commands_(const_cast<Command*>(il.begin()), il.size()), current_(std::begin(commands_)), echo_(echo)
+	SerialControl<N, T>::SerialControl(std::initializer_list<Command*> il, bool echo) :
+		buf_(), data_(buf_), commands_(const_cast<Command*>(*il.begin()), il.size()), 
+		current_(std::begin(commands_)), echo_(echo)
 	{
 
 	}
@@ -154,7 +156,6 @@ namespace pg
 	template<std::size_t N, class T>
 	void SerialControl<N, T>::poll()
 	{
-		// Look for a matching key in the buffer and execute its Command.
 		{
 			data_ += Serial.readBytes(data_, std::distance(data_, std::end(buf_)));
 			if (*(data_ - 1) == EndOfTextChar || data_ == std::end(buf_))
@@ -163,7 +164,7 @@ namespace pg
 				current_ = std::find(std::begin(commands_), std::end(commands_), Command{ {buf_,nullptr} });
 				if (current_ != std::end(commands_))
 				{
-					current_->command()->execute();
+					current_->program()->execute();
 					if (echo_)
 						Serial.print(buf_);
 				}
@@ -177,6 +178,7 @@ namespace pg
 	{
 		poll();
 	}
+
 } // namespace pg
 
 # else // !defined __PG_HAS_NAMESPACES

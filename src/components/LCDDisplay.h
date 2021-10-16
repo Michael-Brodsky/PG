@@ -602,7 +602,7 @@ namespace pg
 	template<uint8_t Cols, uint8_t Rows>
 	void LCDDisplay<Cols, Rows>::write_value(char* buf, const Field* it, const double& arg)
 	{
-		// Arduin cstdlib sprintf() doesn't support printing of floating point types, 
+		// Arduino cstdlib sprintf() doesn't support printing of floating point types, 
 		// so we have to use dtostrf().
 
 		char str[11]; // Formatted print buf for float types.
