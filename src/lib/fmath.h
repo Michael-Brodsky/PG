@@ -73,9 +73,10 @@
  *	newton(x, f(x), f'(x), e): returns an approximation of f(x) using the Newton-Raphson method.
  *	secant(x0, x1, f(x), e): returns an approximation of f(x) using the Secant method.
  *	quadratic(a,b,c): returns the roots of f(x)=ax**2+bx+c as a pair of complex numbers.
- *	hart(r,a,b,c): Evaluates the Steinhart-Hart thermistor eqn.
- *	tbeta(r,rinf,B) : evaluates the beta-parameter thermistor eqn.
+ *	thermistor(r,a,b,c): Evaluates the Steinhart-Hart thermistor eqn.
+ *	thermistor(r,rinf,B) : evaluates the beta-parameter thermistor eqn.
  *	rsense(v,v0,r0): returns the unkown resistance in a two-node voltage divider network.
+ *	vsense(aout,amax,aref): returns the analog voltage represented by a digital ADC value.
  * 
  *	Notes:
  *
@@ -97,7 +98,7 @@
 
 # if defined __PG_HAS_NAMESPACES 
 
-// Remove any conflicting macros possibly defined by the implementation.
+// Remove any conflicting macros possibly defined by other implementations.
 
 #  undef sign
 #  undef sqr
@@ -137,8 +138,8 @@
 #  undef newton
 #  undef secant
 #  undef quadratic
-#  undef hart
-#  undef tbeta
+#  undef thermistor
+#  undef vsense
 #  undef rsense
 
 namespace pg
@@ -586,20 +587,28 @@ namespace pg
 		return result;
 	}
 
-	// Evaluates the Steinhart-Hart thermistor equation for resistance r and coefficients a,b and c.
+	// Evaluates the Steinhart-Hart thermistor equation for resistance r and coefficients a, b and c.
 	template<class T>
-	T hart(T r, T a, T b, T c)
+	T thermistor(T r, T a, T b, T c)
 	{
 		const T lnR = std::log(r);
 
 		return 1 / (a + b * lnR + c * cube(lnR));
 	}
 
-	// Evaluates the beta-parameter thermistor equation for resistance r and rinf and beta B.
+	// Evaluates the beta-parameter thermistor equation for resistances r and rinf, and beta B.
 	template<class T>
-	T tbeta(T r, T rinf, T B)
+	T thermistor(T r, T rinf, T beta)
 	{
-		return B / std::log(r / rinf);
+		return beta / std::log(r / rinf);
+	}
+
+	// Returns the analog input voltage represented ADC output value aout.
+	// amax is the maximum (full-scale) ADC output value and aref the analog reference voltage.
+	template<class T, class ADCType>
+	T vsense(ADCType aout, ADCType amax, T aref, T dc)
+	{
+		return static_cast<T>(aout) / static_cast<T>(amax) * aref + dc;
 	}
 
 	// Returns unknown resistance in a two-node voltage divider network.
