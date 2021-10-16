@@ -20,5 +20,8 @@ Collection of scientific and engineering math functions.
 ### imath.h 
 Collection of fast integer math functions.
 
+### thermometer.h 
+Collection of algorithms useful for implementing temperature measurement applications.
+
 ### units.h 
 Collection of units of measure typedefs and conversion functions.
