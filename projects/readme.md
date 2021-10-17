@@ -1,11 +1,14 @@
 # Pg Projects Library
-A collection of projects built with the Pg Libraries demonstrating modern, object-oriented design methodologies. 
+A collection of Arduino projects built with the Pg Libraries that demonstrate modern, object-oriented design methodologies. 
 
-### PIDThermostatEZ 
-A super simple example of a thermostat that uses the proportional-integral-derivative (PID) algorithm to generate a pulse-width-modulated (PWM) output to control machinery, such as a heater. 
+### EZThermometer
+A simple sketch to read ambient temperature from a thermistor and display it on an LCD display.
+
+### EZThermostat
+A simple sketch demonstrating a thermostat that reads ambient temperature from a thermistor and passes through a proportional-integral-derivative (PID) algorithm to generate a pulse-width-modulated (PWM) output that can be used to control machinery, such as a heater. Shows how the Pg Libraries can perform complex tasks in only a few lines of code. 
 
 ### Stopwatch
-A simple stopwatch program that uses Pg components to provide a fully functioning user interface.
+A simple stopwatch program that displays the elapsed time and can be controlled from a keypad. Demostrates how to implement multitasking schemes using callbacks.
 
 ### Thermometer
 A programmable digital thermometer with a fully functioning user interface, alarm, editable settings and EEPROM storage/recall.
