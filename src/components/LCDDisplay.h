@@ -447,7 +447,7 @@ namespace pg
 		if (event_ == Update::Print)	// Update display fields and values.
 		{
 			char buf[Cols * Rows + 1] = { '\0' };
-
+			
 			lcd_->home();
 			lcd_->print(screen_->label());
 			iterator it = std::begin(screen_->fields());

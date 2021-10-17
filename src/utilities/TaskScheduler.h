@@ -86,6 +86,8 @@ namespace pg
 			Task() = default;
 			// Constructs a task with a given interval, command and state.
 			Task(duration, icommand*, State = State::Idle);
+			// Move constructor.
+			Task(Task&&) = default;
 			// No copy constructor.
 			Task(const Task&) = delete;
 			// No copy assignment operator.
