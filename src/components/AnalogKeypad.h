@@ -180,6 +180,9 @@ namespace pg
         AnalogKeypad& operator=(const AnalogKeypad&) = delete;
 
     public:
+        void attach(pin_t);
+
+        const pin_t attach() const;
         // Sets the Buttons collection from an array.
         template<std::size_t N>
         void buttons(Button* (&)[N]);
@@ -235,7 +238,7 @@ namespace pg
 
     template<class T, class TimerType>
     AnalogKeypad<T, TimerType>::AnalogKeypad() :
-        pin_(), callback_(), buttons_(), current_(), lp_timer_(),
+        pin_(InvalidPin), callback_(), buttons_(), current_(), lp_timer_(),
         lp_interval_(), lp_mode_(), repeat_()
     {
 
@@ -296,39 +299,58 @@ namespace pg
     }
 
     template<class T, class TimerType>
+    void AnalogKeypad<T, TimerType>::attach(pin_t pin)
+    {
+        pin_ = pin;
+    }
+
+    template<class T, class TimerType>
+    const pin_t AnalogKeypad<T, TimerType>::attach() const
+    {
+        return pin_;
+    }
+
+    template<class T, class TimerType>
     template<std::size_t N>
     void AnalogKeypad<T, TimerType>::buttons(Button* (&buttons)[N])
     {
-        buttons_(buttons);
-        current_ = std::end(buttons);
+        buttons_ = container_type(buttons);
+        current_ = std::end(buttons_);
     }
 
     template<class T, class TimerType>
     void AnalogKeypad<T, TimerType>::buttons(Button* buttons[], std::size_t n)
     {
-        buttons_(buttons, n);
-        current_ = std::end(buttons);
+        buttons_ = container_type(buttons, n);
+        current_ = std::end(buttons_);
     }
 
     template<class T, class TimerType>
     void AnalogKeypad<T, TimerType>::buttons(Button** first, Button** last)
     {
-        buttons_(first, last);
-        current_ = std::end(buttons);
+        buttons_ = container_type(first, last);
+        current_ = std::end(buttons_);
     }
 
     template<class T, class TimerType>
     void AnalogKeypad<T, TimerType>::buttons(std::initializer_list<Button*> il)
     {
-        buttons_(const_cast<Button**>(il.begin()), il.size());
-        current_ = std::end(buttons);
+        buttons_ = container_type(const_cast<Button**>(il.begin()), il.size());
+        current_ = std::end(buttons_);
     }
 
     template<class T, class TimerType>
     void AnalogKeypad<T, TimerType>::buttons(container_type& container)
     {
         buttons_ = container;
-        current_ = std::end(buttons);
+        current_ = std::end(buttons_);
+    }
+
+    template<class T, class TimerType>
+    const typename AnalogKeypad<T, TimerType>::container_type& 
+        AnalogKeypad<T, TimerType>::buttons() const
+    {
+
     }
 
     template<class T, class TimerType>

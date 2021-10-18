@@ -40,7 +40,7 @@ namespace pg
 	class Unique
 	{
 	public:
-		using uniq_t = uint8_t;	// uniq_t type alias, max of 256 unique objects.
+		using unique_type = uint8_t;	// unique_type type alias, max of 256 unique objects.
 
 	protected:
 		Unique();				// Not directly constructable, copyable or assignable.			
@@ -48,16 +48,16 @@ namespace pg
 		Unique& operator=(const Unique& other);
 
 	public:
-		uniq_t id() const;		// Returns the instance's unique identifier.
+		unique_type id() const;		// Returns the instance's unique identifier.
 
 	protected:
-		uniq_t id_;				// This instance's unique identifier.
+		unique_type id_;				// This instance's unique identifier.
 
 	private:
-		static uniq_t next_;	// Holds the next unique identifier to be assigned.
+		static unique_type next_;	// Holds the next unique identifier to be assigned.
 	};
 
-	Unique::uniq_t Unique::next_ = 0;	// Initialize the unique identifier to zero.
+	Unique::unique_type Unique::next_ = 0;	// Initialize the unique identifier to zero.
 
 	Unique::Unique() :
 		id_(next_++)
@@ -77,7 +77,7 @@ namespace pg
 		return *this;
 	}
 
-	Unique::uniq_t Unique::id() const
+	Unique::unique_type Unique::id() const
 	{
 		return id_;
 	};
