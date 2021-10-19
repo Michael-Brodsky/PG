@@ -14,6 +14,9 @@ Collection of templated typedefs for defining callback function signatures from 
 ### constants.h 
 Collection of scientific and engineering numerical constants.
 
+### crc.h 
+Collection of cyclic-redundancy-check (CRC) and checksum algorithms.
+
 ### fmath.h 
 Collection of scientific and engineering math functions.
 
