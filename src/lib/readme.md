@@ -15,7 +15,7 @@ Collection of templated typedefs for defining callback function signatures from 
 Collection of scientific and engineering numerical constants.
 
 ### crc.h 
-Collection of cyclic-redundancy-check (CRC) and checksum algorithms.
+Collection of cyclic-redundancy-check (CRC) and checksum algorithms. Includes definitions of some of the Standard Parameterized CRC Algorithms.
 
 ### fmath.h 
 Collection of scientific and engineering math functions.
