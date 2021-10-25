@@ -2,7 +2,7 @@
 
 Pg is a development library for the Arduino (avr/samd) platform that includes a C++ Standard Library which uses only static memory, interfaces for implementing common C++ design patterns, components for common system tasks such as scanning a keypad or writing formatted output to an lcd, and a set of utilities including timers, schedulers, eeprom streaming support, fast math algorithms and engineering functions.
 
-The libraries support rapid development of industrial automation and similar applications on inexpensive hardware. They provide solutions to common application tasks such as data acquisition and display, process control, user interfaces, alarms, timers and communications. See the projects folder for examples.
+The libraries support rapid development of industrial automation and similar applications on inexpensive hardware. They provide solutions to common application tasks such as data acquisition and display, process control, user interfaces, alarms, timers and communications. See the /projects folder for examples.
 
 This is a work in progress with almost daily updates. Check back often for more stuff!
 
@@ -22,5 +22,7 @@ Every project using Pg must include the <pg.h> header and this should be done fr
 
 <p> #include &ltlib/imath.h&gt, or <br>
 #include &ltinterfaces/icommand.h&gt </p>
+
+The libraries are used like any other application development tools, by invoking the objects defined within them. Documentation exists as inline comments in the source files and usage examples, in the form of test and validation code, can be found in the /examples folder.
   
 Cheers!
