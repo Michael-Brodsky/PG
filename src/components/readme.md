@@ -17,4 +17,4 @@ Asynchronous event sequencer.
 Asynchronous lcd display configuration and management.
 
 ### SerialControl.h 
-Asynchronous Command object execution over the serial port.
+Facilitates remote, asynchronous command execution and application control over a serial port.
