@@ -18,7 +18,7 @@ Defines an interface for implementing the C++ "Mediator" pattern for component t
 Defines an interface for implementing the C++ "Mediator" pattern for mediator types.
 
 ### iserializable.h 
-Defines an interface for creating objects that can be serialized into a data stream for transmission and storage.
+Defines an interface for creating objects that can be serialized into data streams for transmission and storage.
 
 
 
