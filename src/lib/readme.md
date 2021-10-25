@@ -24,7 +24,7 @@ Collection of scientific and engineering math functions.
 Collection of fast integer math functions.
 
 ### thermo.h 
-Collection of algorithms useful for implementing temperature measurement objects.
+Collection of algorithms for temperature sensing and measurement.
 
 ### units.h 
-Collection of units of measure typ definitions and conversion functions.
+Collection of units of measure type definitions and conversion functions.
