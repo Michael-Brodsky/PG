@@ -17,7 +17,7 @@ The EEStream class enables simple object serialization/deserialization to and fr
 The PIDController class is a control loop mechanism used in industrial automation applications to control devices according to a proportional-integral-derivative (PID) algorithm.
 
 ### PWMOutput.h
-The Pwm class provides a simple interface for managing pulse-width modulated (PWM) outputs and generating waveforms.
+The PwmOutput class provides a simple interface for managing pulse-width modulated (PWM) outputs and generating waveforms.
 
 ### SerialProtocols.h 
 The SerialProtocols class manipulates and stores/retrieves communications settings in EEPROM. It allows programs to enable real-time editing, storage and retrieval of communications settings with single lines of code.
