@@ -23,6 +23,6 @@ Every project using Pg must include the <pg.h> header and this should be done fr
 <p> #include &ltlib/imath.h&gt, or <br>
 #include &ltinterfaces/icommand.h&gt </p>
 
-The libraries are used like any other application development tools, by invoking the objects defined within them. Documentation exists as inline comments in the source files and usage examples, in the form of test and validation code, can be found in the /examples folder.
+The libraries are used by simply invoking the objects defined within them. Documentation exists as inline comments in the source files and usage examples, in the form of test and validation code, can be found in the /examples folder.
   
 Cheers!
