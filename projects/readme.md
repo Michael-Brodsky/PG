@@ -7,6 +7,9 @@ A simple sketch to read ambient temperature from a thermistor and display it on 
 ### EZThermostat
 A simple sketch demonstrating a thermostat that reads ambient temperature from a thermistor and passes through a proportional-integral-derivative (PID) algorithm to generate a pulse-width-modulated (PWM) output that can be used to control machinery, such as a heater. Shows how the Pg Libraries can perform complex tasks in only a few lines of code. 
 
+### PIDThermostat
+A programmable PID-controlled thermostat with a fully functioning user interface, process control, alarm, editable settings and EEPROM storage/recall.
+
 ### ServoTest
 Calculates the performance limits of servo motors. Finds the minimum and maximum pulse widths, maximum p/w step (change) and minimum step interval (time between steps).
 
