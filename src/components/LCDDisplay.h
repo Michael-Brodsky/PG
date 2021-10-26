@@ -124,7 +124,7 @@ namespace pg
 			// Returns the current screen label.
 			const char*	label() const;
 			// Sets the active field.
-			void active_field(Field*);
+			void active_field(const Field*);
 			// Returns the currently active field.
 			const Field* active_field() const;
 			// Advances to the next field in the collection.
@@ -366,7 +366,7 @@ namespace pg
 	}
 
 	template<uint8_t Cols, uint8_t Rows>
-	void LCDDisplay<Cols, Rows>::Screen::active_field(Field* field)
+	void LCDDisplay<Cols, Rows>::Screen::active_field(const Field* field)
 	{
 		current_ = std::find(fields_.begin(), fields_.end(), field);
 	}

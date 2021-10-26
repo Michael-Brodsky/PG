@@ -44,9 +44,9 @@
  *      a `trigger_level_' field and inherits the `id()' method from its base 
  *      class `Unique'. Clients use id() to uniquely identify Button instances 
  *      and trigger_level_ to set the analog input levels that trigger events. 
- *      The trigger_level_ is compared to the value returned by the Arduino 
- *      analogRead() function from the attached input, and are determined by 
- *      how buttons are physically wired to the input.
+ *      The trigger_level_ is compared to the value returned by analogRead() 
+ *      from the attached input, and are determined by how buttons are 
+ *      physically wired to the input.
  * 
  *      AnalogKeypads are constructed from a collection of Button objects and 
  *      attached to any valid GPIO analog input. Button collections MUST be  
@@ -86,8 +86,8 @@
  *      Callbacks are only enabled if a valid callback method is passed to 
  *      to the AnalogKeypad constructor (see `callback_type' below for signature).
  * 
- *	    AnalogKeypad objects are not copyable or assignable as this would lead to 
- *	    multiple instances attached to the same analog input, which is 
+ *	    AnalogKeypad objects are not copyable or assignable as this would lead 
+ *	    to multiple instances attached to the same analog input, which is 
  *      redundant.
  * 
  *	**************************************************************************/
@@ -152,6 +152,45 @@ namespace pg
             None        // Event is never triggered.
         };
 
+        // Multiplies a value for faster scrolling when a keypad is used to adjust 
+        // application settings over wide ranges. Has the effect of increasing the 
+        // scroll rate when, for instance, a button is held down over a period of  
+        // time. Allows clients to scroll slowly at first, for fine adjustments, 
+        // and increase the scroll rate on each clock() for increasingly coarser 
+        // adjustments that cover a wider range. Used in conjunction with the 
+        // Keypad repeat setting.
+        class Multiplier : public iclockable
+        {
+        public:
+            enum class Direction { Up = 0, Down };
+            using factor_type = unsigned;
+
+        public:
+            Multiplier(factor_type mulmax, uint8_t mulfact = 11) :
+                mul_(1), mulmax_(mulmax), mulfact_(mulfact) {}
+
+        public:
+            // Resets the current multiplication factor to 1.
+            void reset() { mul_ = 1; }
+            // Returns u multiplied by the current multiplication factor and signed according to dir.
+            template<class U>
+            typename std::make_signed<U>::type value(U u, Direction dir)
+            {
+                typename std::make_signed<U>::type val = u * mul_;
+
+                return dir == Direction::Up ? val : -val;
+            }
+
+        private:
+            // Bumps the current multiplication factor by a factor of mulfact_ upto mulmax_.
+            void clock() override { mul_ *= mul_ < mulmax_ ? mulfact_ : 1; }
+
+        private:
+            factor_type	mul_;		// The current multiplication factor.
+            factor_type	mulmax_;	// The maximum multiplication factor.
+            uint8_t     mulfact_;   // Amount to multiply factor by on each clock cycle. 
+        };
+
         using callback_type = typename callback<void, void, const Button*, Event>::type;
         using container_type = typename std::ArrayWrapper<Button*>; 
         using iterator = typename container_type::iterator;  
@@ -180,8 +219,9 @@ namespace pg
         AnalogKeypad& operator=(const AnalogKeypad&) = delete;
 
     public:
+        // Attaches a keypad to an analog input pin.
         void attach(pin_t);
-
+        // Returns the currently attached input pin.
         const pin_t attach() const;
         // Sets the Buttons collection from an array.
         template<std::size_t N>

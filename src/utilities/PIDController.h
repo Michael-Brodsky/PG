@@ -90,7 +90,7 @@ namespace pg
 		{}
 
 	public:
-		void set_point(value_type value) { set_point_ = value; }
+		void set_point(value_type value) { integral_ = 0; previous_error_ = 0; set_point_ = value; }
 		const value_type set_point() const { return set_point_; }
 		const value_type measured_value() const { return measured_value_; }
 		const value_type output() const { return output_value_; }

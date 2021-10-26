@@ -475,7 +475,7 @@ namespace pg
 
 	// returns 2**s.
 	template <class T>
-	inline typename details::is_unsigned<T>::type
+	constexpr typename details::is_unsigned<T>::type
 		ipow2(const uint8_t s)
 		//std::uintmax_t ipow2(const uint8_t s)
 	{
