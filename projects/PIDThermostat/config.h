@@ -1,6 +1,6 @@
 /*
- *	Config file for <PIDThermostat.ino>, defines constant values used by the 
- *	program.
+ *	Config file for <PIDThermostat.ino>, defines immutable constant used by 
+ *	the program.
  *
  *	***************************************************************************
  *
@@ -60,7 +60,7 @@ const Settings::display_type Vbe = 0.6;		// Thermistor voltage divider amplifier
 /* These pins are for an ATMega 2560 */
 
 const pin_t KeypadInput = A0;
-const pin_t SensorInput = A7;
+const pin_t SensorInput = A15;
 const pin_t AlarmOutput = 53;
 const pin_t PwmOut = 46;
 const pin_t LcdRs = 8;
@@ -80,7 +80,7 @@ const Keypad::value_type SelectButtonTriggerLevel = 800;
 
 const TemperatureSensor::value_type SensorOutMax = AnalogMax<board_type>();
 
-const long EepromID = 20211010L;	// Value used to validate EEPROM data.
+const long EepromID = 20211010L;	// Value used to determine existence and validity of EEPROM data.
 
 #pragma endregion
 #pragma region Program Timing Constants.
@@ -88,7 +88,6 @@ const long EepromID = 20211010L;	// Value used to validate EEPROM data.
 const milliseconds SensorInitDelay = seconds(1);
 const milliseconds SensorPollingMin = milliseconds(100);
 const milliseconds SensorPollingMax = milliseconds(9999);
-const milliseconds SensorPollingInterval = seconds(1);
 const milliseconds KeypadPollingInterval = milliseconds(100);
 const milliseconds KeypadLongPressInterval = seconds(1);
 const milliseconds DisplayRefreshInterval = milliseconds(100);
@@ -101,17 +100,10 @@ const Keypad::LongPress KeypadLongPressMode = Keypad::LongPress::Hold;
 const Adjustment::factor_type AdjustmentMultiplyMax = 100;
 const Settings::display_type DisplayAdjustmentFactor = 0.1;
 const TemperatureSensor::value_type SensorAdjustmentFactor = 1;
-const Settings::display_type DisplayValueMin = -999.9; // Smallest value that fits temperature display fields. 
+const Settings::display_type DisplayValueMin = -999.9;	// Smallest value that fits temperature display fields. 
 const Settings::display_type DisplayValueMax = +999.9;	// Largest value that fits temperature display fields.
-const Pid::value_type PidValueMin = 0.0;		// Min pid coeff value.
-const Pid::value_type PidValueMax= 9.9;			// Max pid coeff value.
-const Pid::value_type PidProportional = 1.0;	// Default Kp.
-const Pid::value_type PidIntegral = 0.0;		// Default Ki.
-const Pid::value_type PidDerivative = 0.0;		// Default Kd.
-const Pid::value_type PidGain = 0.1;			// Default Ka.
-const Settings::display_type DisplayRangeLow = 0.0;				// Default value.
-const Settings::display_type DisplayRangeHigh = 100.0;			// Default value.
-const Settings::display_type AlarmSetPoint = DisplayRangeLow;	// Default value.
+const Pid::value_type PidValueMin = 0.0;				// Min pid coeff value.
+const Pid::value_type PidValueMax = 100.0;				// Max pid coeff value.
 
 #pragma endregion
 #pragma region Display Symbols and Formatting
@@ -131,7 +123,8 @@ const char* ExternalSymbol = "EX";
 
 const char* const TemperatureDisplayFormat = "%6.1f";	// Supports upto +/- 999.9
 const char* const TimingDisplayFormat = "%4u";			// Supports upto 9999 ms (SensorPollingMax).
-const char* const PidDisplayFormat = "%3.1f";			// Supports [0.0, +9.9]
+const char* const PidDecimalFormat = "%3.1f";			// Supports [0.0, +9.9]
+const char* const PidUnitFormat = "%3.0f";				// Supports [+10, +100]
 
 #pragma region RUN Screen
 
@@ -164,12 +157,12 @@ const char* const SpValFmt = TemperatureDisplayFormat;
 const uint8_t SpEnCol = 9;
 const uint8_t SpEnRow = 1;
 const char* const SpEnLab = "";
-const char* const SpEnFmt = "%c";			// Supports '*' or ''
+const char* const SpEnFmt = "%c";		// Supports '*' or ' '
 
 const uint8_t AlrmEnCol = 12;
 const uint8_t AlrmEnRow = 1;
 const char* const AlrmEnLab = "AL:";
-const char* const AlrmEnFmt = "%c";		// Supports '*' or ' '
+const char* const AlrmEnFmt = "%c";		// Supports 'Y' or 'N'
 
 #pragma endregion
 #pragma region MENU Screen
@@ -220,25 +213,25 @@ const char* const MenuDisplayFmt = "%s";
  ******************/
 const char* const PidScreenLab = "PID";
 
-const uint8_t PCol = 5;
-const uint8_t PRow = 0;
-const char* const PLab = "p:";
-const char* const PFmt = PidDisplayFormat;
+const uint8_t PidProportionalCol = 5;
+const uint8_t PidProportionalRow = 0;
+const char* const PidProportionalLab = "p:";
+const char* const PidProportionalFmt = PidDecimalFormat;
 
-const uint8_t ICol = 11;
-const uint8_t IRow = 0;
-const char* const ILab = "i:";
-const char* const IFmt = PidDisplayFormat;
+const uint8_t PidIntegralCol = 11;
+const uint8_t PidIntegralRow = 0;
+const char* const PidIntegralLab = "i:";
+const char* const PidIntegralFmt = PidDecimalFormat;
 
-const uint8_t DCol = 5;
-const uint8_t DRow = 1;
-const char* const DLab = "d:";
-const char* const DFmt = PidDisplayFormat;
+const uint8_t PidDerivativeCol = 5;
+const uint8_t PidDerivativeRow = 1;
+const char* const PidDerivativeLab = "d:";
+const char* const PidDerivativeFmt = PidDecimalFormat;
 
-const uint8_t ACol = 11;
-const uint8_t ARow = 1;
-const char* const ALab = "A:";
-const char* const AFmt = PidDisplayFormat;
+const uint8_t PidGainCol = 11;
+const uint8_t PidGainRow = 1;
+const char* const PidGainLab = "A:";
+const char* const PidGainFmt = PidDecimalFormat;
 
 #pragma endregion
 #pragma region ALARM Screen
@@ -267,8 +260,8 @@ const char* const AlarmSetPointFmt = TemperatureDisplayFormat;
 #pragma region SENSOR Screen
 
 /******************
- *SENSOR: Lo:nnnnn*
- *Tp:nnnn Hi:nnnnn*
+ *SENSOR:  Aref:IN*
+ *         Tp:nnnn*
  ******************/
 const char* const SensorScreenLab = "SENSOR";
 

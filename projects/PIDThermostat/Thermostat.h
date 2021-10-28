@@ -27,17 +27,17 @@
  *
  *	**************************************************************************/
 
-#if !defined __PG_THERMOMETER_H
-# define __PG_THERMOMETER_H 20211015L
+#if !defined __PG_THERMOSTAT_H
+# define __PG_THERMOSTAT_H 20211015L
 
 # include <lib/thermo.h>				// Temperature maths.
 # include <components/AnalogKeypad.h>	// Async keypad polling.
 # include <components/LCDDisplay.h>		// Async display manager.
 # include <components/AnalogInput.h>	// Async analog input polling.
-# include <utilities/PIDController.h>	// PIDController type.
-# include <utilities/PWMOutput.h>		// PWMOutput type.
-# include <utilities/MovingAverage.h>	// Moving average filter type.
-# include <utilities/EEStream.h>		// EEPROM streaming.
+# include <utilities/PIDController.h>	// Process pid-controller.
+# include <utilities/PWMOutput.h>		// Process control signal generator.
+# include <utilities/MovingAverage.h>	// Moving average filter.
+# include <utilities/EEStream.h>		// EEPROM streaming support.
 # include <utilities/TaskScheduler.h>	// Async task scheduling.
 
 using namespace pg;
@@ -66,11 +66,11 @@ public:
 	using unit_convert_func = typename callback<display_type, void, display_type>::type; // Unit conversion function signature.
 	using alarm_cmp_func = typename callback<bool_type, void, display_type, display_type>::type; // Alarm compare function signature.
 	using enable_type = std::pair<bool_type, symbol_type>; // Pairs a boolean value with a display character.
-	using unit_type = std::pair<unit_convert_func, symbol_type>;	// Pairs a conversion function with a display character.
-	using alarm_compare_type = std::pair<alarm_cmp_func, symbol_type>;	// Pairs a compare function with a display character.
-	using sensor_aref_type = std::pair<ArefSource, string_type>;	// Pairs an ArefSource with a display string.
+	using unit_type = std::pair<unit_convert_func, symbol_type>; // Pairs a conversion function with a display character.
+	using alarm_compare_type = std::pair<alarm_cmp_func, symbol_type>; // Pairs a compare function with a display character.
+	using sensor_aref_type = std::pair<ArefSource, string_type>; // Pairs an ArefSource with a display string.
 
-public:
+public:	/* Ctors */
 	SettingsType() = default;
 	SettingsType(display_type temp_low, display_type temp_high, unit_type temp_units, 
 		display_type pid_p, display_type pid_i, display_type pid_d, display_type pid_a,
@@ -154,6 +154,7 @@ public: /* Setters and getters. */
 			original.setpointValue() = original.tempHigh();
 	}
 
+	// Writes settings to EEPROM.
 	void serialize(EEStream& e) const override 
 	{  
 		e << tempLow(); e << tempHigh(), e << unitSymbol();
@@ -163,6 +164,7 @@ public: /* Setters and getters. */
 		e << sensorArefSource(); e << sensorPollIntvl().count();
 	}
 
+	// Reads settings from EEPROM.
 	void deserialize(EEStream& e) override 
 	{  
 		e >> tempLow(); e >> tempHigh(), e >> unitSymbol();
@@ -173,20 +175,20 @@ public: /* Setters and getters. */
 		typename duration_type::rep r; e >> r;	sensorPollIntvl() = duration_type(r);
 	}
 
-private:
+private:	/* Editable program settings. */
 	display_type			temp_low_;		// Temperature display range low.
 	display_type			temp_high_;		// Temperature display range high,
-	unit_type				temp_units_;	// Temperature display units convert func/symbol pair.
+	unit_type				temp_units_;	// Temperature units convert func/display symbol pair.
 	display_type			pid_p_;			// PID proportional coeff.
 	display_type			pid_i_;			// PID integral coeff.
 	display_type			pid_d_;			// PID derivative coeff.
 	display_type			pid_a_;			// PID gain coeff.
-	enable_type				sp_enabled_;	// Set point enabled/disabled.
+	enable_type				sp_enabled_;	// Set point enabled value/display symbol pair.
 	display_type			sp_value_;		// Set point temperature.
-	enable_type				al_enabled_;	// Alarm enabled/disabled.
-	alarm_compare_type		al_cmp_;		// Alarm compare < or >.
+	enable_type				al_enabled_;	// Alarm enabled value/display symbol pair.
+	alarm_compare_type		al_cmp_;		// Alarm cmp function/display symbol pair.
 	display_type			al_setpoint_;	// Alarm temperature set point.
-	sensor_aref_type		sn_aref_;		// Sensor Aref source/symbol. 
+	sensor_aref_type		sn_aref_;		// Sensor Aref source/display string pair.
 	duration_type			sn_tpoll_;		// Sensor polling interval.
 };
 
@@ -197,4 +199,4 @@ void alarmSilence(pin_t pin, bool value) { digitalWrite(pin, !value); }
 bool alarmSilence(pin_t pin) { return !digitalRead(pin); }
 void sensorSetAref(const ArefSource src) { analogReference(src == ArefSource::Internal ? DEFAULT : EXTERNAL); }
 
-#endif // !defined __PG_THERMOMETER_H
+#endif // !defined __PG_THERMOSTAT_H

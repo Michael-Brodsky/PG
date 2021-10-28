@@ -1,5 +1,5 @@
 /*
- *	This program demonstrates the implementation of a programmable PID 
+ *	This program demonstrates the implementation of a programmable PID
  *  controlled thermostat.
  *
  *	***************************************************************************
@@ -36,7 +36,7 @@
 using namespace pg;
 using namespace std::chrono;
 
-#pragma region Short Typedefs
+#pragma region Short Descriptive Typedefs
 
 using ScheduledTask = Scheduler::Task;
 using TaskState = ScheduledTask::State;
@@ -46,6 +46,10 @@ using AlarmEnable = Settings::enable_type;
 using AlarmCompare = Settings::alarm_compare_type;
 using SetpointEnable = Settings::enable_type;
 using DisplayUnit = Settings::unit_type;
+using Temperature = Settings::display_type;
+using PidCoefficient = Pid::value_type;
+using SensorValue = Settings::adc_type;
+using Interval = Settings::duration_type;
 
 #pragma endregion
 #pragma region Function Declarations
@@ -58,7 +62,7 @@ void keypadCallback(const Keypad::Button*, Keypad::Event);
 void displayCallback();
 void sensorCallback();
 void initSensor();
-void checkAlarm(Settings::display_type);
+void checkAlarm(Temperature);
 void scrollField(const Keypad::Button*);
 void menuSelect(const Display::Field*);
 void setMode(ThermostatMode);
@@ -72,7 +76,8 @@ void adjustAlarm(const Display::Field*, Adjustment::Direction);
 void adjustSensor(const Display::Field*, Adjustment::Direction);
 void adjustDisplay(const Display::Field*, Adjustment::Direction);
 void switchUnits(Settings&, DisplayUnit);
-Settings::display_type getTemperature(Settings::adc_type);
+void formatPidScreen();
+Temperature getTemperature(SensorValue);
 
 #pragma endregion
 #pragma region Thermostat Settings Objects 
@@ -90,6 +95,24 @@ const DisplayUnit DegreesCelsius{ temperature<units::celsius>,CelsiusSymbol };
 const DisplayUnit DegreesFahrenheit{ temperature<units::fahrenheit>,FarenheitSymbol };
 
 #pragma endregion
+#pragma region Settings Defaults 
+
+const DisplayUnit TemperatureUnits = DegreesCelsius;
+const Temperature TemperatureRangeLow = 0.0;
+const Temperature TemperatureRangeHigh = 100.0;
+const SetpointEnable SetpointStatus = SetpointDisabled;
+const Temperature SetPointValue = TemperatureRangeLow;
+const AlarmEnable AlarmStatus = AlarmDisabled;
+const AlarmCompare AlarmCmp = AlarmCmpGreater;
+const Temperature AlarmSetPoint = TemperatureRangeLow;
+const PidCoefficient PidProportional = 1.0;
+const PidCoefficient PidIntegral = 0.0;
+const PidCoefficient PidDerivative = 0.0;
+const PidCoefficient PidGain = 1.0;
+const milliseconds SensorPollingInterval = seconds(1);
+const SensorAref SensorReferenceSource = SensorArefInternal;
+
+#pragma endregion
 #pragma region Keypad Objects
 
 Keypad::Button right_button(RightButtonTriggerLevel);
@@ -104,6 +127,8 @@ auto isNavButton = [](const Keypad::Button* button)
 { return button->id() == right_button.id() || button->id() == left_button.id(); };
 auto isAdjustButton = [](const Keypad::Button* button)
 { return button->id() == up_button.id() || button->id() == down_button.id(); };
+auto isSelectButton = [](const Keypad::Button* button)
+{ return button->id() == select_button.id(); };
 
 #pragma endregion
 #pragma region Display Management Objects
@@ -114,7 +139,8 @@ Display::Field pvunit_field = { PvUnitCol,PvUnitRow,PvUnitLab,PvUnitFmt,true };
 Display::Field spval_field = { SpValCol,SpValRow,SpValLab,SpValFmt,true };
 Display::Field spen_field = { SpEnCol,SpEnRow,SpEnLab,SpEnFmt,true };
 Display::Field alrmen_field = { AlrmEnCol,AlrmEnRow,AlrmEnLab,AlrmEnFmt,true };
-Display::Screen run_screen({ &pvval_field,&pvsym_field,&pvunit_field,&spval_field,&spen_field,&alrmen_field }, RunScreenLab);
+Display::Screen run_screen({ &pvval_field,&pvsym_field,&pvunit_field,&spval_field,&spen_field,&alrmen_field }, 
+    RunScreenLab);
 
 Display::Field menu_run_field = { MenuRunCol,MenuRunRow,MenuRunLab,MenuRunFmt,true };
 Display::Field menu_pid_field = { MenuPidCol,MenuPidRow,MenuPidLab,MenuPidFmt,true };
@@ -124,12 +150,11 @@ Display::Field menu_display_field = { MenuDisplayCol,MenuDisplayRow,MenuDisplayL
 Display::Screen menu_screen({ &menu_run_field,&menu_pid_field,&menu_alarm_field,&menu_sensor_field,&menu_display_field },
     MenuScreenLab);
 
-Display::Field pid_p_field = { PCol,PRow,PLab,PFmt,true };
-Display::Field pid_i_field = { ICol,IRow,ILab,IFmt,true };
-Display::Field pid_d_field = { DCol,DRow,DLab,DFmt,true };
-Display::Field pid_a_field = { ACol,ARow,ALab,AFmt,true };
-Display::Screen pid_screen({ &pid_p_field,&pid_i_field,&pid_d_field,&pid_a_field },
-    PidScreenLab);
+Display::Field pid_prop_field = { PidProportionalCol,PidProportionalRow,PidProportionalLab,PidProportionalFmt,true };
+Display::Field pid_int_field = { PidIntegralCol,PidIntegralRow,PidIntegralLab,PidIntegralFmt,true };
+Display::Field pid_der_field = { PidDerivativeCol,PidDerivativeRow,PidDerivativeLab,PidDerivativeFmt,true };
+Display::Field pid_gain_field = { PidGainCol,PidGainRow,PidGainLab,PidGainFmt,true };
+Display::Screen pid_screen({ &pid_prop_field,&pid_int_field,&pid_der_field,&pid_gain_field }, PidScreenLab);
 
 Display::Field alarm_enable_field = { AlarmEnableCol,AlarmEnableRow,AlarmEnableLab,AlarmEnableFmt,true };
 Display::Field alarm_cmp_field = { AlarmCmpCol,AlarmCmpRow,AlarmCmpLab,AlarmCmpFmt,true };
@@ -152,17 +177,17 @@ Display display(&lcd, displayCallback, &run_screen);
 #pragma region Thermostat Objects
 
 Settings settings{
-    DisplayRangeLow,DisplayRangeHigh,DegreesCelsius,
+    TemperatureRangeLow,TemperatureRangeHigh,TemperatureUnits,
     PidProportional,PidIntegral,PidDerivative,PidGain,
-    SetpointDisabled,DisplayRangeLow,
-    AlarmDisabled,AlarmCmpGreater,AlarmSetPoint,
-    SensorArefInternal,SensorPollingInterval
+    SetpointStatus,SetPointValue,
+    AlarmStatus,AlarmCmp,AlarmSetPoint,
+    SensorReferenceSource,SensorPollingInterval
 }, settings_copy;
 TemperatureSensor temp_sensor(SensorInput, sensorCallback);
 InputFilter temp_filter;
 Pid pid(settings.setpointValue(), PidProportional, PidIntegral, PidDerivative, PidGain);
 Pwm pwm(PwmOut);
-Settings::display_type Tsense = 0;
+Temperature Tsense = 0;
 
 #pragma endregion
 #pragma region Misc. Program Objects
@@ -227,9 +252,9 @@ void keyRelease(const Keypad::Button* button)
     switch (op_mode)
     {
     case ThermostatMode::Run:
-        if (!alarmSilence(AlarmOutput))
+        if (!alarmSilence(AlarmOutput)) // Any key silences the alarm in RUN mode.
             alarmSilence(AlarmOutput, true);
-        else if (isNavButton(button)) // SP & AL settings adjustable in RUN mode.
+        else if (isNavButton(button))   // Setpoint & alarm settings adjustable in RUN mode.
         {
             setMode(ThermostatMode::Setpoint);
             run_screen.active_field(button == &right_button ? &spval_field : &alrmen_field);
@@ -237,7 +262,7 @@ void keyRelease(const Keypad::Button* button)
         }
         break;
     case ThermostatMode::Menu:
-        if (button->id() == select_button.id())
+        if (isSelectButton(button))
             menuSelect(display.screen()->active_field());
         else if (isNavButton(button))
             scrollField(button);
@@ -247,7 +272,7 @@ void keyRelease(const Keypad::Button* button)
     case ThermostatMode::Alarm:
     case ThermostatMode::Sensor:
     case ThermostatMode::Display:
-        if (button->id() == select_button.id())
+        if (isSelectButton(button))     // Short press/release cancels edits & returns to RUN mode.
             setMode(ThermostatMode::Run);
         else if (isNavButton(button))
             scrollField(button);
@@ -259,22 +284,22 @@ void keyRelease(const Keypad::Button* button)
 
 void keyLongpress(const Keypad::Button* button)
 {
-    if (button->id() == select_button.id())
+    if (isSelectButton(button))
     {
         switch (op_mode)
         {
         case ThermostatMode::Run:
-            setMode(ThermostatMode::Menu);
+            setMode(ThermostatMode::Menu);  // Opens MENU screen.
             break;
         case ThermostatMode::Menu:
-            setMode(ThermostatMode::Run);
+            setMode(ThermostatMode::Run);   // Returns to RUN mode.
             break;
         case ThermostatMode::Pid:
         case ThermostatMode::Setpoint:
         case ThermostatMode::Alarm:
         case ThermostatMode::Sensor:
         case ThermostatMode::Display:
-            updateSettings(op_mode);
+            updateSettings(op_mode);        // Saves edits and returns to RUN mode.
             writeSettings();
             setMode(ThermostatMode::Run);
             break;
@@ -297,7 +322,7 @@ void keyRepeat(bool enabled)
 
 void keypadCallback(const Keypad::Button* button, Keypad::Event event)
 {
-    static bool release = true; // Suspends release event after long-press event.
+    static bool release = true; // Ignores release event after long-press event.
 
     switch (event)
     {
@@ -322,7 +347,7 @@ void keypadCallback(const Keypad::Button* button, Keypad::Event event)
 
 void displayCallback()
 {
-    // Send display values for the current screen.
+    // Display values for the current screen.
     switch (op_mode)
     {
     case ThermostatMode::Setpoint:
@@ -357,27 +382,28 @@ void displayCallback()
 
 void sensorCallback()
 {
-    checkAlarm((Tsense = getTemperature(temp_filter.avg(temp_sensor.value()))));
-    Pid::value_type measured_value = clamp(Tsense, settings.tempLow(), settings.tempHigh());
-    Pid::value_type control_value = clamp(pid.loop(measured_value), 0.0f, settings.tempHigh() - settings.tempLow());
-    Pid::value_type output_value = norm(control_value, 0.0f, settings.tempHigh() - settings.tempLow(), 0.0f, 1.0f);
+    // Save the sensed temperature, check if it triggers an alarm and output the process control pwm signal.
+    checkAlarm((Tsense = getTemperature(temp_filter.out(temp_sensor.value()))));
+    PidCoefficient measured_value = clamp(Tsense, settings.tempLow(), settings.tempHigh());
+    PidCoefficient control_value = clamp(pid.loop(measured_value), 0.0f, settings.tempHigh() - settings.tempLow());
+    PidCoefficient output_value = norm(control_value, 0.0f, settings.tempHigh() - settings.tempLow(), 0.0f, 1.0f);
     pwm.duty_cycle(output_value);
 
 }
 
 void initSensor()
 {
-    delay(SensorInitDelay.count()); // Wait a sec for sensor/ADC to stabilize.
-    temp_filter.seed(temp_sensor());
-    Tsense = getTemperature(temp_filter.avg(temp_sensor.value()));
-    pid.start(steady_clock::now());
+    delay(SensorInitDelay.count());     // Wait a sec for sensor/ADC to stabilize.
+    temp_filter.seed(temp_sensor());    // Seed the input filter with the current sensor reading.
+    Tsense = getTemperature(temp_filter.out(temp_sensor.value())); // Save the current temperature.
+    pid.start(steady_clock::now());     // Start the pid controller at the current time.
 }
 
-void checkAlarm(Settings::display_type value)
+void checkAlarm(Temperature value)
 {
     static bool alarm_active = false;
     bool alarm_now = settings.alarmCompare()(value, settings.alarmSetpoint());
-
+    // Alarm only sounds if it crosses the setpoint, stays silent after being manually silenced.
     if (settings.alarmEnabled() && !alarm_active && alarm_now)
         alarmSilence(AlarmOutput, false);
     alarm_active = alarm_now && settings.alarmEnabled();
@@ -436,11 +462,12 @@ void setMode(ThermostatMode mode)
         case ThermostatMode::Setpoint:
             break;
         case ThermostatMode::Pid:
-            // This is redundant, but fits the copy/update settings scheme.
+            // This is redundant, but fits the settings copy/update scheme.
             settings.pidProportional() = pid.proportional();
             settings.pidIntegral() = pid.integral();
             settings.pidDerivative() = pid.derivative();
             settings.pidGain() = pid.gain();
+            formatPidScreen();
             display.screen(&pid_screen);
             break;
         case ThermostatMode::Menu:
@@ -474,7 +501,7 @@ void adjustSettings(const Display::Field* field, const Keypad::Button* button)
         : Adjustment::Direction::Down;
 
     // Adjust the value of the active field on the current screen.
-    // Active field determined by display cursor position.
+    // Active field determined by cursor position.
     switch (op_mode)
     {
     case ThermostatMode::Setpoint:
@@ -500,7 +527,7 @@ void adjustSettings(const Display::Field* field, const Keypad::Button* button)
 
 void updateSettings(ThermostatMode mode)
 {
-    // Make the editted settings active.
+    // Make the editted (or eeprom, if initializing) settings active.
     if (mode != ThermostatMode::Init)
         settings.update(settings_copy, settings);
     // Update the program from the active settings.
@@ -513,7 +540,7 @@ void updateSettings(ThermostatMode mode)
     pid.gain(settings.pidGain());
     pid.set_point(settings.setpointValue());
     pwm.enabled(settings.setpointEnabled());
-    Tsense = getTemperature(temp_filter.avg(temp_sensor.value()));
+    Tsense = getTemperature(temp_filter.out(temp_sensor.value()));
 }
 
 void readSettings()
@@ -522,7 +549,7 @@ void readSettings()
 
     eeprom.reset();
     eeprom >> eeprom_id;
-    if (eeprom_id == EepromID) // Check if EEPROM data is valid.
+    if (eeprom_id == EepromID) // Check if EEPROM data exists and is valid.
     {
         settings.deserialize(eeprom);
         settings.unitConvert() = settings.unitSymbol() == FarenheitSymbol
@@ -551,7 +578,7 @@ void readSettings()
 void writeSettings()
 {
     eeprom.reset();
-    eeprom << EepromID; // Save the eeprom id so we know it's valid when retrieved.
+    eeprom << EepromID; // Save the eeprom id so we know settings exist and are valid.
     settings.serialize(eeprom);
 }
 
@@ -561,39 +588,44 @@ void adjustSetpoint(const Display::Field* field, Adjustment::Direction dir)
     {
         auto inc = adjustment.value(DisplayAdjustmentFactor, dir);
 
-        settings_copy.setpointValue() = wrap<Settings::display_type, Settings::display_type>(
+        settings_copy.setpointValue() = wrap<Temperature, Temperature>(
             settings_copy.setpointValue(), inc, settings.tempLow(), settings.tempHigh());
     }
     else if (field == &spen_field)
-        settings_copy.setpointEnType() = settings_copy.setpointEnabled() 
+        settings_copy.setpointEnType() = (settings_copy.setpointEnabled()) 
         ? SetpointDisabled
         : SetpointEnabled;
     if (field == &alrmen_field)
-        settings_copy.alarmEnType() = settings_copy.alarmEnabled() 
+        settings_copy.alarmEnType() = (settings_copy.alarmEnabled()) 
         ? AlarmDisabled
         : AlarmEnabled;
 }
 
 void adjustPid(const Display::Field* field, Adjustment::Direction dir)
 {
-    auto inc = adjustment.value(DisplayAdjustmentFactor, dir);
-
-    Settings::display_type& coeff = field == &pid_p_field
+    // Value range is [0, 100].
+    // value > 10 || value == 10 && dir == Down: format = [0.0,9.9], adjust = 0.1
+    // else: format = [10,100], adjust = 1.0.
+    Temperature& coeff = field == &pid_prop_field
         ? settings_copy.pidProportional()
-        : field == &pid_i_field
+        : field == &pid_int_field
         ? settings_copy.pidIntegral()
-        : field == &pid_d_field
+        : field == &pid_der_field
         ? settings_copy.pidDerivative()
         : settings_copy.pidGain();
+    auto inc = adjustment.value(
+        coeff < 10.0 || (coeff < 11.0 && dir == Adjustment::Direction::Down)
+        ? DisplayAdjustmentFactor : 1.0f, dir);
 
-    coeff = wrap<Settings::display_type, Settings::display_type>(
-        (const Settings::display_type &)coeff, inc, PidValueMin, PidValueMax);
+    coeff = wrap<Temperature, Temperature>(
+        const_cast<const Temperature &>(coeff), inc, PidValueMin, PidValueMax);
+    const_cast<Display::Field*>(field)->fmt_ = coeff < 10.0 ? PidDecimalFormat : PidUnitFormat;
 }
 
 void adjustAlarm(const Display::Field* field, Adjustment::Direction dir)
 {
     if (field == &alarm_enable_field)
-        settings_copy.alarmEnType() = settings_copy.alarmEnabled()
+        settings_copy.alarmEnType() = (settings_copy.alarmEnabled())
         ? AlarmDisabled
         : AlarmEnabled;
     else if (field == &alarm_cmp_field)
@@ -604,7 +636,7 @@ void adjustAlarm(const Display::Field* field, Adjustment::Direction dir)
     {
         auto inc = adjustment.value(DisplayAdjustmentFactor, dir);
 
-        settings_copy.alarmSetpoint() = wrap< Settings::display_type, Settings::display_type>(
+        settings_copy.alarmSetpoint() = wrap<Temperature, Temperature>(
             settings_copy.alarmSetpoint(), inc, settings.tempLow(), settings.tempHigh());
     }
 }
@@ -615,8 +647,8 @@ void adjustSensor(const Display::Field* field, Adjustment::Direction dir)
     {
          auto inc = adjustment.value(SensorAdjustmentFactor, dir);
 
-         settings_copy.sensorPollIntvl() = Settings::duration_type(
-              wrap<Settings::adc_type, std::make_signed<Settings::adc_type>::type>(
+         settings_copy.sensorPollIntvl() = Interval(
+              wrap<SensorValue, std::make_signed<SensorValue>::type>(
                   settings_copy.sensorPollIntvl().count(), inc, SensorPollingMin.count(), SensorPollingMax.count()));
     }
     else if (field == &sensor_aref_field)
@@ -640,12 +672,12 @@ void adjustDisplay(const Display::Field* field, Adjustment::Direction dir)
     else
     {
         auto inc = adjustment.value(DisplayAdjustmentFactor, dir);
-        Settings::display_type& value = field == &display_low_field
+        Temperature& value = field == &display_low_field
             ? settings_copy.tempLow()
             : settings_copy.tempHigh();
 
-        value = wrap< Settings::display_type, Settings::display_type>(
-            (const Settings::display_type &)value, inc, DisplayValueMin, DisplayValueMax);
+        value = wrap< Temperature, Temperature>(
+            const_cast<const Temperature&>(value), inc, DisplayValueMin, DisplayValueMax);
     }
 }
 
@@ -673,9 +705,17 @@ void switchUnits(Settings& settings, DisplayUnit to_units)
     settings.setpointValue() = settings.unitConvert()(settings.setpointValue());
 }
 
-Settings::display_type getTemperature(Settings::adc_type sense_out)
+void formatPidScreen()
 {
-    Settings::display_type Tk = tsense(sense_out, AnalogMax<board_type>(), R, Vss, Vbe, Ka, Kb, Kc);
+    pid_prop_field.fmt_ = pid.proportional() < 10.0 ? PidDecimalFormat : PidUnitFormat;
+    pid_int_field.fmt_ = pid.integral() < 10.0 ? PidDecimalFormat : PidUnitFormat;
+    pid_der_field.fmt_ = pid.derivative() < 10.0 ? PidDecimalFormat : PidUnitFormat;
+    pid_gain_field.fmt_ = pid.gain() < 10.0 ? PidDecimalFormat : PidUnitFormat;
+}
+
+Temperature getTemperature(SensorValue sense_out)
+{
+    Temperature Tk = tsense(sense_out, AnalogMax<board_type>(), R, Vss, Vbe, Ka, Kb, Kc);
 
     return settings.unitConvert()(Tk);
 }
