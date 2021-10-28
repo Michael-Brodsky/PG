@@ -38,7 +38,7 @@
  *  parameter sets the filter's underlying storage type. The default Alloc 
  *	type is std::array. 
  *
- *	The `avg()' method returns the filter's output state. It has two 
+ *	The `out()' method returns the filter's output state. It has two 
  *	overloads, one that inserts a new value into the stream and returns the 
  *	the resulting filter output state, and another that returns only the 
  *	current output state. The filter can be seeded with a single or a 
@@ -52,11 +52,11 @@
 #if !defined __PG_MOVINGAVERAGE_H
 # define __PG_MOVINGAVERAGE_H 20211006L
 
-# include "array"
+# include "array"	// Default data buffer allocator type.
 
 namespace pg
 {
-	// Calculates the moving average from an input stream.
+	// Calculates a moving average from an input stream.
 	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc = std::array>
 	class MovingAverage
 	{
@@ -70,44 +70,50 @@ namespace pg
 		MovingAverage();
 
 	public:
-		void seed(T);
-		void seed(T*);
-		const T& avg(const T&);
-		const T& avg() const;
+		// Seeds the filter with a value.
+		void seed(value_type);
+		// Seeds the filter with values from an array beginning at a pointer.
+		void seed(value_type*);
+		// Updates the filter state with a value and returns the resulting output state. 
+		const value_type& out(const value_type&);
+		// Returns the current filter output state.
+		const value_type& out() const;
+		// Returns a reference to the underlying data buffer.
 		const allocator_type& get_allocator() const;
 
 	private:
 		allocator_type	alloc_; // Historical data buffer.
 		iterator		it_;	// Circular iterator, points to the head of the data buffer.
-		T				avg_;	// The current filter output state.
-		T				sum_;	// The current filter's current internal sum.
+		value_type		avg_;	// The filter's current output state.
+		value_type		sum_;	// The filter's current internal sum.
 	};
 
-	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
-	MovingAverage<T, N, Alloc>::MovingAverage() :
+	template<class value_type, std::size_t N, template<class = value_type, std::size_t = N> typename Alloc>
+	MovingAverage<value_type, N, Alloc>::MovingAverage() :
 		alloc_(), it_(alloc_), avg_(), sum_() 
 	{
-		std::fill(alloc_.begin(), alloc_.end(), T());
+		std::fill(alloc_.begin(), alloc_.end(), value_type());
 	}
 
-	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
-	void MovingAverage<T, N, Alloc>::seed(T seed)
+	template<class value_type, std::size_t N, template<class = value_type, std::size_t = N> typename Alloc>
+	void MovingAverage<value_type, N, Alloc>::seed(value_type seed)
 	{
 		std::fill(alloc_.begin(), alloc_.end(), seed);
 		sum_ = seed * N;
 		avg_ = seed;
 	}
 
-	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
-	void MovingAverage<T, N, Alloc>::seed(T* seed)
+	template<class value_type, std::size_t N, template<class = value_type, std::size_t = N> typename Alloc>
+	void MovingAverage<value_type, N, Alloc>::seed(value_type* seed)
 	{
 		std::copy(alloc_.begin(), alloc_.end(), seed);
-		sum_ = std::accumulate(alloc_.begin(), alloc_.end(), T());
+		sum_ = std::accumulate(alloc_.begin(), alloc_.end(), value_type());
 		avg_ = sum_ / N;
 	}
 
-	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
-	const T& MovingAverage<T, N, Alloc>::avg(const T& value)
+	template<class value_type, std::size_t N, template<class = value_type, std::size_t = N> typename Alloc>
+	const typename MovingAverage<value_type, N, Alloc>::value_type& 
+		MovingAverage<value_type, N, Alloc>::out(const value_type& value)
 	{
 		sum_ += value;
 		sum_ -= *(it_++ - (N - 1));
@@ -116,17 +122,20 @@ namespace pg
 		return (avg_ = sum_ / N);
 	}
 
-	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
-	const T& MovingAverage<T, N, Alloc>::avg() const
+	template<class value_type, std::size_t N, template<class = value_type, std::size_t = N> typename Alloc>
+	const typename MovingAverage<value_type, N, Alloc>::value_type& 
+		MovingAverage<value_type, N, Alloc>::out() const
 	{
 		return avg_;
 	}
 
-	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
-	const typename MovingAverage<T, N, Alloc>::allocator_type& MovingAverage<T, N, Alloc>::get_allocator() const
+	template<class value_type, std::size_t N, template<class = value_type, std::size_t = N> typename Alloc>
+	const typename MovingAverage<value_type, N, Alloc>::allocator_type&
+		MovingAverage<value_type, N, Alloc>::get_allocator() const
 	{
 		return alloc_;
 	}
+
 } // namespace pg
 
 #endif 
