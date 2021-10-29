@@ -123,8 +123,8 @@ public: /* Setters and getters. */
 	const alarm_cmp_func& alarmCompare() const { return al_cmp_.first; }
 	symbol_type& alarmCompareSymbol() { return al_cmp_.second; }
 	const symbol_type& alarmCompareSymbol() const { return al_cmp_.second; }
-	display_type& alarmSetpoint() { return al_setpoint_; }
-	const display_type& alarmSetpoint() const { return al_setpoint_; }
+	display_type& alarmSet() { return al_setpoint_; }
+	const display_type& alarmSet() const { return al_setpoint_; }
 	sensor_aref_type& sensorArefType() { return sn_aref_; }
 	const sensor_aref_type& sensorArefType() const { return sn_aref_; }
 	ArefSource& sensorArefSource() { return sn_aref_.first; }
@@ -144,10 +144,10 @@ public: /* Setters and getters. */
 	void update(const SettingsType& copy, SettingsType& original)
 	{
 		original = copy;
-		if (original.alarmSetpoint() < original.tempLow())
-			original.alarmSetpoint() = original.tempLow();
-		else if (original.alarmSetpoint() > original.tempHigh())
-			original.alarmSetpoint() = original.tempHigh();
+		if (original.alarmSet() < original.tempLow())
+			original.alarmSet() = original.tempLow();
+		else if (original.alarmSet() > original.tempHigh())
+			original.alarmSet() = original.tempHigh();
 		if (original.setpointValue() < original.tempLow())
 			original.setpointValue() = original.tempLow();
 		else if (original.setpointValue() > original.tempHigh())
@@ -160,7 +160,7 @@ public: /* Setters and getters. */
 		e << tempLow(); e << tempHigh(), e << unitSymbol();
 		e << pidProportional(); e << pidIntegral(); e << pidDerivative(); e << pidGain();
 		e << setpointSymbol(); e << setpointValue();
-		e << alarmEnableSymbol(); e << alarmCompareSymbol(); e << alarmSetpoint();
+		e << alarmEnableSymbol(); e << alarmCompareSymbol(); e << alarmSet();
 		e << sensorArefSource(); e << sensorPollIntvl().count();
 	}
 
@@ -170,12 +170,17 @@ public: /* Setters and getters. */
 		e >> tempLow(); e >> tempHigh(), e >> unitSymbol();
 		e >> pidProportional(); e >> pidIntegral(); e >> pidDerivative(); e >> pidGain();
 		e >> setpointSymbol(); e >> setpointValue();
-		e >> alarmEnableSymbol(); e >> alarmCompareSymbol(); e >> alarmSetpoint();
+		e >> alarmEnableSymbol(); e >> alarmCompareSymbol(); e >> alarmSet();
 		e >> sensorArefSource();
 		typename duration_type::rep r; e >> r;	sensorPollIntvl() = duration_type(r);
 	}
 
-private:	/* Editable program settings. */
+private:	/* Edit program settings. */
+	enable_type				sp_enabled_;	// Set point enabled value/display symbol pair.
+	display_type			sp_value_;		// Set point temperature.
+	enable_type				al_enabled_;	// Alarm enabled value/display symbol pair.
+	alarm_compare_type		al_cmp_;		// Alarm cmp function/display symbol pair.
+	display_type			al_setpoint_;	// Alarm temperature set point.
 	display_type			temp_low_;		// Temperature display range low.
 	display_type			temp_high_;		// Temperature display range high,
 	unit_type				temp_units_;	// Temperature units convert func/display symbol pair.
@@ -183,11 +188,6 @@ private:	/* Editable program settings. */
 	display_type			pid_i_;			// PID integral coeff.
 	display_type			pid_d_;			// PID derivative coeff.
 	display_type			pid_a_;			// PID gain coeff.
-	enable_type				sp_enabled_;	// Set point enabled value/display symbol pair.
-	display_type			sp_value_;		// Set point temperature.
-	enable_type				al_enabled_;	// Alarm enabled value/display symbol pair.
-	alarm_compare_type		al_cmp_;		// Alarm cmp function/display symbol pair.
-	display_type			al_setpoint_;	// Alarm temperature set point.
 	sensor_aref_type		sn_aref_;		// Sensor Aref source/display string pair.
 	duration_type			sn_tpoll_;		// Sensor polling interval.
 };

@@ -42,7 +42,7 @@ using ScheduledTask = Scheduler::Task;
 using TaskState = ScheduledTask::State;
 using SensorAref = Settings::sensor_aref_type;
 using SensorArefSource = ArefSource;
-using AlarmEnable = Settings::enable_type;
+using AlarmEnbl = Settings::enable_type;
 using AlarmCompare = Settings::alarm_compare_type;
 using SetpointEnable = Settings::enable_type;
 using DisplayUnit = Settings::unit_type;
@@ -50,6 +50,7 @@ using Temperature = Settings::display_type;
 using PidCoefficient = Pid::value_type;
 using SensorValue = Settings::adc_type;
 using Interval = Settings::duration_type;
+using DutyCycle = uint8_t;
 
 #pragma endregion
 #pragma region Function Declarations
@@ -84,8 +85,8 @@ Temperature getTemperature(SensorValue);
 
 const SensorAref SensorArefInternal{ ArefSource::Internal,InternalSymbol };
 const SensorAref SensorArefExternal{ ArefSource::External,ExternalSymbol };
-const AlarmEnable AlarmDisabled{ false,NoSymbol };
-const AlarmEnable AlarmEnabled{ true,YesSymbol };
+const AlarmEnbl AlarmDisabled{ false,NoSymbol };
+const AlarmEnbl AlarmEnbld{ true,YesSymbol };
 const AlarmCompare AlarmCmpLess{ alarm_lt,LessSymbol };
 const AlarmCompare AlarmCmpGreater{ alarm_gt,GreaterSymbol };
 const SetpointEnable SetpointEnabled{ true,EnabledSymbol };
@@ -102,12 +103,12 @@ const Temperature TemperatureRangeLow = 0.0;
 const Temperature TemperatureRangeHigh = 100.0;
 const SetpointEnable SetpointStatus = SetpointDisabled;
 const Temperature SetPointValue = TemperatureRangeLow;
-const AlarmEnable AlarmStatus = AlarmDisabled;
+const AlarmEnbl AlarmStatus = AlarmDisabled;
 const AlarmCompare AlarmCmp = AlarmCmpGreater;
-const Temperature AlarmSetPoint = TemperatureRangeLow;
-const PidCoefficient PidProportional = 1.0;
-const PidCoefficient PidIntegral = 0.0;
-const PidCoefficient PidDerivative = 0.0;
+const Temperature AlarmSet = TemperatureRangeLow;
+const PidCoefficient PidProp = 1.0;
+const PidCoefficient PidInteg = 0.0;
+const PidCoefficient PidDeriv = 0.0;
 const PidCoefficient PidGain = 1.0;
 const milliseconds SensorPollingInterval = seconds(1);
 const SensorAref SensorReferenceSource = SensorArefInternal;
@@ -133,41 +134,43 @@ auto isSelectButton = [](const Keypad::Button* button)
 #pragma endregion
 #pragma region Display Management Objects
 
-Display::Field pvval_field = { PvValCol,PvValRow,PvValLab,PvValFmt,true };
-Display::Field pvsym_field = { PvSymCol,PvSymRow,PvSymLab,PvSymFmt,true };
-Display::Field pvunit_field = { PvUnitCol,PvUnitRow,PvUnitLab,PvUnitFmt,true };
-Display::Field spval_field = { SpValCol,SpValRow,SpValLab,SpValFmt,true };
-Display::Field spen_field = { SpEnCol,SpEnRow,SpEnLab,SpEnFmt,true };
-Display::Field alrmen_field = { AlrmEnCol,AlrmEnRow,AlrmEnLab,AlrmEnFmt,true };
-Display::Screen run_screen({ &pvval_field,&pvsym_field,&pvunit_field,&spval_field,&spen_field,&alrmen_field }, 
+Display::Field pvval_field = { PvValueCol,PvValueRow,PvValueLab,PvValueFmt,PvValueVis,PvValueEdit };
+Display::Field pvsym_field = { PvSymbolCol,PvSymbolRow,PvSymbolLab,PvSymbolFmt,PvSymbolVis,PvSymbolEdit };
+Display::Field pvunit_field = { PvUnitCol,PvUnitRow,PvUnitLab,PvUnitFmt,PvUnitVis,PvUnitEdit };
+Display::Field spval_field = { SpValueCol,SpValueRow,SpValueLab,SpValueFmt,SpValueVis,SpValueEdit };
+Display::Field spen_field = { SpEnblCol,SpEnblRow,SpEnblLab,SpEnblFmt,SpEnblVis,SpEnblEdit };
+Display::Field alrmqen_field = { AlrmQEnblCol,AlrmQEnblRow,AlrmQEnblLab,AlrmQEnblFmt,AlrmQEnblVis,AlrmQEnblEdit };
+Display::Screen run_screen({ &pvval_field,&pvsym_field,&pvunit_field,&spval_field,&spen_field,&alrmqen_field }, 
     RunScreenLab);
 
-Display::Field menu_run_field = { MenuRunCol,MenuRunRow,MenuRunLab,MenuRunFmt,true };
-Display::Field menu_pid_field = { MenuPidCol,MenuPidRow,MenuPidLab,MenuPidFmt,true };
-Display::Field menu_alarm_field = { MenuAlarmCol,MenuAlarmRow,MenuAlarmLab,MenuAlarmFmt,true };
-Display::Field menu_sensor_field = { MenuSensorCol,MenuSensorRow,MenuSensorLab,MenuSensorFmt,true };
-Display::Field menu_display_field = { MenuDisplayCol,MenuDisplayRow,MenuDisplayLab,MenuDisplayFmt,true };
+Display::Field menu_run_field = { MenuRunCol,MenuRunRow,MenuRunLab,MenuRunFmt,MenuRunVis,MenuRunEdit };
+Display::Field menu_pid_field = { MenuPidCol,MenuPidRow,MenuPidLab,MenuPidFmt,MenuPidVis,MenuPidEdit };
+Display::Field menu_alarm_field = { MenuAlarmCol,MenuAlarmRow,MenuAlarmLab,MenuAlarmFmt,MenuAlarmVis,MenuAlarmEdit };
+Display::Field menu_sensor_field = { MenuSensorCol,MenuSensorRow,MenuSensorLab,MenuSensorFmt,MenuSensorVis,MenuSensorEdit };
+Display::Field menu_display_field = { MenuDisplayCol,MenuDisplayRow,MenuDisplayLab,MenuDisplayFmt,MenuDisplayVis,MenuDisplayEdit };
 Display::Screen menu_screen({ &menu_run_field,&menu_pid_field,&menu_alarm_field,&menu_sensor_field,&menu_display_field },
     MenuScreenLab);
 
-Display::Field pid_prop_field = { PidProportionalCol,PidProportionalRow,PidProportionalLab,PidProportionalFmt,true };
-Display::Field pid_int_field = { PidIntegralCol,PidIntegralRow,PidIntegralLab,PidIntegralFmt,true };
-Display::Field pid_der_field = { PidDerivativeCol,PidDerivativeRow,PidDerivativeLab,PidDerivativeFmt,true };
-Display::Field pid_gain_field = { PidGainCol,PidGainRow,PidGainLab,PidGainFmt,true };
-Display::Screen pid_screen({ &pid_prop_field,&pid_int_field,&pid_der_field,&pid_gain_field }, PidScreenLab);
+Display::Field pid_prop_field = { PidPropCol,PidPropRow,PidPropLab,PidPropFmt,PidPropVis,PidPropEdit };
+Display::Field pid_integ_field = { PidIntegCol,PidIntegRow,PidIntegLab,PidIntegFmt,PidIntegVis,PidIntegEdit };
+Display::Field pid_deriv_field = { PidDerivCol,PidDerivRow,PidDerivLab,PidDerivFmt,PidDerivVis,PidDerivEdit };
+Display::Field pid_gain_field = { PidGainCol,PidGainRow,PidGainLab,PidGainFmt,PidGainVis,PidGainEdit };
+Display::Field pid_duty_field = { PidDutyCol,PidDutyRow,PidDutyLab,PidDutyFmt,PidDutyVis,PidDutyEdit };
+Display::Screen pid_screen({ &pid_prop_field,&pid_integ_field,&pid_deriv_field,&pid_gain_field,&pid_duty_field }, 
+    PidScreenLab);
 
-Display::Field alarm_enable_field = { AlarmEnableCol,AlarmEnableRow,AlarmEnableLab,AlarmEnableFmt,true };
-Display::Field alarm_cmp_field = { AlarmCmpCol,AlarmCmpRow,AlarmCmpLab,AlarmCmpFmt,true };
-Display::Field alarm_setpoint_field = { AlarmSetPointCol,AlarmSetPointRow,AlarmSetPointLab,AlarmSetPointFmt,true };
-Display::Screen alarm_screen({ &alarm_enable_field,&alarm_setpoint_field,&alarm_cmp_field }, AlarmScreenLab);
+Display::Field alarm_enbl_field = { AlarmEnblCol,AlarmEnblRow,AlarmEnblLab,AlarmEnblFmt,AlarmEnblVis,AlarmEnblEdit };
+Display::Field alarm_cmp_field = { AlarmCmpCol,AlarmCmpRow,AlarmCmpLab,AlarmCmpFmt,AlarmCmpVis,AlarmCmpEdit };
+Display::Field alarm_set_field = { AlarmSetCol,AlarmSetRow,AlarmSetLab,AlarmSetFmt,AlarmSetVis,AlarmSetEdit };
+Display::Screen alarm_screen({ &alarm_enbl_field,&alarm_set_field,&alarm_cmp_field }, AlarmScreenLab);
 
-Display::Field sensor_aref_field = { SensorArefCol,SensorArefRow,SensorArefLab,SensorArefFmt,true };
-Display::Field sensor_poll_field = { SensorPollCol,SensorPollRow,SensorPollLab,SensorPollFmt,true };
+Display::Field sensor_aref_field = { SensorArefCol,SensorArefRow,SensorArefLab,SensorArefFmt,SensorArefVis,SensorArefEdit };
+Display::Field sensor_poll_field = { SensorPollCol,SensorPollRow,SensorPollLab,SensorPollFmt,SensorPollVis,SensorPollEdit };
 Display::Screen sensor_screen({ &sensor_aref_field,&sensor_poll_field }, SensorScreenLab);
 
-Display::Field display_low_field = { DisplayLowCol,DisplayLowRow,DisplayLowLab,DisplayLowFmt,true };
-Display::Field display_hi_field = { DisplayHighCol,DisplayHighRow,DisplayHighLab,DisplayHighFmt,true };
-Display::Field display_unit_field = { DisplayUnitCol,DisplayUnitRow,DisplayUnitLab,DisplayUnitFmt,true };
+Display::Field display_low_field = { DisplayLowCol,DisplayLowRow,DisplayLowLab,DisplayLowFmt,DisplayLowVis,DisplayLowEdit };
+Display::Field display_hi_field = { DisplayHighCol,DisplayHighRow,DisplayHighLab,DisplayHighFmt,DisplayHighVis,DisplayHighEdit };
+Display::Field display_unit_field = { DisplayUnitCol,DisplayUnitRow,DisplayUnitLab,DisplayUnitFmt,DisplayUnitVis,DisplayUnitEdit };
 Display::Screen display_screen({ &display_low_field,&display_hi_field,&display_unit_field }, DisplayScreenLab);
 
 LiquidCrystal lcd(LcdRs, LcdEn, LcdD4, LcdD5, LcdD6, LcdD7);
@@ -178,16 +181,18 @@ Display display(&lcd, displayCallback, &run_screen);
 
 Settings settings{
     TemperatureRangeLow,TemperatureRangeHigh,TemperatureUnits,
-    PidProportional,PidIntegral,PidDerivative,PidGain,
+    PidProp,PidInteg,PidDeriv,PidGain,
     SetpointStatus,SetPointValue,
-    AlarmStatus,AlarmCmp,AlarmSetPoint,
+    AlarmStatus,AlarmCmp,AlarmSet,
     SensorReferenceSource,SensorPollingInterval
 }, settings_copy;
 TemperatureSensor temp_sensor(SensorInput, sensorCallback);
 InputFilter temp_filter;
-Pid pid(settings.setpointValue(), PidProportional, PidIntegral, PidDerivative, PidGain);
+Pid pid(settings.setpointValue(), PidProp, PidInteg, PidDeriv, PidGain);
 Pwm pwm(PwmOut);
 Temperature Tsense = 0;
+DutyCycle dc_pct = 0;
+
 
 #pragma endregion
 #pragma region Misc. Program Objects
@@ -257,7 +262,7 @@ void keyRelease(const Keypad::Button* button)
         else if (isNavButton(button))   // Setpoint & alarm settings adjustable in RUN mode.
         {
             setMode(ThermostatMode::Setpoint);
-            run_screen.active_field(button == &right_button ? &spval_field : &alrmen_field);
+            run_screen.active_field(button == &right_button ? &spval_field : &alrmqen_field);
             display.update();
         }
         break;
@@ -363,10 +368,11 @@ void displayCallback()
         break;
     case ThermostatMode::Pid:
         display.refresh(settings_copy.pidProportional(), settings_copy.pidIntegral(),
-            settings_copy.pidDerivative(), settings_copy.pidGain());
+            settings_copy.pidDerivative(), settings_copy.pidGain(), dc_pct);
+        display.update(); // Always update the pwm output duty cycle.
         break;
     case ThermostatMode::Alarm:
-        display.refresh(settings_copy.alarmEnableSymbol(), settings_copy.alarmSetpoint(),
+        display.refresh(settings_copy.alarmEnableSymbol(), settings_copy.alarmSet(),
             settings_copy.alarmCompareSymbol());
         break;
     case ThermostatMode::Sensor:
@@ -388,6 +394,7 @@ void sensorCallback()
     PidCoefficient control_value = clamp(pid.loop(measured_value), 0.0f, settings.tempHigh() - settings.tempLow());
     PidCoefficient output_value = norm(control_value, 0.0f, settings.tempHigh() - settings.tempLow(), 0.0f, 1.0f);
     pwm.duty_cycle(output_value);
+    dc_pct = (uint8_t)(output_value * 100); // Round to [0,100].
 
 }
 
@@ -402,7 +409,7 @@ void initSensor()
 void checkAlarm(Temperature value)
 {
     static bool alarm_active = false;
-    bool alarm_now = settings.alarmCompare()(value, settings.alarmSetpoint());
+    bool alarm_now = settings.alarmCompare()(value, settings.alarmSet());
     // Alarm only sounds if it crosses the setpoint, stays silent after being manually silenced.
     if (settings.alarmEnabled() && !alarm_active && alarm_now)
         alarmSilence(AlarmOutput, false);
@@ -411,25 +418,13 @@ void checkAlarm(Temperature value)
 
 void scrollField(const Keypad::Button* button)
 {
-    button == &left_button
-        ? display.prev()
-        : display.next();
-    switch (op_mode)
+    // Advance to next/prev field, skipping any display only fields.
+    do
     {
-    case ThermostatMode::Setpoint:
-    {
-        // Skip PV fields.
-        const Display::Field* field = (run_screen.active_field() == &pvval_field)
-            ? &spval_field
-            : run_screen.active_field() == &pvunit_field
-            ? &alrmen_field
-            : run_screen.active_field();
-        run_screen.active_field(field);
-        break;
-    }
-    default:
-        break;
-    }
+        button == &left_button
+            ? display.prev()
+            : display.next();
+    } while (!display.screen()->active_field()->editable_);
 }
 
 void menuSelect(const Display::Field* field)
@@ -450,6 +445,9 @@ void setMode(ThermostatMode mode)
 {
     if (mode != op_mode)
     {
+        // Activate the screen corresponding to the given mode, including 
+        // any visual effects and make copy of the current program 
+        // settings if the mode is one of the editing modes.
         Display::Cursor display_cursor = Display::Cursor::Block;
         Display::Mode display_mode = Display::Mode::Edit;
         switch (mode)
@@ -595,10 +593,10 @@ void adjustSetpoint(const Display::Field* field, Adjustment::Direction dir)
         settings_copy.setpointEnType() = (settings_copy.setpointEnabled()) 
         ? SetpointDisabled
         : SetpointEnabled;
-    if (field == &alrmen_field)
+    if (field == &alrmqen_field)
         settings_copy.alarmEnType() = (settings_copy.alarmEnabled()) 
         ? AlarmDisabled
-        : AlarmEnabled;
+        : AlarmEnbld;
 }
 
 void adjustPid(const Display::Field* field, Adjustment::Direction dir)
@@ -608,9 +606,9 @@ void adjustPid(const Display::Field* field, Adjustment::Direction dir)
     // else: format = [10,100], adjust = 1.0.
     Temperature& coeff = field == &pid_prop_field
         ? settings_copy.pidProportional()
-        : field == &pid_int_field
+        : field == &pid_integ_field
         ? settings_copy.pidIntegral()
-        : field == &pid_der_field
+        : field == &pid_deriv_field
         ? settings_copy.pidDerivative()
         : settings_copy.pidGain();
     auto inc = adjustment.value(
@@ -624,20 +622,20 @@ void adjustPid(const Display::Field* field, Adjustment::Direction dir)
 
 void adjustAlarm(const Display::Field* field, Adjustment::Direction dir)
 {
-    if (field == &alarm_enable_field)
+    if (field == &alarm_enbl_field)
         settings_copy.alarmEnType() = (settings_copy.alarmEnabled())
         ? AlarmDisabled
-        : AlarmEnabled;
+        : AlarmEnbld;
     else if (field == &alarm_cmp_field)
         settings_copy.alarmCmpType() = settings_copy.alarmCompareSymbol() == LessSymbol 
         ? AlarmCmpGreater
         : AlarmCmpLess;
-    else if (field == &alarm_setpoint_field)
+    else if (field == &alarm_set_field)
     {
         auto inc = adjustment.value(DisplayAdjustmentFactor, dir);
 
-        settings_copy.alarmSetpoint() = wrap<Temperature, Temperature>(
-            settings_copy.alarmSetpoint(), inc, settings.tempLow(), settings.tempHigh());
+        settings_copy.alarmSet() = wrap<Temperature, Temperature>(
+            settings_copy.alarmSet(), inc, settings.tempLow(), settings.tempHigh());
     }
 }
 
@@ -694,22 +692,22 @@ void switchUnits(Settings& settings, DisplayUnit to_units)
         // Convert to Kelvin, ...
         settings.tempLow() = cv(settings.tempLow());
         settings.tempHigh() = cv(settings.tempHigh());
-        settings.alarmSetpoint() = cv(settings.alarmSetpoint());
+        settings.alarmSet() = cv(settings.alarmSet());
         settings.setpointValue() = cv(settings.setpointValue());
     }
     // ... then to_units.
     settings.unitType() = to_units;
     settings.tempLow() = settings.unitConvert()(settings.tempLow());
     settings.tempHigh() = settings.unitConvert()(settings.tempHigh());
-    settings.alarmSetpoint() = settings.unitConvert()(settings.alarmSetpoint());
+    settings.alarmSet() = settings.unitConvert()(settings.alarmSet());
     settings.setpointValue() = settings.unitConvert()(settings.setpointValue());
 }
 
 void formatPidScreen()
 {
     pid_prop_field.fmt_ = pid.proportional() < 10.0 ? PidDecimalFormat : PidUnitFormat;
-    pid_int_field.fmt_ = pid.integral() < 10.0 ? PidDecimalFormat : PidUnitFormat;
-    pid_der_field.fmt_ = pid.derivative() < 10.0 ? PidDecimalFormat : PidUnitFormat;
+    pid_integ_field.fmt_ = pid.integral() < 10.0 ? PidDecimalFormat : PidUnitFormat;
+    pid_deriv_field.fmt_ = pid.derivative() < 10.0 ? PidDecimalFormat : PidUnitFormat;
     pid_gain_field.fmt_ = pid.gain() < 10.0 ? PidDecimalFormat : PidUnitFormat;
 }
 
@@ -717,5 +715,5 @@ Temperature getTemperature(SensorValue sense_out)
 {
     Temperature Tk = tsense(sense_out, AnalogMax<board_type>(), R, Vss, Vbe, Ka, Kb, Kc);
 
-    return settings.unitConvert()(Tk);
+    return settings.unitConvert()(Tk); // Convert Kelvin to current display units.
 }

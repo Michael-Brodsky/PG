@@ -121,10 +121,10 @@ const char GreaterSymbol = '>';
 const char* InternalSymbol = "IN";
 const char* ExternalSymbol = "EX";
 
-const char* const TemperatureDisplayFormat = "%6.1f";	// Supports upto +/- 999.9
-const char* const TimingDisplayFormat = "%4u";			// Supports upto 9999 ms (SensorPollingMax).
-const char* const PidDecimalFormat = "%3.1f";			// Supports [0.0, +9.9]
-const char* const PidUnitFormat = "%3.0f";				// Supports [+10, +100]
+const char* const TemperatureDisplayFormat = "%6.1f";	// [-999.9,+999.9]
+const char* const TimingDisplayFormat = "%4u";			// [0,9999]
+const char* const PidDecimalFormat = "%3.1f";			// [0.0, +9.9]
+const char* const PidUnitFormat = "%3.0f";				// [+10, +100]
 
 #pragma region RUN Screen
 
@@ -134,35 +134,47 @@ const char* const PidUnitFormat = "%3.0f";				// Supports [+10, +100]
  ******************/
 const char* RunScreenLab = "";
 
-const uint8_t PvValCol = 0;
-const uint8_t PvValRow = 0;
-const char* const PvValLab = "PV:";
-const char* const PvValFmt = TemperatureDisplayFormat;
+const uint8_t PvValueCol = 0;
+const uint8_t PvValueRow = 0;
+const char* const PvValueLab = "PV:";
+const char* const PvValueFmt = TemperatureDisplayFormat;
+const bool PvValueVis = true;
+const bool PvValueEdit = false;
 
-const uint8_t PvSymCol = 9;
-const uint8_t PvSymRow = 0;
-const char* const PvSymLab = "";
-const char* const PvSymFmt = "%c";		// Supports degrees symbol.
+const uint8_t PvSymbolCol = 9;
+const uint8_t PvSymbolRow = 0;
+const char* const PvSymbolLab = "";
+const char* const PvSymbolFmt = "%c";		// Degrees symbol.
+const bool PvSymbolVis = true;
+const bool PvSymbolEdit = false;
 
 const uint8_t PvUnitCol = 10;
 const uint8_t PvUnitRow = 0;
 const char* const PvUnitLab = "";
-const char* const PvUnitFmt = "%c";		// Supports 'C', 'F' or 'K'.
+const char* const PvUnitFmt = "%c";		// 'C', 'F' or 'K'.
+const bool PvUnitVis = true;
+const bool PvUnitEdit = false;
 
-const uint8_t SpValCol = 0;
-const uint8_t SpValRow = 1;
-const char* const SpValLab = "SP:";
-const char* const SpValFmt = TemperatureDisplayFormat;
+const uint8_t SpValueCol = 0;
+const uint8_t SpValueRow = 1;
+const char* const SpValueLab = "SP:";
+const char* const SpValueFmt = TemperatureDisplayFormat;
+const bool SpValueVis = true;
+const bool SpValueEdit = true;
 
-const uint8_t SpEnCol = 9;
-const uint8_t SpEnRow = 1;
-const char* const SpEnLab = "";
-const char* const SpEnFmt = "%c";		// Supports '*' or ' '
+const uint8_t SpEnblCol = 9;
+const uint8_t SpEnblRow = 1;
+const char* const SpEnblLab = "";
+const char* const SpEnblFmt = "%c";		// '*' or ' '
+const bool SpEnblVis = true;
+const bool SpEnblEdit = true;
 
-const uint8_t AlrmEnCol = 12;
-const uint8_t AlrmEnRow = 1;
-const char* const AlrmEnLab = "AL:";
-const char* const AlrmEnFmt = "%c";		// Supports 'Y' or 'N'
+const uint8_t AlrmQEnblCol = 12;
+const uint8_t AlrmQEnblRow = 1;
+const char* const AlrmQEnblLab = "AL:";
+const char* const AlrmQEnblFmt = "%c";		// 'Y' or 'N'
+const bool AlrmQEnblVis = true;
+const bool AlrmQEnblEdit = true;
 
 #pragma endregion
 #pragma region MENU Screen
@@ -183,55 +195,80 @@ const uint8_t MenuRunCol = 6;
 const uint8_t MenuRunRow = 0;
 const char* const MenuRunLab = "";
 const char* const MenuRunFmt = "%s";
+const bool MenuRunVis = true;
+const bool MenuRunEdit = true;
 
 const uint8_t MenuPidCol = 11;
 const uint8_t MenuPidRow = 0;
 const char* const MenuPidLab = "";
 const char* const MenuPidFmt = "%s";
+const bool MenuPidVis = true;
+const bool MenuPidEdit = true;
 
 const uint8_t MenuAlarmCol = 0;
 const uint8_t MenuAlarmRow = 1;
 const char* const MenuAlarmLab = "";
 const char* const MenuAlarmFmt = "%s";
+const bool MenuAlarmVis = true;
+const bool MenuAlarmEdit = true;
 
 const uint8_t MenuSensorCol = 5;
 const uint8_t MenuSensorRow = 1;
 const char* const MenuSensorLab = "";
 const char* const MenuSensorFmt = "%s";
+const bool MenuSensorVis = true;
+const bool MenuSensorEdit = true;
 
 const uint8_t MenuDisplayCol = 11;
 const uint8_t MenuDisplayRow = 1;
 const char* const MenuDisplayLab = "";
 const char* const MenuDisplayFmt = "%s";
+const bool MenuDisplayVis = true;
+const bool MenuDisplayEdit = true;
 
 #pragma endregion
 #pragma region PID Screen
 
 /******************
  *PID  p:n.n i:n.n*
- *     d:n.n A:n.n*
+ *100  d:n.n A:n.n*
  ******************/
 const char* const PidScreenLab = "PID";
 
-const uint8_t PidProportionalCol = 5;
-const uint8_t PidProportionalRow = 0;
-const char* const PidProportionalLab = "p:";
-const char* const PidProportionalFmt = PidDecimalFormat;
+const uint8_t PidPropCol = 5;
+const uint8_t PidPropRow = 0;
+const char* const PidPropLab = "p:";
+const char* const PidPropFmt = PidDecimalFormat;
+const bool PidPropVis = true;
+const bool PidPropEdit = true;
 
-const uint8_t PidIntegralCol = 11;
-const uint8_t PidIntegralRow = 0;
-const char* const PidIntegralLab = "i:";
-const char* const PidIntegralFmt = PidDecimalFormat;
+const uint8_t PidIntegCol = 11;
+const uint8_t PidIntegRow = 0;
+const char* const PidIntegLab = "i:";
+const char* const PidIntegFmt = PidDecimalFormat;
+const bool PidIntegVis = true;
+const bool PidIntegEdit = true;
 
-const uint8_t PidDerivativeCol = 5;
-const uint8_t PidDerivativeRow = 1;
-const char* const PidDerivativeLab = "d:";
-const char* const PidDerivativeFmt = PidDecimalFormat;
+const uint8_t PidDerivCol = 5;
+const uint8_t PidDerivRow = 1;
+const char* const PidDerivLab = "d:";
+const char* const PidDerivFmt = PidDecimalFormat;
+const bool PidDerivVis = true;
+const bool PidDerivEdit = true;
 
 const uint8_t PidGainCol = 11;
 const uint8_t PidGainRow = 1;
 const char* const PidGainLab = "A:";
 const char* const PidGainFmt = PidDecimalFormat;
+const bool PidGainVis = true;
+const bool PidGainEdit = true;
+
+const uint8_t PidDutyCol = 0;
+const uint8_t PidDutyRow = 1;
+const char* const PidDutyLab = "";
+const char* const PidDutyFmt = "%3u%%";	// [0,100] %
+const bool PidDutyVis = true;
+const bool PidDutyEdit = false;
 
 #pragma endregion
 #pragma region ALARM Screen
@@ -242,25 +279,32 @@ const char* const PidGainFmt = PidDecimalFormat;
  ******************/
 const char* const AlarmScreenLab = "ALARM";
 
-const uint8_t AlarmEnableCol = 7;
-const uint8_t AlarmEnableRow = 0;
-const char* const AlarmEnableLab = "En:";
-const char* const AlarmEnableFmt = "%c";	// Supports 'Y' or 'N'
+const uint8_t AlarmEnblCol = 7;
+const uint8_t AlarmEnblRow = 0;
+const char* const AlarmEnblLab = "En:";
+const char* const AlarmEnblFmt = "%c";	// 'Y' or 'N'
+const bool AlarmEnblVis = true;
+const bool AlarmEnblEdit = true;
 
 const uint8_t AlarmCmpCol = 0;
 const uint8_t AlarmCmpRow = 1;
 const char* const AlarmCmpLab = "Cmp:";
-const char* const AlarmCmpFmt = "%c";		// Supports '<' or '>'
+const char* const AlarmCmpFmt = "%c";		// '<' or '>'
+const bool AlarmCmpVis = true;
+const bool AlarmCmpEdit = true;
 
-const uint8_t AlarmSetPointCol = 7;
-const uint8_t AlarmSetPointRow = 1;
-const char* const AlarmSetPointLab = "Sp:";
-const char* const AlarmSetPointFmt = TemperatureDisplayFormat;
+const uint8_t AlarmSetCol = 7;
+const uint8_t AlarmSetRow = 1;
+const char* const AlarmSetLab = "Sp:";
+const char* const AlarmSetFmt = TemperatureDisplayFormat;
+const bool AlarmSetVis = true;
+const bool AlarmSetEdit = true;
+
 #pragma endregion
 #pragma region SENSOR Screen
 
 /******************
- *SENSOR:  Aref:IN*
+ *SENSOR   Aref:IN*
  *         Tp:nnnn*
  ******************/
 const char* const SensorScreenLab = "SENSOR";
@@ -268,12 +312,16 @@ const char* const SensorScreenLab = "SENSOR";
 const uint8_t SensorArefCol = 9;
 const uint8_t SensorArefRow = 0;
 const char* const SensorArefLab = "Aref:";
-const char* const SensorArefFmt = "%2s";		// Supports "EX" or "IN"
+const char* const SensorArefFmt = "%2s";		// "EX" or "IN"
+const bool SensorArefVis = true;
+const bool SensorArefEdit = true;
 
 const uint8_t SensorPollCol = 9;
 const uint8_t SensorPollRow = 1;
 const char* const SensorPollLab = "Tp:";
 const char* const SensorPollFmt = TimingDisplayFormat;
+const bool SensorPollVis = true;
+const bool SensorPollEdit = true;
 
 #pragma endregion
 #pragma region DISPLAY Screen
@@ -288,16 +336,22 @@ const uint8_t DisplayLowCol = 7;
 const uint8_t DisplayLowRow = 0;
 const char* const DisplayLowLab = "Lo:";
 const char* const DisplayLowFmt = TemperatureDisplayFormat;
+const bool DisplayLowVis = true;
+const bool DisplayLowEdit = true;
 
 const uint8_t DisplayHighCol = 7;
 const uint8_t DisplayHighRow = 1;
 const char* const DisplayHighLab = "Hi:";
 const char* const DisplayHighFmt = TemperatureDisplayFormat;
+const bool DisplayHighVis = true;
+const bool DisplayHighEdit = true;
 
 const uint8_t DisplayUnitCol = 0;
 const uint8_t DisplayUnitRow = 1;
 const char* const DisplayUnitLab = "Un:";
-const char* const DisplayUnitFmt = "%c";	// Supports 'C', 'F' or 'K'.
+const char* const DisplayUnitFmt = "%c";	// 'C', 'F' or 'K'.
+const bool DisplayUnitVis = true;
+const bool DisplayUnitEdit = true;
 
 #pragma endregion
 #pragma endregion
@@ -316,3 +370,33 @@ enum class ThermostatMode
 };
 
 #endif // !defined __PG_THERMOMETER_CONFIG_H
+
+/******************
+ *1:-nnn.m*C     +*
+ *2:-nnn.m*C     +*
+ ******************/
+
+/******************
+ *SP1:-nnn.m  En:+*
+ *SP2:-nnn.m  En:+*
+ ******************/
+
+/******************
+ *AL1:>-nnn.m En:+*
+ *AL2:<-nnn.m En:+*
+ ******************/
+
+/******************
+ *PID  p:n.n i:n.n*
+ *     d:n.n A:n.n*
+ ******************/
+
+/******************
+ *SENSOR   Aref:IN*
+ *Avg:+    Tp:nnnn*
+ ******************/
+
+/******************
+ *TEMP   Lo:-nnn.m*
+ *Un:F   Hi:-nnn.m*
+ ******************/
