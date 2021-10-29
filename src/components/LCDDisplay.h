@@ -34,6 +34,8 @@
  *		an lcd display device. It supports formatted printing and synchronous 
  *		or asynchronous operation. The display hardware is controlled via the 
  *		Arduino `LiquidCrystal' api.
+ * 
+ *		
  *
  *	**************************************************************************/
 
@@ -65,8 +67,9 @@ namespace pg
 			uint8_t		col_;		// column index.
 			uint8_t		row_;		// row index.
 			const char* label_;		// label string.
-			const char* fmt_;		// format string.
+			const char* fmt_;		// print format string.
 			bool		visible_;	// is visible.
+			bool		editable_;	// is editable.
 
 			friend bool operator==(const Field& lhs, const Field& rhs) 
 			{ return lhs.col_ == rhs.col_ && lhs.row_ == rhs.row_; }
@@ -82,7 +85,7 @@ namespace pg
 			{ return !(lhs < rhs); }
 		};
 
-		// Encapsulates a collection of display fields.
+		// Encapsulates and manages a collection of display fields.
 		class Screen
 		{
 		public:
@@ -100,9 +103,9 @@ namespace pg
 			Screen(Field* [], std::size_t, const char* = nullptr);
 			// Constructs a screen from a range of fields and label.
 			explicit Screen(Field**, Field**, const char* = nullptr);
-			// Constructs a screen from a list of fields.
+			// Constructs a screen from a list of fields and label.
 			explicit Screen(std::initializer_list<Field*>, const char* = nullptr);
-			// Constructs a screen from a container of fields.			
+			// Constructs a screen from a container of fields and label.			
 			explicit Screen(const container_type&, const char* = nullptr);
 
 		public:
@@ -234,9 +237,9 @@ namespace pg
 		void			mode(Mode);
 		// Returns the current display mode.
 		Mode			mode() const;
-
+		// Advances to the next field in the collection.
 		void			next();
-
+		// Advances to the previous field in the collection.
 		void			prev();
 
 	private:
@@ -411,9 +414,9 @@ namespace pg
 		// Device is refreshed all at once with any pending updates.
 
 		if (mode_ == Mode::Normal)
-			event_.set(Update::Print);	// Always refresh display in Normal mode.
+			event_.set(Update::Print);	// Always refresh display in Normal mode, 
 		else
-			set_field_event();
+			set_field_event();			// otherwise repaint cursor at current field..
 		if (timer_.expired())			// Handle blinking display and timer.
 		{
 			display_ = !display_;
@@ -559,7 +562,7 @@ namespace pg
 	void LCDDisplay<Cols, Rows>::clock() 
 	{
 		if (callback_)
-			(*callback_)(); // Client provides values in callback func.
+			(*callback_)(); // Client provides display values for each field in callback func.
 	}
 
 	template<uint8_t Cols, uint8_t Rows>
@@ -603,13 +606,15 @@ namespace pg
 	void LCDDisplay<Cols, Rows>::write_value(char* buf, const Field* it, const double& arg)
 	{
 		// Arduino cstdlib sprintf() doesn't support printing of floating point types, 
-		// so we have to use dtostrf().
+		// so we have to use dtostrf(). Format strings limited to "%w.pf", where 
+		// w = width, p = precision, and f is the literal floating-point type specifier, 
+		// e.g. "%3.1f" = floating point format 3 digits wide with 1 digit after decimal.
 
 		char str[11]; // Formatted print buf for float types.
 		uint8_t w = std::atoi(std::strchr(it->fmt_, '%') + 1);	// Parse width from fmt spec.
 		uint8_t p = std::atoi(std::strchr(it->fmt_, '.') + 1);	// Parse precision from fmt spec.
 
-		(void)sprintf(buf, "%s", dtostrf(arg, w, p, str));		// Print formatted value to buf.
+		(void)sprintf(buf, "%s", dtostrf(arg, w, p, str));		// Print formatted value as string.
 		lcd_->print(buf);
 	}
 
@@ -643,7 +648,7 @@ namespace pg
 	template<uint8_t Cols, uint8_t Rows>
 	void LCDDisplay<Cols, Rows>::set_field_event()
 	{
-		event_.set(Update::Field);
+		event_.set(Update::Field); // Repaints the cursor at the current field.
 	}
 
 	template<uint8_t Cols, uint8_t Rows>
