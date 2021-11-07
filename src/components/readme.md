@@ -18,3 +18,6 @@ Asynchronous lcd display configuration and management.
 
 ### SerialControl.h 
 Facilitates remote, asynchronous command execution and application control over a serial port.
+
+### SweepServo.h 
+Asynchronous servo controller that uses natural units, degrees of rotation and angular velocity, instead of pulse widths.
