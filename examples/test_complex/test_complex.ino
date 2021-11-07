@@ -1,6 +1,7 @@
 // Part of the Pg test suite for <complex>
 
 #include <pg.h>
+#include <numeric>
 #include <complex>
 
 template <class T>

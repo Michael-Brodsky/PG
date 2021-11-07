@@ -14,9 +14,9 @@ pg::callback<int, Object, int>::type cb1 = &Object::doSomething;
 pg::callback<void>::type cb2 = &doSomething;
 
 // Command type for Object member taking one int arg and returning int.
-pg::command<int, Object, int> ocmd(&obj, cb1, 42);
+pg::Command<int, Object, int> ocmd(&obj, cb1, 42);
 // Command type for free-standing function of type void.
-pg::command<void> fcmd(cb2);
+pg::Command<void> fcmd(cb2);
 
 void setup() 
 {

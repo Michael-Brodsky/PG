@@ -57,15 +57,15 @@ bool _bits_bitflip()
   return result;
 }
 
-bool _bits_bitchange()
+bool _bits_bitchg()
 {
   bool result = true;
   uint8_t u8 = 42;
   uint16_t u16 = 42;
   uint32_t u32 = 42;
   uint64_t u64 = 42;
-  result = result && pg::bitchange(u8, 0, 1) == 43 && pg::bitchange(u16, 0, 1) == 43 &&
-    pg::bitchange(u32, 0, 1) == 43 && pg::bitchange(u64, 0, 1) == 43;
+  result = result && pg::bitchg(u8, 0, 1) == 43 && pg::bitchg(u16, 0, 1) == 43 &&
+    pg::bitchg(u32, 0, 1) == 43 && pg::bitchg(u64, 0, 1) == 43;
 
   return result;
 }
@@ -274,7 +274,7 @@ void setup()
 {
   Serial.begin(9600);
   bool b1 = _bits_bit(), b2 = _bits_bitset(), b3 = _bits_bitclr(), 
-    b4 = _bits_bitflip(), b5 = _bits_bitchange(), b6 = _bits_bitmerge(), 
+    b4 = _bits_bitflip(), b5 = _bits_bitchg(), b6 = _bits_bitmerge(), 
     b7 = _bits_bitrev(), b8 = _bits_bitsetm(), b9 = _bits_bitclrm(), 
     b10 = _bits_bitchgm(), b11 = _bits_bitflipm(), b12 = _bits_bitisset(), 
     b13 = _bits_bitisclr(), b14 = _bits_bitissetm(), b15 = _bits_bitlsbclrm();
@@ -282,7 +282,7 @@ void setup()
   Serial.print("bitset() = "); Serial.println(b2 ? "OK" : "FAIL");
   Serial.print("bitclr() = "); Serial.println(b3 ? "OK" : "FAIL");
   Serial.print("bitflip() = "); Serial.println(b4 ? "OK" : "FAIL");
-  Serial.print("bitchange() = "); Serial.println(b5 ? "OK" : "FAIL");
+  Serial.print("bitchg() = "); Serial.println(b5 ? "OK" : "FAIL");
   Serial.print("bitmerge() = "); Serial.println(b6 ? "OK" : "FAIL");
   Serial.print("bitrev() = "); Serial.println(b7 ? "OK" : "FAIL");
   Serial.print("bitsetm() = "); Serial.println(b8 ? "OK" : "FAIL");

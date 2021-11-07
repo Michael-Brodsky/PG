@@ -1,4 +1,5 @@
 #include <pg.h>
+#include <interfaces/iserializable.h>
 #include <utilities/EEStream.h>
 using namespace pg;
 
@@ -24,9 +25,9 @@ EEStream eeprom;
 void setup() 
 {
   Serial.begin(9600);
-  eeprom.store(foo);  // Write foo to eeprom @ addr=0.
+  foo.serialize(eeprom);  // Write foo to eeprom @ addr=0.
   eeprom.reset();     // Reset eeprom to addr=0.
-  eeprom.load(bar);   // Read bar from eeprom, now foo == bar.
+  bar.deserialize(eeprom);   // Read bar from eeprom, now foo == bar.
   Serial.print("foo == bar: ");
   Serial.println(foo == bar ? "OK" : "FAIL");
 }

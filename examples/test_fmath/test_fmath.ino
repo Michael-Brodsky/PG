@@ -1,5 +1,8 @@
 #include <pg.h>
+#include <array>
 #include <lib/fmath.h>
+
+float arr[] = {1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 3.0f, 4.0f, 5.0f};
 
 void setup() 
 {
@@ -15,6 +18,7 @@ void setup()
   Serial.println(pg::clamp(-2.f, 0.0f, 42.f));
   Serial.println(pg::clamp(2.f, 0.0f, 42.f));
   Serial.println(pg::clamp(2.f, 0.0f, 1.0f));
+  Serial.println(pg::fact(10U));
   Serial.println(pg::exp(0.0f), 6);
   Serial.println(pg::exp(1.0f), 6);
   Serial.println(pg::exp(-0.5f), 6);
@@ -38,6 +42,12 @@ void setup()
   Serial.println(pg::hypot(-3.0f, 4.0f), 6);
   Serial.println(pg::atan2(-3.0f, 4.0f), 6);
   Serial.println(std::isinf(pg::cot(std::tan(0))));
+  Serial.println(pg::mean(std::begin(arr), std::end(arr)), 6);
+  Serial.println(pg::median(std::begin(arr), std::end(arr)), 6);
+  Serial.println(pg::mode(std::begin(arr), std::end(arr)), 6);
+  Serial.println(pg::range(std::begin(arr), std::end(arr)), 6);
+  Serial.println(pg::variance(std::begin(arr), std::end(arr)), 6);
+  Serial.println(pg::stddev(std::begin(arr), std::end(arr)), 6);
 }
 
 void loop() 
