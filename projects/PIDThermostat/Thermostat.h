@@ -31,6 +31,7 @@
 # define __PG_THERMOSTAT_H 20211015L
 
 # include <lib/thermo.h>				// Temperature maths.
+# include <interfaces/iserializable.h>	// iserializable interface.
 # include <components/AnalogKeypad.h>	// Async keypad polling.
 # include <components/LCDDisplay.h>		// Async display manager.
 # include <components/AnalogInput.h>	// Async analog input polling.
@@ -175,15 +176,15 @@ public: /* Setters and getters. */
 		typename duration_type::rep r; e >> r;	sensorPollIntvl() = duration_type(r);
 	}
 
-private:	/* Edit program settings. */
+private:	/* Editable/storable program settings. */
 	enable_type				sp_enabled_;	// Set point enabled value/display symbol pair.
 	display_type			sp_value_;		// Set point temperature.
 	enable_type				al_enabled_;	// Alarm enabled value/display symbol pair.
-	alarm_compare_type		al_cmp_;		// Alarm cmp function/display symbol pair.
+	alarm_compare_type		al_cmp_;		// Alarm cmp function/display symbol pair ***No serial***.
 	display_type			al_setpoint_;	// Alarm temperature set point.
 	display_type			temp_low_;		// Temperature display range low.
 	display_type			temp_high_;		// Temperature display range high,
-	unit_type				temp_units_;	// Temperature units convert func/display symbol pair.
+	unit_type				temp_units_;	// Temperature units convert func/display symbol pair ***No serial***.
 	display_type			pid_p_;			// PID proportional coeff.
 	display_type			pid_i_;			// PID integral coeff.
 	display_type			pid_d_;			// PID derivative coeff.

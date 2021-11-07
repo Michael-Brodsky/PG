@@ -356,14 +356,14 @@ void displayCallback()
 
 void sensorCallback()
 {
-    checkAlarm((Tsense = getTemperature(temp_filter.avg(temp_sensor.value()))));
+    checkAlarm((Tsense = getTemperature(temp_filter.out(temp_sensor.value()))));
 }
 
 void initSensor()
 {
     delay(SensorInitDelay.count()); // Wait a sec for sensor/ADC to stabilize.
     temp_filter.seed(temp_sensor());
-    Tsense = getTemperature(temp_filter.avg(temp_sensor.value()));
+    Tsense = getTemperature(temp_filter.out(temp_sensor.value()));
 }
 void checkAlarm(Thermometer::value_type value)
 {
@@ -475,7 +475,7 @@ void updateSettings(ThermometerMode mode)
         thermometer.sensor.setAref();
         break;
     case ThermometerMode::Display:
-        Tsense = getTemperature(temp_filter.avg(temp_sensor.value()));
+        Tsense = getTemperature(temp_filter.out(temp_sensor.value()));
         break;
     default:
         break;

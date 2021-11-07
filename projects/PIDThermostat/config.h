@@ -28,8 +28,8 @@
  *
  *	**************************************************************************/
 
-#if !defined __PG_THERMOMETER_CONFIG_H
-# define __PG_THERMOMETER_CONFIG_H 20211025L
+#if !defined __PG_THERMOSTAT_CONFIG_H
+# define __PG_THERMOSTAT_CONFIG_H 20211025L
 
 using namespace pg;
 using namespace std::chrono;
@@ -98,12 +98,14 @@ const milliseconds AdjustmentMultiplyInterval = seconds(4);
 
 const Keypad::LongPress KeypadLongPressMode = Keypad::LongPress::Hold;
 const Adjustment::factor_type AdjustmentMultiplyMax = 100;
-const Settings::display_type DisplayAdjustmentFactor = 0.1;
+const Settings::display_type DecimalAdjustmentFactor = 0.1;
+const Settings::display_type UnitAdjustmentFactor = 1.0;
 const TemperatureSensor::value_type SensorAdjustmentFactor = 1;
-const Settings::display_type DisplayValueMin = -999.9;	// Smallest value that fits temperature display fields. 
-const Settings::display_type DisplayValueMax = +999.9;	// Largest value that fits temperature display fields.
-const Pid::value_type PidValueMin = 0.0;				// Min pid coeff value.
-const Pid::value_type PidValueMax = 100.0;				// Max pid coeff value.
+const Settings::display_type TemperatureMin = -999.9;	// Smallest value that fits temperature display fields. 
+const Settings::display_type TemperatureMax = +999.9;	// Largest value that fits temperature display fields.
+const Pid::value_type PidCoeffMin = 0.0;				// Min pid coeff value.
+const Pid::value_type PidCoeffMax = 100.0;				// Max pid coeff value.
+const Pid::value_type PidCoeffThreshold = 10.0;			// Value at which pid display format changes.
 
 #pragma endregion
 #pragma region Display Symbols and Formatting
@@ -118,8 +120,8 @@ const char EnabledSymbol = '*';
 const char DisabledSymbol = ' ';
 const char LessSymbol = '<';
 const char GreaterSymbol = '>';
-const char* InternalSymbol = "IN";
-const char* ExternalSymbol = "EX";
+const char* const InternalSymbol = "IN";
+const char* const ExternalSymbol = "EX";
 
 const char* const TemperatureDisplayFormat = "%6.1f";	// [-999.9,+999.9]
 const char* const TimingDisplayFormat = "%4u";			// [0,9999]
@@ -144,7 +146,7 @@ const bool PvValueEdit = false;
 const uint8_t PvSymbolCol = 9;
 const uint8_t PvSymbolRow = 0;
 const char* const PvSymbolLab = "";
-const char* const PvSymbolFmt = "%c";		// Degrees symbol.
+const char* const PvSymbolFmt = "%c";	// Degrees symbol.
 const bool PvSymbolVis = true;
 const bool PvSymbolEdit = false;
 
@@ -172,7 +174,7 @@ const bool SpEnblEdit = true;
 const uint8_t AlrmQEnblCol = 12;
 const uint8_t AlrmQEnblRow = 1;
 const char* const AlrmQEnblLab = "AL:";
-const char* const AlrmQEnblFmt = "%c";		// 'Y' or 'N'
+const char* const AlrmQEnblFmt = "%c";	// 'Y' or 'N'
 const bool AlrmQEnblVis = true;
 const bool AlrmQEnblEdit = true;
 
@@ -289,7 +291,7 @@ const bool AlarmEnblEdit = true;
 const uint8_t AlarmCmpCol = 0;
 const uint8_t AlarmCmpRow = 1;
 const char* const AlarmCmpLab = "Cmp:";
-const char* const AlarmCmpFmt = "%c";		// '<' or '>'
+const char* const AlarmCmpFmt = "%c";	// '<' or '>'
 const bool AlarmCmpVis = true;
 const bool AlarmCmpEdit = true;
 
@@ -312,7 +314,7 @@ const char* const SensorScreenLab = "SENSOR";
 const uint8_t SensorArefCol = 9;
 const uint8_t SensorArefRow = 0;
 const char* const SensorArefLab = "Aref:";
-const char* const SensorArefFmt = "%2s";		// "EX" or "IN"
+const char* const SensorArefFmt = "%2s";	// "EX" or "IN"
 const bool SensorArefVis = true;
 const bool SensorArefEdit = true;
 
@@ -369,34 +371,4 @@ enum class ThermostatMode
 	Display		// Displays/edits display settings.
 };
 
-#endif // !defined __PG_THERMOMETER_CONFIG_H
-
-/******************
- *1:-nnn.m*C     +*
- *2:-nnn.m*C     +*
- ******************/
-
-/******************
- *SP1:-nnn.m  En:+*
- *SP2:-nnn.m  En:+*
- ******************/
-
-/******************
- *AL1:>-nnn.m En:+*
- *AL2:<-nnn.m En:+*
- ******************/
-
-/******************
- *PID  p:n.n i:n.n*
- *     d:n.n A:n.n*
- ******************/
-
-/******************
- *SENSOR   Aref:IN*
- *Avg:+    Tp:nnnn*
- ******************/
-
-/******************
- *TEMP   Lo:-nnn.m*
- *Un:F   Hi:-nnn.m*
- ******************/
+#endif // !defined __PG_THERMOSTAT_CONFIG_H

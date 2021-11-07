@@ -31,6 +31,7 @@
 # define __PG_THERMOMETER_H 20211015L
 
 # include <lib/thermo.h>				// Thermometer temperature maths.
+# include <interfaces/iserializable.h>
 # include <components/AnalogKeypad.h>	// Async keypad polling.
 # include <components/LCDDisplay.h>		// Async display manager.
 # include <components/AnalogInput.h>	// Async analog input polling.

@@ -247,4 +247,3 @@ enum class ThermometerMode
 };
 
 #endif // !defined __PG_THERMOMETER_CONFIG_H
-
