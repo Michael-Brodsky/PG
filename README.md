@@ -1,6 +1,6 @@
 # Pg (Pretty Good)
 
-Pg is a development library for the Arduino (avr/samd) platform that includes a C++ Standard Library which uses only static memory, interfaces for implementing common C++ design patterns, components for common system tasks such as scanning a keypad or writing formatted output to an lcd, and a set of utilities including timers, schedulers, eeprom streaming support, fast math algorithms and engineering functions.
+Pg is a development library for the Arduino (avr/samd) platform that includes a subset of the C++ Standard Library that uses only static memory, interfaces for implementing common C++ design patterns, components for common system tasks such as scanning a keypad or writing formatted output to an lcd, and a set of utilities including timers, schedulers, eeprom streaming support, fast math algorithms and engineering functions.
 
 The libraries support rapid development of industrial automation and similar applications on inexpensive hardware. They provide solutions to common application tasks such as data acquisition and display, process control, user interfaces, alarms, timers and communications. See the /projects folder for examples.
 
