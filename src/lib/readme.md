@@ -23,6 +23,9 @@ Collection of scientific and engineering math functions.
 ### imath.h 
 Collection of fast integer math functions.
 
+### servos.h 
+Defines performance traits of many common servo motors, in natural units, that can be used as application parameters and template arguments.
+
 ### thermo.h 
 Collection of algorithms for temperature sensing and measurement.
 
