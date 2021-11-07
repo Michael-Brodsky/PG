@@ -96,7 +96,7 @@
 # define __PG_ANALOGKEYPAD_H 20211005L
 
 # include "array"                   // `ArrayWrapper' type.
-# include "system/types.h"          // `pin_t', `value_type' types.
+# include "system/types.h"          // `pin_t', `analog_t' types.
 # include "interfaces/iclockable.h"	// `iclockable' interface.
 # include "interfaces/icomponent.h" // `icomponent' interface.
 # include "utilities/Timer.h"	    // `Timer' type.
@@ -250,7 +250,7 @@ namespace pg
         bool repeat();
         // Polls the keypad and returns the currently pressed button, if any.
         Button* operator()();
-        // Returns tha last pressed Button, if any.
+        // Returns the last pressed Button, if any.
         Button* value() const;
 
     private:
@@ -390,7 +390,7 @@ namespace pg
     const typename AnalogKeypad<T, TimerType>::container_type& 
         AnalogKeypad<T, TimerType>::buttons() const
     {
-
+        return buttons_;
     }
 
     template<class T, class TimerType>

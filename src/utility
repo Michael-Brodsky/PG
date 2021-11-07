@@ -111,7 +111,7 @@ namespace std
 		using second_type = T2;
 
 		// Default constructor.
-		pair() = default;
+		constexpr pair() = default;
 		// Value initialize constructor (copy semantics).
 		pair(const T1& x, const T2& y) : first(x), second(y) {}
 		// Value initialize constructor (move semantics).

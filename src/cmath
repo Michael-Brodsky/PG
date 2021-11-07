@@ -60,12 +60,17 @@
 #undef asin
 #undef atan
 #undef atan2
+#undef cbrt
 #undef ceil
 #undef cos
 #undef cosh
 #undef exp
 #undef fabs
 #undef floor
+#undef fdim
+#undef fma
+#undef fmax
+#undef fmin
 #undef fmod
 #undef frexp
 #undef hypot
@@ -74,13 +79,19 @@
 #undef ldexp
 #undef log
 #undef log10
+#undef lrint
+#undef lround
 #undef modf
 #undef pow
+#undef round
+#undef signbit
 #undef sin
 #undef sinh
 #undef sqrt
+#undef sqrtf
 #undef tan
 #undef tanh
+#undef trunc
 
 // Arduino may not define these.
 
@@ -100,13 +111,18 @@ namespace std {
 	using ::asin;
 	using ::atan;
 	using ::atan2;
+	using ::cbrt;
 	using ::ceil;
 	using ::cos;
 	using ::copysign;
 	using ::cosh;
 	using ::exp;
 	using ::fabs;
+	using ::fdim;
 	using ::floor;
+	using ::fma;
+	using ::fmax;
+	using ::fmin;
 	using ::fmod;
 	using ::frexp;
 	using ::hypot;
@@ -116,142 +132,38 @@ namespace std {
 	using ::ldexp;
 	using ::log;
 	using ::log10;
+	using ::lrint;
+	using ::lround;
 	using ::modf;
 	using ::pow;
+	using ::round;
+	using ::signbit;
 	using ::sin;
 	using ::sinh;
 	using ::sqrt;
+	using ::sqrtf;
 	using ::tan;
 	using ::tanh;
+	using ::trunc;
 
 # if !defined __CORRECT_ISO_CPP_MATH_H_PROTO
 
 	// As of Arduino 1.8, only some of these are required.
 
-	inline float abs(float x) 
-	{
-		return fabsf(x);
-	}
-
-	//inline float acos(float x) 
+	//inline float abs(float x) 
 	//{
-	//	return acosf(x);
+	//	return fabs(static_cast<double>(x));
 	//}
 
-	//inline float asin(float x) 
+	//inline double abs(double x) 
 	//{
-	//	return asinf(x);
-	//}
-
-	//inline float atan(float x) 
-	//{
-	//	return atanf(x);
-	//}
-
-	//inline float atan2(float y, float x) 
-	//{
-	//	return atan2f(y, x);
-	//}
-
-	//inline float ceil(float x) 
-	//{
-	//	return ceilf(x);
-	//}
-
-	//inline float cos(float x) 
-	//{
-	//	return cosf(x);
-	//}
-
-	//inline float cosh(float x) 
-	//{
-	//	return coshf(x);
-	//}
-
-	//inline float exp(float x) 
-	//{
-	//	return expf(x);
-	//}
-
-	//inline float fabs(float x) 
-	//{
-	//	return fabsf(x);
-	//}
-
-	//inline float floor(float x) 
-	//{
-	//	return floorf(x);
-	//}
-
-	//inline float fmod(float x, float y) 
-	//{
-	//	return fmodf(x, y);
-	//}
-
-	//inline float frexp(float x, int* exp) 
-	//{
-	//	return frexpf(x, exp);
-	//}
-
-	//inline float ldexp(float x, int exp) 
-	//{
-	//	return ldexpf(x, exp);
-	//}
-
-	//inline float log(float x) 
-	//{
-	//	return logf(x);
-	//}
-
-	//inline float log10(float x) 
-	//{
-	//	return log10f(x);
+	//	return fabs(x);
 	//}
 
 	inline float modf(float x, float* inptr) 
 	{
 		return modff(x, inptr);
 	}
-
-	//inline float pow(float x, float y) 
-	//{
-	//	return powf(x, y);
-	//}
-
-	//inline float sin(float x) 
-	//{
-	//	return sinf(x);
-	//}
-
-	//inline float sinh(float x) 
-	//{
-	//	return sinhf(x);
-	//}
-
-	//inline float sqrt(float x) 
-	//{
-	//	return sqrtf(x);
-	//}
-
-	//inline float tan(float x) 
-	//{
-	//	return tanf(x);
-	//}
-
-	//inline float tanh(float x) 
-	//{
-	//	return tanhf(x);
-	//}
-
-	inline double abs(double x) 
-	{
-		return fabs(x);
-	}
-
-	//inline double pow(double x, int y) 
-	//{
-	//	return pow((double)x, (double)y);
-	//}
 
 #endif	//	 __CORRECT_ISO_CPP_MATH_H_PROTO
 

@@ -48,12 +48,8 @@
 
 # if defined __PG_HAS_NAMESPACES 
 
-#  if defined abs
-#   undef abs        // Arduino `abs' macro define conflicts with std::abs.
-#  endif 
-#  if defined sgn
-#   undef sgn        // If defined conflicts with std::sgn.
-#  endif 
+# undef abs        // Arduino `abs' macro define conflicts with std::abs.
+# undef sgn        // If defined conflicts with std::sgn.
 
 namespace std
 {

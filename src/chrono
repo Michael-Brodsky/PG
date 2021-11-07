@@ -309,7 +309,7 @@ namespace std
 		return DC(DC(lhs).count() + DC(rhs).count());
 	}
 
-	template<class Rep1, class Period1, class Rep2, class Period2 >
+	template<class Rep1, class Period1, class Rep2, class Period2>
 	typename std::common_type<std::chrono::duration<Rep1, Period1>, std::chrono::duration<Rep2, Period2>>::type
 		constexpr operator-(const std::chrono::duration<Rep1, Period1>& lhs,
 			const std::chrono::duration<Rep2, Period2>& rhs)
@@ -319,7 +319,7 @@ namespace std
 		return DC(DC(lhs).count() - DC(rhs).count());
 	}
 
-	template<class Rep1, class Period, class Rep2 >
+	template<class Rep1, class Period, class Rep2>
 	chrono::duration<typename std::common_type<Rep1, Rep2>::type, Period>
 		constexpr operator*(const std::chrono::duration<Rep1, Period>& d,
 			const Rep2& s)
@@ -329,7 +329,7 @@ namespace std
 		return DC(DC(d).count() * s);
 	}
 
-	template<class Rep1, class Rep2, class Period >
+	template<class Rep1, class Rep2, class Period>
 	chrono::duration<typename std::common_type<Rep1, Rep2>::type, Period>
 		constexpr operator*(const Rep1& s,
 			const std::chrono::duration<Rep2, Period>& d)
@@ -339,7 +339,7 @@ namespace std
 		return DC(DC(d).count() * s);
 	}
 
-	template<class Rep1, class Period, class Rep2 >
+	template<class Rep1, class Period, class Rep2>
 	chrono::duration<typename std::common_type<Rep1, Rep2>::type, Period>
 		constexpr operator/(const std::chrono::duration<Rep1, Period>& d, const Rep2& s)
 	{
@@ -348,7 +348,7 @@ namespace std
 		return DC(DC(d).count() / s);
 	}
 
-	template<class Rep1, class Period1, class Rep2, class Period2 >
+	template<class Rep1, class Period1, class Rep2, class Period2>
 	typename std::common_type<Rep1, Rep2>::type
 		constexpr operator/(const std::chrono::duration<Rep1, Period1>& lhs,
 			const chrono::duration<Rep2, Period2>& rhs)
@@ -367,7 +367,7 @@ namespace std
 		return DC(DC(d).count() % s);
 	}
 
-	template<class Rep1, class Period1, class Rep2, class Period2 >
+	template<class Rep1, class Period1, class Rep2, class Period2>
 	typename std::common_type<std::chrono::duration<Rep1, Period1>, chrono::duration<Rep2, Period2>>::type
 		constexpr operator%(const std::chrono::duration<Rep1, Period1>& lhs,
 			const std::chrono::duration<Rep2, Period2>& rhs)

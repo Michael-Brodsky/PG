@@ -1,12 +1,12 @@
 /*
- *	This file defines a class for serializing/deserializing objects to the 
- *	onboard EEPROM.
- *	
+ *	This file provides support for streaming objects to and from the onboard 
+ *	EEPROM.
+ *
  *	***************************************************************************
  *
  *	File: EEStream.h
- *	Date: July 17, 2021
- *	Version: 0.99
+ *	Date: November 2, 2021
+ *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
  *	Copyright (c) 2012-2021 Michael Brodsky
@@ -26,30 +26,117 @@
  *  You should have received a copy of the GNU General Public License
  *	along with this file. If not, see <http://www.gnu.org/licenses/>.
  *
- *	***************************************************************************/
+ *	***************************************************************************
+ *
+ *	Description:
+ *
+ *	The EEStream class provides simple object streaming to and from the 
+ *	onboard EEPROM memory and manages memory addressing. EEStream defines an 
+ *	insertion (operator<<) and extraction (operator>>) operator, an address() 
+ *	function overload which can be used to get/set the current EEPROM read/
+ *	write address and a reset() function to reset the address back to zero.
+ *	Two i/o manipulator types, `update' and `noupdate' are also provided to 
+ *	toggle between EEPROM update/overwrite functionality.
+ * 
+ *	Clients stream objects to (write to) the EEPROM using the insertion 
+ *	operator: 
+ * 
+ *		EEStream e;	// Address initialized to 0.
+ *		int i = 42;
+ *		float f = 99.9;
+ *		const char* str = "Hello World!"; // C-style NULL-terminated string.
+ *		e << i;		// Writes 42 at address 0 and advances the address.
+ *		e << f;		// Writes 99.9 after 42 and advances the address.
+ *		e << str;	// Writes "Hello World!" after 99.9 and advances the addr.
+ * 
+ *	By reseting the address and reading objects from the EEPROM in the same 
+ *	order they were written, large collections of objects can be saved to and 
+ *	recalled from the EEPROM with just a few simple lines of code:
+ * 
+ *		e.reset();
+ * 
+ *	Clients stream objects from (read from) the EEPROM using the extraction  
+ *	operator: 
+ * 
+ *		e >> i;
+ *		e >> f;
+ *		e >> str;   // String buffers must be allocated and large enough to 
+ *					// hold the data read from the EEPROM, including the 
+ *					// terminating NULL, e.g.
+ *		char buf[13]; 
+ *		e >> buf;	// OK to hold "Hello World!"
+ * 
+ *	The address() function either gets or sets the current read/write address: 
+ * 
+ *		std::size_t addr = e.address();
+ *		e.address() = ++addr;
+ * 
+ *	The nested i/o manipulator types `update' and `noupdate' are used to turn 
+ *	the EEPROM update/noupdate functionality on and off. If update is on, 
+ *	data is only written if it differs from the currently stored data (much 
+ *	like the Arduino EEPROM.update() function except that it works with any 
+ *	type instead of only one byte at a time). If update is off, data is 
+ *	automatically written regardless of the EEPROM's current contents. Objects 
+ *	must be equal comparable to use update. The update and noupdate types are 
+ *	simply streamed to the EEStream object, like any other type, the same way 
+ *	std::boolalpha is used with std::iostream in the C++ Standard Library:
+ * 
+ *		e << EEStream::update(); // Turns on updating.
+ *		e << EEStream::update(); // Turns off updating.
+ * 
+ *	Client types can override the insertion and extraction operators to 
+ *	implement custom streaming behavior: 
+ * 
+ *	class A { 
+ *		...
+ *  public:
+ *		// Operator overrides can implement any functionality they choose. 
+ *		EEStream& operator>>(EEStream& e) { e << fl; e << ln; } 
+ *		EEStream& operator<<(EEStream& e) { e >> fl; e >> ln; } 
+ *		// Objects should be equal-comparable.
+ *		bool operator==(const A& other) { return fl == other.fl && ln == other.ln; }
+ *  private:
+ *		float fl;
+ *		long  ln;
+ *  }
+ * 
+ *	Types using their overrides must appear as the lefthand side operand:
+ *
+ *		EEStream ee;
+ *		A a;
+ *		a >> ee;	// Uses A's insertion operator.
+ *		ee << a;	// Uses EEStream's insertion operator.
+ * 
+ *	**************************************************************************/
 
-#if !defined __PG_EESTREAM_H 
-#define __PG_EESTREAM_H 20210717L
+#if !defined __PG_EESTREAM_H
+# define __PG_EESTREAM_H 20211102L
 
-# include <Arduino.h>	// Arduino genral API.
+# include <Arduino.h>	// Arduino system api.
 # include <EEPROM.h>	// Arduino EEPROM api.
-# include "interfaces/iserializable.h"	// `iserializable' interface.
-# include "array"		// Fixed-size array types & iterators'.
+# include <type_traits>	// Type support library.
 
 # if defined __PG_HAS_NAMESPACES 
 
 namespace pg
 {
-	// Type that serializes objects to and from the onboard EEPROM.
+	// Type that provides EEPROM streaming services.
 	class EEStream
 	{
 	public:
-		using address_type = unsigned;	// Arduino EEPROM addressing type alias.
-		using size_type = unsigned;		// Serializable object size type.
+		using address_type = unsigned;	// EEPROM addressing type alias.
+
+		struct update {};	// Tag type used to enable EEPROM update function.
+		struct noupdate {};	// Tag type used to disable EEPROM update function.
 
 	public:
-		EEStream() : address_() {}
+		// Constructs an EEStream.
+		EEStream();
+		// No copy constructor.
 		EEStream(const EEStream&) = delete;
+		// Move constructor.
+		EEStream(EEStream&&) = default;
+		// No copy assignment operator.
 		EEStream& operator=(const EEStream&) = delete;
 
 	public:
@@ -59,67 +146,79 @@ namespace pg
 		// Stream extraction operator.
 		template<class T>
 		EEStream& operator>>(T&);
+		// Stream array insertion operator.
+		template<class T, std::size_t N>
+		EEStream& operator<<(const T(&t)[N]);
+		// Stream array extraction operator.
+		template<class T, std::size_t N>
+		EEStream& operator>>(T(&t)[N]);
 		// Returns a mutable reference to the current read/write address.
 		address_type& address();
 		// Returns a immutable reference to the current read/write address.
 		const address_type& address() const;
-		// Resets the EEPROM read/write address.
+		// Resets the EEPROM read/write address to zero.
 		void reset();
-		// Deserializes an array of objects of type `T' from the EEPROM.
-		template<class T, size_type N>
-		void load(T(&t)[N]);
-		// Deserializes an array of objects of type `T' from the EEPROM.
-		template<class T>
-		void load(T t[], size_type n);
-		// Deserializes a range of objects of type `T' from the EEPROM.
-		template<class T>
-		void load(T* first, T* last);
-		// Deserializes an object of type `T' from the EEPROM.
-		template<class T>
-		void load(T& t);
-		// Serializes a collection of objects of type `T' to the EEPROM.
-		template<class T, size_type N>
-		void store(const T(&t)[N]);
-		// Serializes a collection of objects of type `T' to the EEPROM.
-		template<class T>
-		void store(const T t[], size_type n);
-		// Serializes a collection of objects of type `T' to the EEPROM.
-		template<class T>
-		void store(const T* first, const T* last);
-		// Serializes an object of type `T' to the EEPROM.
-		template<class T>
-		void store(const T& t);
-
-	public:
-		// Reads the value of an object of type `T' from the EEPROM at the given address. 
-		template<class T>
-		static address_type	get(address_type, T&);
-		// Reads the value of a `String' object from the EEPROM at the given address. 
-		static address_type	get(address_type, String&);
-		// Reads the value of a c-string object from the EEPROM at the given address. 
-		static address_type	get(address_type, char*);
-		// Writes the value of an object of type `T' to the EEPROM at the given address. 
-		template<class T>
-		static address_type	put(address_type, const T&);
-		// Writes the value of a `String' object to the EEPROM at the given address. 
-		static address_type	put(address_type, const String&);
-		// Writes the value of a c-string object to the EEPROM at the given address. 
-		static address_type	put(address_type, const char*);
-		// Writes the value of an object of type `T' to the EEPROM at the given address 
-		// if it differs from the currently stored value at that address.
-		template<class T>
-		static address_type	update(address_type, const T&);
 
 	private:
-		address_type address_;	// The current EEPROM read/write address.
+		// Reads an object of type T from the EEPROM.
+		template<class T>
+		std::size_t read(address_type, T&);
+		// Reads a NULL-terminated string from the EEPROM.
+		std::size_t read(address_type, char*);
+		// Reads a NULL-terminated string from the EEPROM.
+		std::size_t read(address_type, unsigned char*);
+		// Reads a NULL-terminated string from the EEPROM.
+		std::size_t read(address_type, signed char*);
+		// Reads an object of type String from the EEPROM.
+		std::size_t read(address_type, String&);
+		// Writes an object of type T to the EEPROM.
+		template<class T>
+		std::size_t write(address_type, const T&);
+		// Writes a NULL-terminated string to the EEPROM.
+		std::size_t write(address_type, const char*);
+		// Writes a NULL-terminated string to the EEPROM.
+		std::size_t write(address_type, const unsigned char*);
+		// Writes a NULL-terminated string to the EEPROM.
+		std::size_t write(address_type, const signed char*);
+		// Writes an object of type String to the EEPROM.
+		std::size_t write(address_type, const String&);
+		// I/O manipulator "update" handler.
+		std::size_t write(address_type, update);
+		//I/O manipulator "noupdate" handler.
+		std::size_t write(address_type, noupdate);
+
+	private:
+		address_type	address_;	// The current EEPROM read/write address.
+		bool			update_;	// Flag indicating whether to put or update data on writes.
 	};
 
-#pragma region non-static_functions
+#pragma region Implementation
+
+	EEStream::EEStream() : 
+		address_(), update_() 
+	{
+	
+	}
+
+	typename EEStream::address_type& EEStream::address()
+	{
+		return address_;
+	}
+
+	const typename EEStream::address_type& EEStream::address() const 
+	{
+		return address_;
+	}
+
+	void EEStream::reset()
+	{
+		address_ = 0;
+	}
 
 	template<class T>
 	EEStream& EEStream::operator<<(const T& t)
 	{
-		address_ += update(address_, t);
+		address_ += write(address_, t);
 
 		return *this;
 	}
@@ -127,167 +226,137 @@ namespace pg
 	template<class T>
 	EEStream& EEStream::operator>>(T& t)
 	{
-		address_ += get(address_, t);
+		address_ += read(address_, t);
 
 		return *this;
 	}
 
-	template<class T, EEStream::size_type N>
-	void EEStream::load(T(&t)[N])
+	template<class T, std::size_t N>
+	EEStream& EEStream::operator<<(const T(&t)[N])
 	{
-		for (size_type i = 0; i < N; ++i)
-			load(t[i]);
+		for (std::size_t i = 0; i < N; ++i)
+			address_ += write(address_, t[i]);
+
+		return *this;
 	}
 
-	template<class T>
-	void EEStream::load(T t[], size_type n)
+	template<class T, std::size_t N>
+	EEStream& EEStream::operator>>(T(&t)[N])
 	{
-		for (size_type i = 0; i < n; ++i)
-			load(t[i]);
-	}
+		for (std::size_t i = 0; i < N; ++i)
+			address_ += read(address_, t[i]);
 
-	template<class T>
-	void EEStream::load(T* first, T* last)
-	{
-		for (auto it = first; it < last; ++it)
-			load(*it);
+		return *this;
 	}
-
-	template<class T>
-	void EEStream::load(T& t)
-	{
-		T* p = &t;
 		
-		static_cast<iserializable*>(p)->deserialize(*this);
-	}
-
-	template<class T, EEStream::size_type N>
-	void EEStream::store(const T(&t)[N])
-	{
-		for (size_type i = 0; i < N; ++i)
-			store(t[i]);
-	}
-
 	template<class T>
-	void EEStream::store(const T t[], size_type n)
-	{
-		for (size_type i = 0; i < n; ++i)
-			store(t[i]);
-	}
-
-	template<class T>
-	void EEStream::store(const T* first, const T* last)
-	{
-		for (auto it = first; it < last; ++it)
-			store(*it);
-	}
-
-	template<class T>
-	void EEStream::store(const T& t)
-	{
-		const T* p = &t;
-
-		static_cast<const iserializable*>(p)->serialize(*this);
-	}
-
-	template<class T>
-	EEStream::address_type EEStream::get(address_type address, T& value)
+	std::size_t EEStream::read(address_type address, T& value)
 	{
 		EEPROM.get(address, value);
 
 		return sizeof(value);
 	}
 
-	template<class T>
-	EEStream::address_type EEStream::put(address_type address, const T& value)
+	std::size_t EEStream::read(address_type address, char* value)
 	{
-		EEPROM.put(address, value);
+		// C-strings are read as individual chars including the trailing NULL.
+
+		address_type first = address;
+
+		while ((*value++ = static_cast<char>(EEPROM.read(address++))));
+		*value = '\0';
+
+		return address - first;
+	}
+
+	std::size_t EEStream::read(address_type address, unsigned char* value)
+	{
+		return read(address, reinterpret_cast<char*>(value));
+	}
+
+	std::size_t EEStream::read(address_type address, signed char* value)
+	{
+		return read(address, reinterpret_cast<char*>(value));
+	}
+
+	std::size_t EEStream::read(address_type address, String& value)
+	{
+		// String objects are read as C-strings.
+
+		address_type first = address;
+		char c = '\0';
+
+		while ((c = EEPROM.read(address++)))
+			value += c;
+
+		return address - first;
+	}
+
+	template<class T>
+	std::size_t EEStream::write(address_type address, const T& value)
+	{
+		// Arduino update() only works byte-at-a-time, so we use this workaround.
+		// T must equal comparable.
+
+		if (update_)
+		{
+			T t = EEPROM.get(address, t);
+
+			if(!(t == value))
+				(void)EEPROM.put(address, value);
+		}
+		else 
+			(void)EEPROM.put(address, value);
 
 		return sizeof(value);
 	}
 
-	template <class T>
-	EEStream::address_type EEStream::update(address_type address, const T& value)
+	std::size_t EEStream::write(address_type address, const char* value)
 	{
-		T t;
-		address_type n = get(address, t);
+		// C-strings are written as individual chars including the trailing NULL.
 
-		if (t != value)
-			n = put(address, value);
+		address_type first = address;
 
-		return n;	// Return the number of bytes read, or written if the update occured.
+		while (*value)
+			(update_) ? EEPROM.update(address++, *value++) : EEPROM.write(address++, *value++);
+		(update_) ? EEPROM.update(address++, '\0') : EEPROM.write(address++, '\0');
+
+		return address - first;
+	}
+
+
+	std::size_t EEStream::write(address_type address, const unsigned char* value)
+	{
+		return write(address, reinterpret_cast<const char*>(value));
+	}
+
+	std::size_t EEStream::write(address_type address, const signed char* value)
+	{
+		return write(address, reinterpret_cast<const char*>(value));
+	}
+
+	std::size_t EEStream::write(address_type address, const String& value)
+	{
+		// String objects are written as C-strings.
+
+		return write(address, value.c_str());
+	}
+
+	std::size_t EEStream::write(address_type address, update)
+	{
+		update_ = true;
+	}
+
+	std::size_t EEStream::write(address_type address, noupdate)
+	{
+		update_ = false;
 	}
 
 #pragma endregion
-#pragma region static_functions
-
-	EEStream::address_type& EEStream::address()
-	{
-		return address_;
-	}
-
-	const EEStream::address_type& EEStream::address() const
-	{
-		return address_;
-}
-
-	void EEStream::reset()
-	{
-		address_ = 0;
-	}
-
-	EEStream::address_type EEStream::get(address_type address, String& value)
-	{
-		// String objects must be read as individual chars, preceded by the count, 
-		// with an upper limit of 256 chars.
-
-		return get(address, (char*)value.c_str());
-	}
-
-	EEStream::address_type EEStream::get(address_type address, char* value)
-	{
-		// C-strings must be read as individual chars, preceded by the count, with an 
-		// upper limit of 256 chars.
-
-		uint8_t count = EEPROM.read(address);
-		address_type first = address;
-
-		for (uint8_t i = 0U; i < count; i++)
-			*value++ = static_cast<char>(EEPROM.read(++address));
-
-		*value = '\0';
-		return ++address - first;
-	}
-
-	EEStream::address_type EEStream::put(address_type address, const String& value)
-	{
-		// String objects must be written as individual chars, preceded by the count, 
-		// with an upper limit of 256 chars.
-
-		return put(address, value.c_str());
-	}
-
-	EEStream::address_type EEStream::put(address_type address, const char* value)
-	{
-		// C-strings must be written as individual chars, preceded by the count, with an 
-		// upper limit of 256 chars.
-
-		uint8_t count = strlen(value);
-		address_type first = address;
-
-		EEPROM.write(address, count);
-		for (uint8_t i = 0U; i < count; i++)
-			EEPROM.write(++address, value[i]);
-
-		return ++address - first;
-	}
-
-#pragma endregion
-
-} // namespace pg 
+} // namespace pg
 
 # else // !defined __PG_HAS_NAMESPACES
 #  error Requires C++11 and namespace support.
-# endif // defined __PG_HAS_NAMESPACES 
+# endif // defined __PG_HAS_NAMESPACES
 
-#endif // !defined __PG_EESTREAM_H 
+#endif // !defined __PG_EESTREAM_H

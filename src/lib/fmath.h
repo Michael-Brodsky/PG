@@ -43,6 +43,8 @@
  *	cmp(a, b): returns 1 if a>b, -1 if a<b or 0 if a=b, without branching.
  *	clamp(x, low, hi): returns x clamped in [low, hi], if (low < hi).
  *	wrap(x,inc,min,max): returns x + inc wrapped around [min,max].
+ *	rads(x): returns x degrees converted to radians.
+ *  deg(x): returns x radians converted to degrees.
  *	exp(x): returns an approximation of e**x.
  *	sin(x): returns an approximation of sin(x), where x in [-pi, pi] radians.
  *	cos(x): returns an approximation of cos(x), where x in [-pi, pi] radians.
@@ -65,18 +67,18 @@
  *	lerp(x): returns the linear interpolant of x between two known points.
  *	bilerp(x, y): returns the bilinear interpolant of (x, y) between four known points.
  *	mean(first, last): returns the arithmetic mean of range [first, last).
- *	median(first, last): returns the median value in the sorted range [first, last).
- *  mode(first, last): returns the mode value in the sorted range [first, last).
- *	range(first, last): returns the range of the values in range [first, last).
+ *	median(first, last): returns the median of sorted range [first, last).
+ *  mode(first, last): returns the mode of sorted range [first, last).
+ *	range(first, last): returns the arithmetic range of range [first, last).
  *	variance(first,last): returns the statistical variance of range [first, last). 
- *	stddev(first,last): returns the statistical standard deviation of range [first, last). 
+ *	stddev(first,last): returns the statistical standard deviation of [first, last). 
  *	newton(x, f(x), f'(x), e): returns an approximation of f(x) using the Newton-Raphson method.
  *	secant(x0, x1, f(x), e): returns an approximation of f(x) using the Secant method.
  *	quadratic(a,b,c): returns the roots of f(x)=ax**2+bx+c as a pair of complex numbers.
  *	thermistor(r,a,b,c): Evaluates the Steinhart-Hart thermistor eqn.
  *	thermistor(r,rinf,B) : evaluates the beta-parameter thermistor eqn.
  *	rsense(v,v0,r0): returns the unkown resistance in a two-node voltage divider network.
- *	vsense(aout,amax,aref): returns the analog voltage represented by a digital ADC value.
+ *	vsense(aout,amax,aref,dc): returns the analog voltage represented by a digital ADC value.
  * 
  *	Notes:
  *
@@ -204,7 +206,7 @@ namespace pg
 	template<class T>
 	inline T clamp(const T& x, const T& low, const T& hi) 
 	{ 
-		// This generates three ASM instructions on ggc/clang, allegedly ;)
+		// This generates three ASM instructions on ggc/clang, allegedly.
 		const T t = x < low ? low : x;
 
 		return t > hi ? hi : t;
@@ -223,6 +225,20 @@ namespace pg
 			: y > static_cast<typename std::make_signed<T>::type>(max)
 			? min
 			: y;
+	}
+
+	// Returns x degrees converted to radians.
+	template<class T>
+	T rads(T x)
+	{
+		return x / 180 * std::numbers::pi;
+	}
+
+	// Returns x radians converted to degrees.
+	template<class T>
+	T deg(T x)
+	{
+		return x / std::numbers::pi * 180;
 	}
 
 	// Returns an approximation of e**x.
@@ -409,16 +425,16 @@ namespace pg
 	}
 
 	/* Normalizes x in [xmin,xmax] to x in [ymin,ymax]. */
-	template<class T, class U = T>
+	template<class T, class U>
 	U norm(T x, T xmin, T xmax, U ymin, U ymax)
 	{
 		assert(xmax != xmin);
+		using CT = typename std::common_type<T, U>::type;
 
-		return static_cast<U>((ymax - ymin) / (static_cast<U>(xmax) - static_cast<U>(xmin)) *
-			(static_cast<U>(x) - static_cast<U>(xmax)) + ymax);
+		return static_cast<U>((ymax - ymin) / (static_cast<CT>(xmax) - static_cast<CT>(xmin)) *
+			(static_cast<CT>(x) - static_cast<CT>(xmax)) + ymax);
 	}
 
-	/* Returns the linear interpolant of x between two known points. */
 	template<class T>
 	inline typename details::is_float<T>::type 
 		lerp(const T& x, const T& x0, const T& x1, const T& y0, const T& y1)
@@ -456,7 +472,7 @@ namespace pg
 			: std::accumulate(first, last, value_type()) / std::distance(first, last);
 	}
 
-	/* Returns the median value in the sorted range [first, last). */
+	/* Returns the median value of sorted range [first, last). */
 	template<class InputIt>
 	inline typename std::iterator_traits<InputIt>::value_type
 		median(InputIt first, InputIt last)
@@ -473,7 +489,7 @@ namespace pg
 				: ((*(first + (d - 1) / 2) + *(first + (d + 1) / 2)) / 2);
 	}
 
-	/* Returns the mode value in the sorted range [first, last). */
+	/* Returns the mode of sorted range [first, last). */
 	template<class InputIt>
 	inline typename std::iterator_traits<InputIt>::value_type
 		mode(InputIt first, InputIt last, typename std::iterator_traits<InputIt>::value_type nomode = 
@@ -508,7 +524,7 @@ namespace pg
 		return result;
 	}
 
-	/* Returns the range of the values in range [first, last). */
+	/* Returns the range of [first, last). */
 	template<class InputIt>
 	inline typename std::iterator_traits<InputIt>::value_type
 		range(InputIt first, InputIt last)
@@ -516,7 +532,7 @@ namespace pg
 		return *std::max_element(first, last) - *std::min_element(first, last);
 	}
 
-	/* Returns the statistical variance of range [first, last). */
+	/* Returns the statistical variance of [first, last). */
 	template<class InputIt>
 	inline typename std::iterator_traits<InputIt>::value_type
 		variance(InputIt first, InputIt last)
@@ -535,7 +551,7 @@ namespace pg
 		return var / n;
 	}
 
-	/* Returns the statistical standard deviation of range [first, last). */
+	/* Returns the statistical standard deviation of [first, last). */
 	template<class InputIt>
 	inline typename std::iterator_traits<InputIt>::value_type
 		stddev(InputIt first, InputIt last)
@@ -603,8 +619,9 @@ namespace pg
 		return beta / std::log(r / rinf);
 	}
 
-	// Returns the analog input voltage represented ADC output value aout.
-	// amax is the maximum (full-scale) ADC output value and aref the analog reference voltage.
+	// Returns the analog input voltage represented by ADC output value aout.
+	// amax is the maximum (full-scale) ADC output value, aref the analog reference voltage 
+	// and dc is the DC offset voltage, if any.
 	template<class T, class ADCType>
 	T vsense(ADCType aout, ADCType amax, T aref, T dc)
 	{

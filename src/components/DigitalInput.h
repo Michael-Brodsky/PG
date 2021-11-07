@@ -141,10 +141,10 @@ namespace pg
 		bool			value() const;
 		// Polls the input and executes a callback if the input has been triggered.
 		void			poll();
-
-	private:
 		// Checks whether the attached input has been triggered.
 		bool			triggered();
+
+	private:
 		// Polls the input and executes a callback if the input has been triggered.
 		void			clock() override;
 

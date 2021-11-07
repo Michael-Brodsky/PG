@@ -1222,7 +1222,7 @@ inline void push_heap(RandomIt first, RandomIt last, Compare comp)
 template<class RandomIt>
 inline void pop_heap(RandomIt first, RandomIt last)
 {
-	using value_type = typename iterator_traits<RandomIt>::value_type;
+	//using value_type = typename iterator_traits<RandomIt>::value_type;
 
 	--last;
 	details::__pop_heap(first, last, last);
