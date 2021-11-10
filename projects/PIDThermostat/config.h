@@ -28,8 +28,8 @@
  *
  *	**************************************************************************/
 
-#if !defined __PG_THERMOSTAT_CONFIG_H
-# define __PG_THERMOSTAT_CONFIG_H 20211025L
+#if !defined __PG_THERMOMETER_CONFIG_H
+# define __PG_THERMOMETER_CONFIG_H 20211025L
 
 using namespace pg;
 using namespace std::chrono;
@@ -100,11 +100,14 @@ const Keypad::LongPress KeypadLongPressMode = Keypad::LongPress::Hold;
 const Adjustment::factor_type AdjustmentMultiplyMax = 100;
 const Settings::display_type DecimalAdjustmentFactor = 0.1;
 const Settings::display_type UnitAdjustmentFactor = 1.0;
+const Settings::display_type PwmAdjustmentFactor = 0.0001;
 const TemperatureSensor::value_type SensorAdjustmentFactor = 1;
 const Settings::display_type TemperatureMin = -999.9;	// Smallest value that fits temperature display fields. 
 const Settings::display_type TemperatureMax = +999.9;	// Largest value that fits temperature display fields.
 const Pid::value_type PidCoeffMin = 0.0;				// Min pid coeff value.
 const Pid::value_type PidCoeffMax = 100.0;				// Max pid coeff value.
+const Pwm::value_type PwmRangeLow = 0.0;				// Min pwm dc range.
+const Pwm::value_type PwmRangeHigh = 1.0;				// Max pwm dc value.
 const Pid::value_type PidCoeffThreshold = 10.0;			// Value at which pid display format changes.
 
 #pragma endregion
@@ -182,30 +185,38 @@ const bool AlrmQEnblEdit = true;
 #pragma region MENU Screen
 
 /******************
- *MENU: Run  Pid  *
+ *MENU:Run Pid Pwm*
  *Alrm Sense Displ*
  ******************/
 const char* const MenuScreenLab = "MENU";
 
 const char* const MenuItemRun = "Run";
 const char* const MenuItemPid = "Pid";
+const char* const MenuItemPwm = "Pwm";
 const char* const MenuItemAlarm = "Alrm";
 const char* const MenuItemSensor = "Sense";
 const char* const MenuItemDisplay = "Displ";
 
-const uint8_t MenuRunCol = 6;
+const uint8_t MenuRunCol = 5;
 const uint8_t MenuRunRow = 0;
 const char* const MenuRunLab = "";
 const char* const MenuRunFmt = "%s";
 const bool MenuRunVis = true;
 const bool MenuRunEdit = true;
 
-const uint8_t MenuPidCol = 11;
+const uint8_t MenuPidCol = 9;
 const uint8_t MenuPidRow = 0;
 const char* const MenuPidLab = "";
 const char* const MenuPidFmt = "%s";
 const bool MenuPidVis = true;
 const bool MenuPidEdit = true;
+
+const uint8_t MenuPwmCol = 13;
+const uint8_t MenuPwmRow = 0;
+const char* const MenuPwmLab = "";
+const char* const MenuPwmFmt = "%s";
+const bool MenuPwmVis = true;
+const bool MenuPwmEdit = true;
 
 const uint8_t MenuAlarmCol = 0;
 const uint8_t MenuAlarmRow = 1;
@@ -271,6 +282,43 @@ const char* const PidDutyLab = "";
 const char* const PidDutyFmt = "%3u%%";	// [0,100] %
 const bool PidDutyVis = true;
 const bool PidDutyEdit = false;
+
+#pragma endregion
+#pragma region PWM Screen
+
+/******************
+ *PWM:100.0%      *
+ *[0.000,1.000]   *
+ ******************/
+const char* const PwmScreenLab = "PWM";
+
+const uint8_t PwmDutyCol = 4;
+const uint8_t PwmDutyRow = 0;
+const char* const PwmDutyLab = "";
+const char* const PwmDutyFmt = "%3u%%";
+const bool PwmDutyVis = true;
+const bool PwmDutyEdit = false;
+
+const uint8_t PwmLowCol = 0;
+const uint8_t PwmLowRow = 1;
+const char* const PwmLowLab = "[";
+const char* const PwmLowFmt = "%6.4f";
+const bool PwmLowVis = true;
+const bool PwmLowEdit = true;
+
+const uint8_t PwmHighCol = 6;
+const uint8_t PwmHighRow = 1;
+const char* const PwmHighLab = ",";
+const char* const PwmHighFmt = "%6.4f";
+const bool PwmHighVis = true;
+const bool PwmHighEdit = true;
+
+const uint8_t PwmBracketCol = 14;
+const uint8_t PwmBracketRow = 1;
+const char* const PwmBracketLab = "";
+const char* const PwmBracketFmt = "%c";
+const bool PwmBracketVis = true;
+const bool PwmBracketEdit = false;
 
 #pragma endregion
 #pragma region ALARM Screen
@@ -358,17 +406,4 @@ const bool DisplayUnitEdit = true;
 #pragma endregion
 #pragma endregion
 
-// Enumerates valid thermostat operating modes.
-enum class ThermostatMode
-{
-	Init = 0,	// Initial state.
-	Run,		// Displays current temperature, set point and alarm settings.
-	Setpoint,	// Allows setpoint/alarm enable edits in Run mode.
-	Menu,		// Presents a menu of operating mode choices.
-	Pid,		// Displays/edits pid settings.
-	Alarm,		// Displays/edits alarm settings.
-	Sensor,		// Displays/edits sensor settings.
-	Display		// Displays/edits display settings.
-};
-
-#endif // !defined __PG_THERMOSTAT_CONFIG_H
+#endif // !defined __PG_THERMOMETER_CONFIG_H

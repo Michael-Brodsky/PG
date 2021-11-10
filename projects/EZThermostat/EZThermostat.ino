@@ -73,7 +73,7 @@ void loop()
 	// Compute the output duty cycle from the control value.
 	value_type Dc = clamp(Cv, 0.0f, 1.0f);
 	// Send it to the thermostat output.
-	output.duty_cycle(Dc);
+	output.dutyCycle(Dc);
 	// Delay is EVIL! Dont' use it.
 	delay(1000);
 }

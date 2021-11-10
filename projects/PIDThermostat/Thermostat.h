@@ -30,6 +30,7 @@
 #if !defined __PG_THERMOSTAT_H
 # define __PG_THERMOSTAT_H 20211015L
 
+# include <Arduino.h>
 # include <lib/thermo.h>				// Temperature maths.
 # include <interfaces/iserializable.h>	// iserializable interface.
 # include <components/AnalogKeypad.h>	// Async keypad polling.
@@ -77,12 +78,12 @@ public:	/* Ctors */
 		display_type pid_p, display_type pid_i, display_type pid_d, display_type pid_a,
 		enable_type sp_enabled, display_type sp_value, 
 		enable_type al_enabled, alarm_compare_type al_cmp, display_type al_setpoint, 
-		sensor_aref_type sn_aref, duration_type sn_tpoll) :
+		sensor_aref_type sn_aref, duration_type sn_tpoll, PWMOutput<>::Range pwm_range) :
 		temp_low_(temp_low), temp_high_(temp_high), temp_units_(temp_units), 
 		pid_p_(pid_p), pid_i_(pid_i), pid_d_(pid_d), pid_a_(pid_a), 
 		sp_enabled_(sp_enabled), sp_value_(sp_value), 
 		al_enabled_(al_enabled), al_cmp_(al_cmp), al_setpoint_(al_setpoint), 
-		sn_aref_(sn_aref), sn_tpoll_(sn_tpoll)
+		sn_aref_(sn_aref), sn_tpoll_(sn_tpoll), pwm_range_(pwm_range)
 	{}
 
 public: /* Setters and getters. */
@@ -134,6 +135,10 @@ public: /* Setters and getters. */
 	const string_type& sensorArefString() const { return sn_aref_.second; }
 	duration_type& sensorPollIntvl() { return sn_tpoll_; }
 	const duration_type& sensorPollIntvl() const { return sn_tpoll_; }
+	display_type& pwmLow() { return pwm_range_.low(); }
+	const display_type& pwmLow() const { return pwm_range_.low(); }
+	display_type& pwmHigh() { return pwm_range_.high(); }
+	const display_type& pwmHigh() const { return pwm_range_.high(); }
 
 	// Creates a copy of the current settings for editing.
 	void copy(const SettingsType& original, SettingsType& copy)
@@ -163,6 +168,7 @@ public: /* Setters and getters. */
 		e << setpointSymbol(); e << setpointValue();
 		e << alarmEnableSymbol(); e << alarmCompareSymbol(); e << alarmSet();
 		e << sensorArefSource(); e << sensorPollIntvl().count();
+		e << pwmLow(); e << pwmHigh();
 	}
 
 	// Reads settings from EEPROM.
@@ -174,6 +180,7 @@ public: /* Setters and getters. */
 		e >> alarmEnableSymbol(); e >> alarmCompareSymbol(); e >> alarmSet();
 		e >> sensorArefSource();
 		typename duration_type::rep r; e >> r;	sensorPollIntvl() = duration_type(r);
+		e >> pwmLow(); e >> pwmHigh();
 	}
 
 private:	/* Editable/storable program settings. */
@@ -191,6 +198,21 @@ private:	/* Editable/storable program settings. */
 	display_type			pid_a_;			// PID gain coeff.
 	sensor_aref_type		sn_aref_;		// Sensor Aref source/display string pair.
 	duration_type			sn_tpoll_;		// Sensor polling interval.
+	PWMOutput<>::Range		pwm_range_;		// PWM duty cycle range low.
+};
+
+// Enumerates valid thermostat operating modes.
+enum class ThermostatMode
+{
+	Init = 0,	// Initial state.
+	Run,		// Displays current temperature, set point and alarm settings.
+	Setpoint,	// Allows setpoint/alarm enable edits in Run mode.
+	Menu,		// Presents a menu of operating mode choices.
+	Pid,		// Displays/edits pid settings.
+	Pwm,		// Displays/edits pwm settings.
+	Alarm,		// Displays/edits alarm settings.
+	Sensor,		// Displays/edits sensor settings.
+	Display		// Displays/edits display settings.
 };
 
 /* Arduino API interface functions. */

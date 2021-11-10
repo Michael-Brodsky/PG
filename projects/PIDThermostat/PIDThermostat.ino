@@ -27,7 +27,7 @@
  *	along with this file. If not, see <http://www.gnu.org/licenses/>.
  *
  *	**************************************************************************/
-
+#define _LOG_VALUES 1
 #include <LiquidCrystal.h>  // Arduino LCD display api.
 #include <pg.h>             // Pg library header.
 #include "Thermostat.h"     // Program type defs.
@@ -73,6 +73,7 @@ void readSettings();
 void writeSettings();
 void adjustSetpoint(const Display::Field*, Adjustment::Direction);
 void adjustPid(const Display::Field*, Adjustment::Direction);
+void adjustPwm(const Display::Field*, Adjustment::Direction);
 void adjustAlarm(const Display::Field*, Adjustment::Direction);
 void adjustSensor(const Display::Field*, Adjustment::Direction);
 void adjustDisplay(const Display::Field*, Adjustment::Direction);
@@ -110,6 +111,7 @@ const PidCoefficient PidProp = 1.0;
 const PidCoefficient PidInteg = 0.0;
 const PidCoefficient PidDeriv = 0.0;
 const PidCoefficient PidGain = 1.0;
+const Pwm::Range PwmRange = Pwm::Range();
 const milliseconds SensorPollingInterval = seconds(1);
 const SensorAref SensorReferenceSource = SensorArefInternal;
 
@@ -145,19 +147,25 @@ Display::Screen run_screen({ &pvval_field,&pvsym_field,&pvunit_field,&spval_fiel
 
 Display::Field menu_run_field = { MenuRunCol,MenuRunRow,MenuRunLab,MenuRunFmt,MenuRunVis,MenuRunEdit };
 Display::Field menu_pid_field = { MenuPidCol,MenuPidRow,MenuPidLab,MenuPidFmt,MenuPidVis,MenuPidEdit };
+Display::Field menu_pwm_field = { MenuPwmCol,MenuPwmRow,MenuPwmLab,MenuPwmFmt,MenuPwmVis,MenuPwmEdit };
 Display::Field menu_alarm_field = { MenuAlarmCol,MenuAlarmRow,MenuAlarmLab,MenuAlarmFmt,MenuAlarmVis,MenuAlarmEdit };
 Display::Field menu_sensor_field = { MenuSensorCol,MenuSensorRow,MenuSensorLab,MenuSensorFmt,MenuSensorVis,MenuSensorEdit };
 Display::Field menu_display_field = { MenuDisplayCol,MenuDisplayRow,MenuDisplayLab,MenuDisplayFmt,MenuDisplayVis,MenuDisplayEdit };
-Display::Screen menu_screen({ &menu_run_field,&menu_pid_field,&menu_alarm_field,&menu_sensor_field,&menu_display_field },
-    MenuScreenLab);
+Display::Screen menu_screen({ &menu_run_field,&menu_pid_field,&menu_pwm_field,&menu_alarm_field,&menu_sensor_field,
+    &menu_display_field }, MenuScreenLab);
 
 Display::Field pid_prop_field = { PidPropCol,PidPropRow,PidPropLab,PidPropFmt,PidPropVis,PidPropEdit };
 Display::Field pid_integ_field = { PidIntegCol,PidIntegRow,PidIntegLab,PidIntegFmt,PidIntegVis,PidIntegEdit };
 Display::Field pid_deriv_field = { PidDerivCol,PidDerivRow,PidDerivLab,PidDerivFmt,PidDerivVis,PidDerivEdit };
 Display::Field pid_gain_field = { PidGainCol,PidGainRow,PidGainLab,PidGainFmt,PidGainVis,PidGainEdit };
-Display::Field pid_duty_field = { PidDutyCol,PidDutyRow,PidDutyLab,PidDutyFmt,PidDutyVis,PidDutyEdit };
-Display::Screen pid_screen({ &pid_prop_field,&pid_integ_field,&pid_deriv_field,&pid_gain_field,&pid_duty_field }, 
+Display::Screen pid_screen({ &pid_prop_field,&pid_integ_field,&pid_deriv_field,&pid_gain_field }, 
     PidScreenLab);
+
+Display::Field pwm_duty_field = { PwmDutyCol,PwmDutyRow,PwmDutyLab,PwmDutyFmt,PwmDutyVis,PwmDutyEdit };
+Display::Field pwm_low_field = { PwmLowCol,PwmLowRow,PwmLowLab,PwmLowFmt,PwmLowVis,PwmLowEdit };
+Display::Field pwm_high_field = { PwmHighCol,PwmHighRow,PwmHighLab,PwmHighFmt,PwmHighVis,PwmHighEdit };
+Display::Field pwm_bracket_field = { PwmBracketCol,PwmBracketRow,PwmBracketLab,PwmBracketFmt,PwmBracketVis,PwmBracketEdit };
+Display::Screen pwm_screen({ &pwm_duty_field,&pwm_low_field,&pwm_high_field,&pwm_bracket_field }, PwmScreenLab);
 
 Display::Field alarm_enbl_field = { AlarmEnblCol,AlarmEnblRow,AlarmEnblLab,AlarmEnblFmt,AlarmEnblVis,AlarmEnblEdit };
 Display::Field alarm_cmp_field = { AlarmCmpCol,AlarmCmpRow,AlarmCmpLab,AlarmCmpFmt,AlarmCmpVis,AlarmCmpEdit };
@@ -184,7 +192,7 @@ Settings settings{
     PidProp,PidInteg,PidDeriv,PidGain,
     SetpointStatus,SetPointValue,
     AlarmStatus,AlarmCmp,AlarmSet,
-    SensorReferenceSource,SensorPollingInterval
+    SensorReferenceSource,SensorPollingInterval,PwmRange
 }, settings_copy;
 TemperatureSensor temp_sensor(SensorInput, sensorCallback);
 InputFilter temp_filter;
@@ -217,6 +225,11 @@ Scheduler scheduler{ &keypad_task,&display_task,&sensor_task,&adjustment_task };
 
 void setup() 
 {
+#if defined _LOG_VALUES
+    Serial.begin(9600);
+    Serial.println();
+    Serial.println("MV\tCV\tDCin\tDCout");
+#endif
     lcd.begin(Display::cols(), Display::rows());
     lcd.clear();
     lcd.print("Initializing");
@@ -240,6 +253,7 @@ void keyPress(const Keypad::Button* button)
     {
     case ThermostatMode::Setpoint:
     case ThermostatMode::Pid:
+    case ThermostatMode::Pwm:
     case ThermostatMode::Alarm:
     case ThermostatMode::Sensor:
     case ThermostatMode::Display:
@@ -273,6 +287,7 @@ void keyRelease(const Keypad::Button* button)
             scrollField(button);
         break;
     case ThermostatMode::Pid:
+    case ThermostatMode::Pwm:
     case ThermostatMode::Setpoint:
     case ThermostatMode::Alarm:
     case ThermostatMode::Sensor:
@@ -297,6 +312,7 @@ void keyLongpress(const Keypad::Button* button)
             setMode(ThermostatMode::Menu);  // Opens MENU screen.
             break;
         case ThermostatMode::Pid:
+        case ThermostatMode::Pwm:
         case ThermostatMode::Setpoint:
         case ThermostatMode::Alarm:
         case ThermostatMode::Sensor:
@@ -362,11 +378,14 @@ void displayCallback()
             settings.setpointValue(), settings.setpointSymbol(), settings.alarmEnableSymbol());
         break;
     case ThermostatMode::Menu:
-        display.refresh(MenuItemRun, MenuItemPid, MenuItemAlarm, MenuItemSensor, MenuItemDisplay);
+        display.refresh(MenuItemRun, MenuItemPid, MenuItemPwm, MenuItemAlarm, MenuItemSensor, MenuItemDisplay);
         break;
     case ThermostatMode::Pid:
         display.refresh(settings_copy.pidProportional(), settings_copy.pidIntegral(),
-            settings_copy.pidDerivative(), settings_copy.pidGain(), dc_pct);
+            settings_copy.pidDerivative(), settings_copy.pidGain());
+        break;
+    case ThermostatMode::Pwm:
+        display.refresh(dc_pct, settings_copy.pwmLow(), settings_copy.pwmHigh(), ']');
         display.update(); // Always update the pwm output duty cycle.
         break;
     case ThermostatMode::Alarm:
@@ -386,13 +405,20 @@ void displayCallback()
 
 void sensorCallback()
 {
-    // Save the sensed temperature, check if it triggers an alarm and output the process control pwm signal.
+    // Save the sensed temperature, check if it triggers an alarm and output the process control signal.
     checkAlarm((Tsense = getTemperature(temp_filter.out(temp_sensor.value()))));
     PidCoefficient measured_value = clamp(Tsense, settings.tempLow(), settings.tempHigh());
     PidCoefficient control_value = clamp(pid.loop(measured_value), 0.0f, settings.tempHigh() - settings.tempLow());
     PidCoefficient output_value = norm(control_value, 0.0f, settings.tempHigh() - settings.tempLow(), 0.0f, 1.0f);
-    pwm.duty_cycle(output_value);
-    dc_pct = (uint8_t)(output_value * 100); // Round to [0,100].
+    pwm.dutyCycle(output_value);
+    PidCoefficient dc_value = pwm.dutyCycle();
+    dc_pct = (uint8_t)(dc_value * 100); // Round to [0,100].
+#if defined _LOG_VALUES
+    Serial.print(measured_value, 5); Serial.print(",\t");
+    Serial.print(control_value, 5); Serial.print(",\t");
+    Serial.print(output_value, 5); Serial.print(",\t");
+    Serial.println(dc_value, 5); 
+#endif
 
 }
 
@@ -429,8 +455,10 @@ void menuSelect(const Display::Field* field)
 {
     if (field == &menu_run_field)
         setMode(ThermostatMode::Run);
-    if (field == &menu_pid_field)
+    else if (field == &menu_pid_field)
         setMode(ThermostatMode::Pid);
+    else if (field == &menu_pwm_field)
+        setMode(ThermostatMode::Pwm);
     else if (field == &menu_alarm_field)
         setMode(ThermostatMode::Alarm);
     else if (field == &menu_sensor_field)
@@ -465,6 +493,13 @@ void setMode(ThermostatMode mode)
             settings.pidGain() = pid.gain();
             formatPidScreen();
             display.screen(&pid_screen);
+            break;
+        case ThermostatMode::Pwm:
+            // This is redundant, but fits the settings copy/update scheme.
+            settings.pwmLow() = pwm.range().low();
+            settings.pwmHigh() = pwm.range().high();
+            display.screen(&pwm_screen);
+            pwm_screen.active_field(&pwm_low_field);
             break;
         case ThermostatMode::Menu:
             display.screen(&menu_screen);
@@ -506,6 +541,9 @@ void adjustSettings(const Display::Field* field, const Keypad::Button* button)
     case ThermostatMode::Pid:
         adjustPid(field, dir);
         break;
+    case ThermostatMode::Pwm:
+        adjustPwm(field, dir);
+        break;
     case ThermostatMode::Alarm:
         adjustAlarm(field, dir);
         break;
@@ -535,6 +573,7 @@ void updateSettings(ThermostatMode mode)
     pid.derivative(settings.pidDerivative());
     pid.gain(settings.pidGain());
     pid.set_point(settings.setpointValue());
+    pwm.range(Pwm::Range(settings.pwmLow(), settings.pwmHigh()));
     pwm.enabled(settings.setpointEnabled());
     Tsense = getTemperature(temp_filter.out(temp_sensor.value()));
 }
@@ -621,6 +660,17 @@ void adjustPid(const Display::Field* field, Adjustment::Direction dir)
         const_cast<const Temperature &>(coeff), inc, PidCoeffMin, PidCoeffMax);
     // Format field according to the adjusted value.
     const_cast<Display::Field*>(field)->fmt_ = coeff < PidCoeffThreshold ? PidDecimalFormat : PidUnitFormat;
+}
+
+void adjustPwm(const Display::Field* field, Adjustment::Direction dir)
+{
+    Pwm::value_type& value = field == &pwm_low_field
+        ? settings_copy.pwmLow()
+        : settings_copy.pwmHigh();
+    auto inc = adjustment.value(PwmAdjustmentFactor, dir);
+
+    value = wrap<Pwm::value_type, Pwm::value_type>(
+        const_cast<const Pwm::value_type&>(value), inc, PwmRangeLow, PwmRangeHigh);
 }
 
 void adjustAlarm(const Display::Field* field, Adjustment::Direction dir)
