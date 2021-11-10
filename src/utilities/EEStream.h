@@ -82,7 +82,7 @@
  *	std::boolalpha is used with std::iostream in the C++ Standard Library:
  * 
  *		e << EEStream::update(); // Turns on updating.
- *		e << EEStream::update(); // Turns off updating.
+ *		e << EEStream::noupdate(); // Turns off updating.
  * 
  *	Client types can override the insertion and extraction operators to 
  *	implement custom streaming behavior: 
@@ -296,7 +296,7 @@ namespace pg
 	std::size_t EEStream::write(address_type address, const T& value)
 	{
 		// Arduino update() only works byte-at-a-time, so we use this workaround.
-		// T must equal comparable.
+		// T must be equal comparable.
 
 		if (update_)
 		{
@@ -345,11 +345,15 @@ namespace pg
 	std::size_t EEStream::write(address_type address, update)
 	{
 		update_ = true;
+
+		return 0;
 	}
 
 	std::size_t EEStream::write(address_type address, noupdate)
 	{
 		update_ = false;
+
+		return 0;
 	}
 
 #pragma endregion

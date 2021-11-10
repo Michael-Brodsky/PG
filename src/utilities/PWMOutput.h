@@ -1,11 +1,11 @@
 /*
- *	This files defines a class that controls a pulse-width-modulated (PWM) 
- *	output.
+ *	This files defines several types for managing pulse-width-modulated (PWM) 
+ *	outputs.
  *
  *	***************************************************************************
  *
  *	File: PWMOutput.h
- *	Date: October 5, 2021
+ *	Date: November 7, 2021
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -25,25 +25,34 @@
  *
  *  You should have received a copy of the GNU General Public License
  *	along with this file. If not, see <http://www.gnu.org/licenses/>.
- * 
- *	Description:
- * 
- *	The `PWMOutput' class provides a simple way of a managing a pulse-width-
- *	modulated (PWM) signal at on a digital output, usually with single lines 
- *	of code. Duty cycles are expressable in more natural fractional formats 
- *	(e.g. a percentage) before being converted to the appropriate type and 
- *	value for the analogWrite() function.
  *
- *	PWMOutput objects must be attached to a valid GPIO output pin that 
- *	supports PWM outputs. The duty cycle is set by the duty_cycle() method and 
- *	the output can be enabled or disabled with the enabled() method.
+ *	**************************************************************************
+ *
+ *	Description:
+ *
+ *	The `PWMOutput' class provides a simple interface for controlling PWM 
+ *	outputs using natural units, frequencies in Hertz and pulse widths as 
+ *	percentage of duty cycle. This eliminates any client overhead in having to 
+ *	convert natural units to binary register values. PWMOutput objects can be  
+ *	attached to any valid pwm output pin and modify the output frequency, 
+ *	duty cycle, enabled state and range with single lines of code. The range 
+ *	method provides clients the ability to narrow or widen the duty cycle 
+ *	range, with wide ranges allowing fine duty cycle adjustments and narrow 
+ *	ranges providing ever coarser adjustments down to bang-bang behavior 
+ *  (full on/off). Duty cycle ranges are encapsulated in the nested 
+ *	PWMOutput::Range type.
+ * 
+ *	The `duty_cycle' type is a PWMOutput helper class used for compile-time 
+ *	evaluations and conversions, but is also accessible to clients for 
+ *	duty cycle-related computations.
  * 
  *	Notes:
  * 
- *	Currently, only the board's native PWM frequencies are supported. If 
- *	available, they are found by calling pwm_frequency<board_type>(pin) 
- *	function for the type of board an attached pin (see <lib/boards.h>). 
- * 
+ *	This code relies on proper board identification to get certain values 
+ *	needed for computing duty cycles and frequencies. The data was obtained 
+ *	from publicly available sources, however no claims are made as to its 
+ *	accuracy. See <system/boards.h> for details.
+ *
  *	**************************************************************************/
 
 #if !defined __PG_PWMOUTPUT_H
@@ -51,6 +60,7 @@
 
 # include "cassert"
 # include "limits"
+# include "utility"
 # include "system/boards.h"
 # include "lib/fmath.h"
 
@@ -58,144 +68,200 @@
 
 namespace pg
 {
-	// Converts fractional duty cycle values to unsinged integer values and vice-versa.
-	template<class FracType, class UIntType>
+	template<class T, class CtrlType>
 	struct duty_cycle
 	{
-		static constexpr FracType frac_min = FracType(0);		// Minimum range of fractional values.
-		static constexpr FracType frac_max = FracType(1.0);		// Maximum range of fractional values.
-		static constexpr UIntType frac_to_uint(FracType frac)
+		// Absolute minimum fractional duty cycle ~0%.
+		static constexpr T min = T(0.0);
+		// Absolute maximum fractional duty cycle ~100%.
+		static constexpr T max = T(1.0);		
+		// Returns the minimum fractional duty cycle resolution for CtrlType. 
+		static constexpr T res(T low = min, T high = max)
 		{
-			return (UIntType)(clamp(frac, frac_min, frac_max) * FracType(std::numeric_limits<UIntType>::max()));
+			return (high - low) / static_cast<T>(std::numeric_limits<CtrlType>::max() - std::numeric_limits<CtrlType>::min());
 		}
-		static constexpr FracType uint_to_frac(UIntType uint)
+		// Converts a fractional duty cycle to a control value.
+		static constexpr CtrlType dc_to_ctrl(T dc, T low = min, T high = max)
 		{
-			return (FracType)(FracType(uint) / FracType(std::numeric_limits<UIntType>::max()));
+			return norm(clamp(dc, low, high), low, high, std::numeric_limits<CtrlType>::min(), std::numeric_limits<CtrlType>::max());
+		}
+		// Converts a control value to a fractional duty cycle.
+		static constexpr T ctrl_to_dc(CtrlType value)
+		{
+			return norm(value, std::numeric_limits<CtrlType>::min(), std::numeric_limits<CtrlType>::max(), min, max);
 		}
 	};
 
-	// Type that outputs a pwm wave with a specified duty cycle.
-	template<class T = float>
+	// PWM output controller. (T = fractional duty cycle type, CtrlType = interger control register type.)
+	template<class T = float, class CtrlType = uint8_t>
 	class PWMOutput
 	{
 	public:
 		using value_type = T;
-		using dc_type = uint8_t;	// Integral duty cycle type suitable for analogWrite() function.
+		using control_type = CtrlType;
+		using range_type = std::pair<value_type, value_type>;
+		using dc_type = duty_cycle<value_type, control_type>;
+		// Encapsulates information about duty cycle ranges.
+		class Range
+		{
+			// A duty cycle is expressed as a fractional value in [0.0, 1.0], 0% and 100%  
+			// respectively. A Range object has two members: low and high. Commanded duty 
+			// cycles in [low,high] are normalized to [0.0, 1.0] (0% - 100%). Those less 
+			// than low always evaluate to 0.0 while those greater than high evaluate to 
+			// 1.0. This allows clients to squeeze or stretch the entire duty cycle into 
+			// narrower or wider bands, acting as a sort of gain factor reflected about 
+			// the range's median value. A Range of [0.0, 1.0] will result in linear    
+			// behavior: output duty cycle = commanded duty cycle. Extremely small 
+			// Ranges such as [0.0, 0.00001] will result in bang-bang behavior where 
+			// a commanded duty cycle of 0.0 will produce a 0% output and any positive 
+			// value above that will produce a 100% output (subject to floating precision 
+			// and epsilons).
+		public:
+			// Constructs a default Range of [0.0, 1.0].
+			Range() : range_({ dc_type::min,dc_type::max }) {}
+			// Constructs a Range in [low, high], low < high. 
+			Range(value_type low, value_type high) : range_({ low,high }) { assert(low < high); }
+
+		public:
+			range_type& range() { return range_; }
+			const range_type& range() const { return range_; }
+			value_type& low() { return range_.first; }
+			const value_type& low() const { return range_.first; }
+			value_type& high() { return range_.second; }
+			const value_type& high() const { return range_.second; }
+
+		private:
+			range_type range_;	// The current range.
+		};
 
 	public:
-		// Constructs an uninitialized pwm output.
+		// Constructs an uninitialized PWMOutput.
 		PWMOutput();
-		// Constructs a pwm output attached to a digital output pin with a given duty cycle and state.
-		PWMOutput(pin_t, value_type = 0, bool = false);
-		// Move constructor.
-		PWMOutput(PWMOutput&&) = default;
-		// No copy constructor.
-		PWMOutput(const PWMOutput&) = delete;
-		// No copy assignment operator.
-		PWMOutput& operator=(const PWMOutput&) = delete;
+		// Constructs a PWMOutput attached to an output pin with a given duty cycle, range and state.
+		PWMOutput(pin_t, value_type = 0, bool = false, Range = Range());
 
 	public:
-		// Attaches the pwm output to a digital output pin.
+		// Attaches to a specified pwm output pin.
 		void attach(pin_t);
-		// Returns the currently attached digital output pin.
+		// Returns the currently attached pwm output pin.
 		pin_t attach() const;
 		// Returns the current pwm output frequency in Hz.
-		value_type frequency() const;
-		// Sets the pwm duty cycle.
-		void duty_cycle(value_type);
-		// Returns the current pwm duty cycle.
-		value_type duty_cycle() const;
+		const value_type& frequency() const;
+		// Sets the output duty cycle.
+		void dutyCycle(const value_type&);
+		// Returns the current output duty cycle.
+		const value_type& dutyCycle() const;
+		// Sets the output duty cycle range.
+		void range(const Range&);
+		// Returns the current output duty cycle range.
+		const Range& range() const;
 		// Sets the pwm output state.
 		void enabled(bool);
 		// Returns the current pwm output state.
 		bool enabled() const;
 
 	private:
-		value_type set_frequency(value_type);
-		void set_output();
+		// Sets and returns the closest possible frequency to a given ideal frequency.
+		value_type setFrequency(value_type = value_type());
+		// Sets and returns the closest possible output duty cycle to a given ideal duty cycle.
+		value_type setOutput(value_type = duty_cycle<value_type, control_type>::min);
 
 	private:
-		pin_t		pin_;			// The attached output pin number.
-		value_type	frequency_;		// Current output frequency.
-		value_type	duty_cycle_;	// Current output duty cycle.
+		pin_t		pin_;			// The attached pwm output pin.
+		value_type	frequency_;		// The current pwm output frequency.
+		Range		range_;			// The current duty cycle range.
 		bool		enabled_;		// Flag indicating whether the pwm output is currently enabled.
+		value_type	duty_cycle_;	// The current output duty cycle.
 	};
 
-	template<class T>
-	PWMOutput<T>::PWMOutput() :
-		pin_(InvalidPin), duty_cycle_(), frequency_(), enabled_()
+	template<class T, class CtrlType>
+	PWMOutput<T, CtrlType>::PWMOutput() :
+		pin_(InvalidPin), frequency_(setFrequency()), range_(), enabled_(), duty_cycle_(setOutput())
 	{
 
 	}
 
-	template<class T>
-	PWMOutput<T>::PWMOutput(pin_t pin, value_type duty_cycle, bool enabled) :
-		pin_(board_traits<board_type>::pwm_frequency(pin) != 0 ? pin : InvalidPin),
-		duty_cycle_(duty_cycle), frequency_(set_frequency(0)), enabled_(enabled)
+	template<class T, class CtrlType>
+	PWMOutput<T, CtrlType>::PWMOutput(pin_t pin, value_type duty_cycle, bool enabled, Range range) : 
+		pin_(board_traits<board_type>::pwm_frequency(pin) != 0 ? pin : InvalidPin), 
+		frequency_(setFrequency(board_traits<board_type>::pwm_frequency(pin))), 
+		range_(range), enabled_(enabled), duty_cycle_(setOutput(duty_cycle))
 	{
-		set_output();
+
 	}
 
-	template<class T>
-	void PWMOutput<T>::attach(pin_t pin)
+	template<class T, class CtrlType>
+	void PWMOutput<T, CtrlType>::attach(pin_t pin)
 	{
 		pin_ = pin;
-		frequency_ = set_frequency(0);
-		set_output();
+		frequency_ = setFrequency(board_traits<board_type>::pwm_frequency(pin));
+		duty_cycle_ = setOutput(duty_cycle_);
 	}
 
-	template<class T>
-	pin_t PWMOutput<T>::attach() const
+	template<class T, class CtrlType>
+	pin_t PWMOutput<T, CtrlType>::attach() const
 	{
 		return pin_;
 	}
 
-	template<class T>
-	typename PWMOutput<T>::value_type PWMOutput<T>::frequency() const
+	template<class T, class CtrlType>
+	const typename PWMOutput<T, CtrlType>::value_type& PWMOutput<T, CtrlType>::frequency() const
 	{
 		return frequency_;
 	}
 
-	template<class T>
-	void PWMOutput<T>::duty_cycle(value_type value)
+	template<class T, class CtrlType>
+	void PWMOutput<T, CtrlType>::dutyCycle(const value_type& dc)
 	{
-		const value_type min = pg::duty_cycle<value_type, dc_type>::frac_min,
-			max = pg::duty_cycle<value_type, dc_type>::frac_max;
-		duty_cycle_ = clamp(value, min, max);
-		set_output();
+		duty_cycle_ = setOutput(dc);
 	}
 
-	template<class T>
-	typename PWMOutput<T>::value_type PWMOutput<T>::duty_cycle() const
+	template<class T, class CtrlType>
+	const typename PWMOutput<T, CtrlType>::value_type& PWMOutput<T, CtrlType>::dutyCycle() const
 	{
 		return duty_cycle_;
 	}
 
-	template<class T>
-	void PWMOutput<T>::enabled(bool value)
+	template<class T, class CtrlType>
+	void PWMOutput<T, CtrlType>::range(const Range& rng)
 	{
-		enabled_ = value;
-		set_output();
+		range_ = rng;
+		duty_cycle_ = setOutput(duty_cycle_);
 	}
 
-	template<class T>
-	bool PWMOutput<T>::enabled() const
+	template<class T, class CtrlType>
+	const typename PWMOutput<T, CtrlType>::Range& PWMOutput<T, CtrlType>::range() const
+	{
+		return range_;
+	}
+
+	template<class T, class CtrlType>
+	void PWMOutput<T, CtrlType>::enabled(bool value)
+	{
+		enabled_ = value;
+		duty_cycle_ = setOutput(duty_cycle_);
+	}
+
+	template<class T, class CtrlType>
+	bool PWMOutput<T, CtrlType>::enabled() const
 	{
 		return enabled_;
 	}
 
-	template<class T>
-	typename PWMOutput<T>::value_type PWMOutput<T>::set_frequency(value_type ideal)
+	template<class T, class CtrlType>
+	typename PWMOutput<T, CtrlType>::value_type PWMOutput<T, CtrlType>::setFrequency(value_type f)
 	{
-		assert(ideal < board_traits<board_type>::clock_frequency);
-		return pin_ != InvalidPin ? board_traits<board_type>::pwm_frequency(pin_) : 0;
+		return f;
 	}
 
-	template<class T>
-	void PWMOutput<T>::set_output()
+	template<class T, class CtrlType>
+	typename PWMOutput<T, CtrlType>::value_type PWMOutput<T, CtrlType>::setOutput(value_type dc)
 	{
-		if (pin_ != InvalidPin)
-			analogWrite(pin_, (enabled_) ? pg::duty_cycle<value_type, dc_type>::frac_to_uint(duty_cycle_) : 0);
+		control_type ctrl = duty_cycle<value_type, control_type>::dc_to_ctrl(dc, range_.low(), range_.high());
+
+		analogWrite(pin_, !(pin_ == InvalidPin || enabled_ == false) ? ctrl : std::numeric_limits<CtrlType>::min());
+		
+		return duty_cycle<value_type, control_type>::ctrl_to_dc(ctrl);
 	}
 
 } // namespace pg

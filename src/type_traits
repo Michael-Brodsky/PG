@@ -29,16 +29,10 @@
  * 
  *	Description:
  * 
- *		This file defines objects in the <type_traits> header of a C++ 
+ *		This file defines objects in the <type_traits> header of the C++ 
  *		Standard Library - to the extent they are supported by the Arduino
  *		implementation. The objects behave according to the C++ ISO/IEC 14882
  *		Standards, except as noted.
- *
- *	Notes:
- * 
- *		This implementation includes several of the useful C++14 and C++17 
- *		helper functions and types so far as they do not interfere with C++11
- *		compliance.
  *
  *	**************************************************************************/
 
@@ -54,7 +48,7 @@ namespace std
 {
 #pragma region helper_functions
 
-	template <class T, class U> struct is_same;
+	template<class T, class U> struct is_same;
 
 	// Compile-time constant of specified type with specified value.
 	template<class T, T val>
@@ -1058,13 +1052,39 @@ namespace std
 	struct common_type<T1, T2, R...>
 		: detail::common_type_multi_impl<void, T1, T2, R...> {};
 
-	/* Experimental C++14 helper types.*/
+	namespace detail
+	{
+		template <class T>
+		constexpr const T& max_impl(const T& a, const T& b)
+		{
+			return (a < b) ? b : a;
+		}
+	} // namespace details
 
-	//template< class... T >
-	//using common_type_t = typename common_type<T...>::type;
+#pragma endregion 
+#pragma region aligned_storage
 
-	//template< bool B, class T, class F >
-	//using conditional_t = typename conditional<B, T, F>::type;
+	typedef long double max_align_t;
+
+	template<std::size_t Len, std::size_t Align>
+	struct aligned_storage
+	{
+		struct type
+		{
+			alignas(Align) unsigned char data[Len];
+		};
+	};
+
+	template<std::size_t Len, class... Types>
+	struct aligned_union
+	{
+		static constexpr std::size_t alignment_value = detail::max_impl({ alignof(Types)... });
+
+		struct type
+		{
+			alignas(alignment_value) char _s[detail::max_impl({ sizeof(Types)... })];
+		};
+	};
 
 	template<class...> struct conjunction : std::true_type { };
 	template<class U> struct conjunction<U> : U { };
@@ -1074,7 +1094,7 @@ namespace std
 
 #pragma endregion
 
-#  if defined __PG_HAS_CPP14 // C++14 helper types
+#  if defined __PG_HAS_CPP14 
 
 	template<class T>
 	using remove_cv_t = typename remove_cv<T>::type;
@@ -1136,8 +1156,11 @@ namespace std
 	template<class...>
 	using void_t = void;
 
-#  endif // defined __HAS_CPP17
-#  if defined __PG_HAS_CPP17 // C++17 helper functions
+	template<std::size_t Len, class... Types>
+	using aligned_union_t = typename aligned_union<Len, Types...>::type;
+
+#  endif // defined __PG_HAS_CPP17 
+#  if defined __PG_HAS_CPP17 
 
 	template<class B>
 	inline constexpr bool negation_v = negation<B>::value;
@@ -1226,7 +1249,7 @@ namespace std
 	template<class... B>
 	inline constexpr bool conjunction_v = conjunction<B...>::value;
 
-#  endif
+#  endif // defined __PG_HAS_CPP17 
 } // namespace std
 
 # else // !defined __PG_HAS_NAMESPACES
