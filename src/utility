@@ -205,7 +205,7 @@ namespace std
 	};
 
 	// Specialization of std::get for std::pair.
-	template <size_t N, class T1, class T2>
+	template <std::size_t N, class T1, class T2>
 	typename std::tuple_element<N, pair<T1, T2> >::type&
 		get(pair<T1, T2>& pr) noexcept
 	{
@@ -219,7 +219,7 @@ namespace std
 	}
 
 	// Specialization of std::get for std::pair.
-	template <size_t N, class T1, class T2>
+	template <std::size_t N, class T1, class T2>
 	const typename std::tuple_element<N, pair<T1, T2> >::type
 		get(const pair<T1, T2>& pr) noexcept
 	{
