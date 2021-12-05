@@ -30,8 +30,8 @@
 #if !defined __PG_THERMOSTAT_H
 # define __PG_THERMOSTAT_H 20211015L
 
-# include <Arduino.h>
 # include <lib/thermo.h>				// Temperature maths.
+# include <lib/setting.h>				// Program setting pair type.
 # include <interfaces/iserializable.h>	// iserializable interface.
 # include <components/AnalogKeypad.h>	// Async keypad polling.
 # include <components/LCDDisplay.h>		// Async display manager.
@@ -45,164 +45,179 @@
 using namespace pg;
 using namespace std::chrono;
 
-// Enumerates valid sensor analog reference sources.
+#pragma region Program Type Definitions
+
+using data_t = float; // Thermostat floating point value type.
+using TemperatureSensor = AnalogInput<analog_t>;
+using InputFilter = MovingAverage<TemperatureSensor::value_type, 4>;
+using Display = LCDDisplay<16, 2>;
+using Pwm = PWMOutput<data_t>;
+using Pid = PIDController<data_t>;
+using Keypad = AnalogKeypad<analog_t>;
+using Scheduler = TaskScheduler<>;
+using Adjustment = Keypad::Multiplier;
+
+using ScheduledTask = Scheduler::Task;
+using task_state_t = ScheduledTask::State;
+using sensor_t = TemperatureSensor::value_type;
+using factor_t = Adjustment::factor_type;
+using pid_t = Pid::value_type;
+using pwm_t = Pwm::value_type;
+using control_t = Pwm::control_type;
+using duty_cycle_t = duty_cycle<pwm_t, control_t>;
+using longpress_t = Keypad::LongPress;
+
 enum class ArefSource
 {
 	Internal = 0,	// Aref source is internal.
 	External		// Aref source is external.
 };
 
-// Type that aggregates serializable settings and performs copy/update and 
-// serialize/deserialize functions.
-template<class DisplayType, class ADCType, class Duration>
-class SettingsType : public iserializable 
+// Program settings/display value types.
+
+using temp_units_t = setting<
+	typename callback<data_t, void, data_t>::type,
+	char>;
+using alarm_compare_t = setting<
+	typename callback<bool, void, data_t, data_t>::type,
+	char>;
+using alarm_enable_t = setting<bool, char>;
+using sp_enable_t = setting<bool, char>;
+using sensor_aref_t = setting<ArefSource, const char*>;
+
+
+#pragma endregion 
+#pragma region Program Character and String Constants
+
+const char DegreeSymbol = 0xDF;
+const char FarenheitSymbol = 'F';
+const char CelsiusSymbol = 'C';
+const char KelvinSymbol = 'K';
+const char EnabledSymbol = '*';
+const char DisabledSymbol = ' ';
+const char LessSymbol = '<';
+const char GreaterSymbol = '>';
+const char* const InternalSymbol = "IN";
+const char* const ExternalSymbol = "EX";
+
+const char* const TemperatureDisplayFormat = "%6.1f";	// [-999.9,+999.9]
+const char* const TimingDisplayFormat = "%4u";			// [0,9999]
+const char* const PidDecimalFormat = "%3.1f";			// [0.0, +9.9]
+const char* const PidUnitFormat = "%3.0f";				// [+10, +100]
+
+class Settings : public iserializable
 {
 public:
-	using display_type = DisplayType;
-	using adc_type = ADCType;
-	using duration_type = Duration;
-	using bool_type = bool;
-	using symbol_type = char;
-	using string_type = const char*;
+	Settings() = default;
 
-	using unit_convert_func = typename callback<display_type, void, display_type>::type; // Unit conversion function signature.
-	using alarm_cmp_func = typename callback<bool_type, void, display_type, display_type>::type; // Alarm compare function signature.
-	using enable_type = std::pair<bool_type, symbol_type>; // Pairs a boolean value with a display character.
-	using unit_type = std::pair<unit_convert_func, symbol_type>; // Pairs a conversion function with a display character.
-	using alarm_compare_type = std::pair<alarm_cmp_func, symbol_type>; // Pairs a compare function with a display character.
-	using sensor_aref_type = std::pair<ArefSource, string_type>; // Pairs an ArefSource with a display string.
+public:
+	data_t& temperatureLow() { return temp_low_; }
+	const data_t& temperatureLow() const { return temp_low_; }
+	data_t& temperatureHigh() { return temp_high_; }
+	const data_t& temperatureHigh() const { return temp_high_; }
+	temp_units_t& temperatureUnits() { return temp_units_; }
+	const temp_units_t& temperatureUnits() const { return temp_units_; }
+	sp_enable_t& setpointEnable() { return setpoint_enable_; }
+	const sp_enable_t& setpointEnable() const { return setpoint_enable_; }
+	data_t& setpointValue() { return setpoint_value_; }
+	const data_t& setpointValue() const { return setpoint_value_; }
+	alarm_compare_t& alarmCompare() { return alarm_compare_; }
+	const alarm_compare_t& alarmCompare() const { return alarm_compare_; }
+	alarm_enable_t& alarmEnable() { return alarm_enable_; }
+	const alarm_enable_t& alarmEnable() const { return alarm_enable_; }
+	data_t& alarmSetpoint() { return alarm_setpoint_; }
+	const data_t& alarmSetpoint() const { return alarm_setpoint_; }
+	Pwm::Range& pwmRange() { return pwm_range_; }
+	const Pwm::Range& pwmRange() const { return pwm_range_; }
+	Pid::value_type& pidProportional() { return pid_p_; }
+	const Pid::value_type& pidProportional() const { return pid_p_; }
+	Pid::value_type& pidIntegral() { return pid_i_; }
+	const Pid::value_type& pidIntegral() const { return pid_i_; }
+	Pid::value_type& pidDerivative() { return pid_d_; }
+	const Pid::value_type& pidDerivative() const { return pid_d_; }
+	Pid::value_type& pidGain() { return pid_a_; }
+	const Pid::value_type& pidGain() const { return pid_a_; }
+	sensor_aref_t& sensorAref() { return sensor_aref_; }
+	const sensor_aref_t& sensorAref() const { return sensor_aref_; }
+	milliseconds& sensorPollIntvl() { return sensor_tpoll_; }
+	const milliseconds& sensorPollIntvl() const { return sensor_tpoll_; }
 
-public:	/* Ctors */
-	SettingsType() = default;
-	SettingsType(display_type temp_low, display_type temp_high, unit_type temp_units, 
-		display_type pid_p, display_type pid_i, display_type pid_d, display_type pid_a,
-		enable_type sp_enabled, display_type sp_value, 
-		enable_type al_enabled, alarm_compare_type al_cmp, display_type al_setpoint, 
-		sensor_aref_type sn_aref, duration_type sn_tpoll, PWMOutput<>::Range pwm_range) :
-		temp_low_(temp_low), temp_high_(temp_high), temp_units_(temp_units), 
-		pid_p_(pid_p), pid_i_(pid_i), pid_d_(pid_d), pid_a_(pid_a), 
-		sp_enabled_(sp_enabled), sp_value_(sp_value), 
-		al_enabled_(al_enabled), al_cmp_(al_cmp), al_setpoint_(al_setpoint), 
-		sn_aref_(sn_aref), sn_tpoll_(sn_tpoll), pwm_range_(pwm_range)
-	{}
-
-public: /* Setters and getters. */
-	unit_type& unitType() { return temp_units_; }
-	const unit_type& unitType() const { return temp_units_; }
-	unit_convert_func& unitConvert() { return temp_units_.first; }
-	const unit_convert_func& unitConvert() const { return temp_units_.first; }
-	symbol_type& unitSymbol() { return temp_units_.second; }
-	const symbol_type& unitSymbol() const { return temp_units_.second; }
-	display_type& tempLow() { return temp_low_; }
-	const display_type& tempLow() const { return temp_low_; }
-	display_type& tempHigh() { return temp_high_; }
-	const display_type& tempHigh() const { return temp_high_; }
-	display_type& pidProportional() { return pid_p_; }
-	const display_type& pidProportional() const { return pid_p_; }
-	display_type& pidIntegral() { return pid_i_; }
-	const display_type& pidIntegral() const { return pid_i_; }
-	display_type& pidDerivative() { return pid_d_; }
-	const display_type& pidDerivative() const { return pid_d_; }
-	display_type& pidGain() { return pid_a_; }
-	const display_type& pidGain() const { return pid_a_; }
-	enable_type& setpointEnType() { return sp_enabled_; }
-	const enable_type& setpointEnType() const { return sp_enabled_; }
-	bool_type& setpointEnabled() { return sp_enabled_.first; }
-	const bool_type& setpointEnabled() const { return sp_enabled_.first; }
-	symbol_type& setpointSymbol() { return sp_enabled_.second; }
-	const symbol_type& setpointSymbol() const { return sp_enabled_.second; }
-	display_type& setpointValue() { return sp_value_; }
-	const display_type& setpointValue() const { return sp_value_; }
-	enable_type& alarmEnType() { return al_enabled_; }
-	const enable_type& alarmEnType() const { return al_enabled_; }
-	bool_type& alarmEnabled() { return al_enabled_.first; }
-	const bool_type& alarmEnabled() const { return al_enabled_.first; }
-	symbol_type& alarmEnableSymbol() { return al_enabled_.second; }
-	const symbol_type& alarmEnableSymbol() const { return al_enabled_.second; }
-	alarm_compare_type& alarmCmpType() { return al_cmp_; }
-	const alarm_compare_type& alarmCmpType() const { return al_cmp_; }
-	alarm_cmp_func& alarmCompare() { return al_cmp_.first; }
-	const alarm_cmp_func& alarmCompare() const { return al_cmp_.first; }
-	symbol_type& alarmCompareSymbol() { return al_cmp_.second; }
-	const symbol_type& alarmCompareSymbol() const { return al_cmp_.second; }
-	display_type& alarmSet() { return al_setpoint_; }
-	const display_type& alarmSet() const { return al_setpoint_; }
-	sensor_aref_type& sensorArefType() { return sn_aref_; }
-	const sensor_aref_type& sensorArefType() const { return sn_aref_; }
-	ArefSource& sensorArefSource() { return sn_aref_.first; }
-	const ArefSource& sensorArefSource() const { return sn_aref_.first; }
-	string_type& sensorArefString() { return sn_aref_.second; }
-	const string_type& sensorArefString() const { return sn_aref_.second; }
-	duration_type& sensorPollIntvl() { return sn_tpoll_; }
-	const duration_type& sensorPollIntvl() const { return sn_tpoll_; }
-	display_type& pwmLow() { return pwm_range_.low(); }
-	const display_type& pwmLow() const { return pwm_range_.low(); }
-	display_type& pwmHigh() { return pwm_range_.high(); }
-	const display_type& pwmHigh() const { return pwm_range_.high(); }
-
-	// Creates a copy of the current settings for editing.
-	void copy(const SettingsType& original, SettingsType& copy)
+	void copy(Settings& copy)
 	{
-		copy = original;
+		copy = *this;
 	}
 
-	// Updates the current settings from a copy.
-	void update(const SettingsType& copy, SettingsType& original)
+	void update(const Settings& copy)
 	{
-		original = copy;
-		if (original.alarmSet() < original.tempLow())
-			original.alarmSet() = original.tempLow();
-		else if (original.alarmSet() > original.tempHigh())
-			original.alarmSet() = original.tempHigh();
-		if (original.setpointValue() < original.tempLow())
-			original.setpointValue() = original.tempLow();
-		else if (original.setpointValue() > original.tempHigh())
-			original.setpointValue() = original.tempHigh();
+		*this = copy;
+		if (alarmSetpoint() < temperatureLow())
+			alarmSetpoint() = temperatureLow();
+		else if (alarmSetpoint() > temperatureHigh())
+			alarmSetpoint() = temperatureHigh();
+		if (setpointValue() < temperatureLow())
+			setpointValue() = temperatureLow();
+		else if (setpointValue() > temperatureHigh())
+			setpointValue() = temperatureHigh();
 	}
 
-	// Writes settings to EEPROM.
-	void serialize(EEStream& e) const override 
-	{  
-		e << tempLow(); e << tempHigh(), e << unitSymbol();
+	void serialize(EEStream& e) const override
+	{
+		e << temperatureLow(); e << temperatureHigh(), e << temperatureUnits().display_value();
 		e << pidProportional(); e << pidIntegral(); e << pidDerivative(); e << pidGain();
-		e << setpointSymbol(); e << setpointValue();
-		e << alarmEnableSymbol(); e << alarmCompareSymbol(); e << alarmSet();
-		e << sensorArefSource(); e << sensorPollIntvl().count();
-		e << pwmLow(); e << pwmHigh();
+		e << setpointEnable().display_value(); e << setpointValue();
+		e << alarmEnable().display_value();	e << alarmCompare().display_value(); e << alarmSetpoint();
+		e << sensorAref().value(); e << sensorPollIntvl().count();
+		e << pwmRange().low(); e << pwmRange().high();
 	}
 
-	// Reads settings from EEPROM.
-	void deserialize(EEStream& e) override 
-	{  
-		e >> tempLow(); e >> tempHigh(), e >> unitSymbol();
+	void deserialize(EEStream& e) override
+	{
+		e >> temperatureLow(); e >> temperatureHigh(), e >> temperatureUnits().display_value();
 		e >> pidProportional(); e >> pidIntegral(); e >> pidDerivative(); e >> pidGain();
-		e >> setpointSymbol(); e >> setpointValue();
-		e >> alarmEnableSymbol(); e >> alarmCompareSymbol(); e >> alarmSet();
-		e >> sensorArefSource();
-		typename duration_type::rep r; e >> r;	sensorPollIntvl() = duration_type(r);
-		e >> pwmLow(); e >> pwmHigh();
+		e >> setpointEnable().display_value(); e >> setpointValue();
+		e >> alarmEnable().display_value();	e >> alarmCompare().display_value(); e >> alarmSetpoint();
+		e >> sensorAref().value(); typename milliseconds::rep r; e >> r; sensorPollIntvl() = milliseconds(r);
+		e >> pwmRange().low(); e >> pwmRange().high();
+
+		temperatureUnits().value() = temperatureUnits().display_value() == FarenheitSymbol
+			? static_cast<typename temp_units_t::value_type>(temperature<units::fahrenheit>)
+			: temperatureUnits().display_value() == CelsiusSymbol
+			? static_cast<typename temp_units_t::value_type>(temperature<units::celsius>)
+			: static_cast<typename temp_units_t::value_type>(temperature<units::kelvin>);
+		alarmEnable().value() = alarmEnable().display_value() == EnabledSymbol
+			? true
+			: false;
+		alarmCompare().value() = alarmCompare().display_value() == LessSymbol
+			? static_cast<typename alarm_compare_t::value_type>(alarm_lt)
+			: static_cast<typename alarm_compare_t::value_type>(alarm_gt);
+		sensorAref().display_value() = sensorAref().value() == ArefSource::Internal
+			? "IN"
+			: "EX";
+		setpointEnable().value() = setpointEnable().display_value() == EnabledSymbol
+			? true
+			: false;
 	}
 
-private:	/* Editable/storable program settings. */
-	enable_type				sp_enabled_;	// Set point enabled value/display symbol pair.
-	display_type			sp_value_;		// Set point temperature.
-	enable_type				al_enabled_;	// Alarm enabled value/display symbol pair.
-	alarm_compare_type		al_cmp_;		// Alarm cmp function/display symbol pair ***No serial***.
-	display_type			al_setpoint_;	// Alarm temperature set point.
-	display_type			temp_low_;		// Temperature display range low.
-	display_type			temp_high_;		// Temperature display range high,
-	unit_type				temp_units_;	// Temperature units convert func/display symbol pair ***No serial***.
-	display_type			pid_p_;			// PID proportional coeff.
-	display_type			pid_i_;			// PID integral coeff.
-	display_type			pid_d_;			// PID derivative coeff.
-	display_type			pid_a_;			// PID gain coeff.
-	sensor_aref_type		sn_aref_;		// Sensor Aref source/display string pair.
-	duration_type			sn_tpoll_;		// Sensor polling interval.
-	PWMOutput<>::Range		pwm_range_;		// PWM duty cycle range low.
+private:
+	data_t			temp_low_;
+	data_t			temp_high_;
+	temp_units_t	temp_units_;
+	sp_enable_t		setpoint_enable_;
+	data_t			setpoint_value_;
+	alarm_compare_t	alarm_compare_;
+	alarm_enable_t	alarm_enable_;
+	data_t			alarm_setpoint_;
+	Pwm::Range		pwm_range_;
+	pid_t			pid_p_;
+	pid_t			pid_i_;
+	pid_t			pid_d_;
+	pid_t			pid_a_;
+	sensor_aref_t	sensor_aref_;
+	milliseconds	sensor_tpoll_;
 };
 
 // Enumerates valid thermostat operating modes.
-enum class ThermostatMode
+enum class mode_t
 {
 	Init = 0,	// Initial state.
 	Run,		// Displays current temperature, set point and alarm settings.
@@ -215,11 +230,29 @@ enum class ThermostatMode
 	Display		// Displays/edits display settings.
 };
 
-/* Arduino API interface functions. */
+#pragma endregion
+#pragma region Program Settings Constants
+
+const sensor_aref_t SensorArefInternal{ {ArefSource::Internal,InternalSymbol} };
+const sensor_aref_t SensorArefExternal{ {ArefSource::External,ExternalSymbol} };
+const alarm_enable_t AlarmDisabled{ {false,DisabledSymbol} };
+const alarm_enable_t AlarmEnabled{ {true,EnabledSymbol} };
+const alarm_compare_t AlarmCmpLess{ {alarm_lt,LessSymbol} };
+const alarm_compare_t AlarmCmpGreater{ {alarm_gt,GreaterSymbol} };
+const sp_enable_t SetpointEnabled{ {true,EnabledSymbol} };
+const sp_enable_t SetpointDisabled{ {false,DisabledSymbol} };
+const temp_units_t DegreesKelvin{ {temperature<units::kelvin>,KelvinSymbol} };
+const temp_units_t DegreesCelsius{ {temperature<units::celsius>,CelsiusSymbol} };
+const temp_units_t DegreesFahrenheit{ {temperature<units::fahrenheit>,FarenheitSymbol} };
+
+#pragma endregion
+#pragma region Arduino API Interface
 
 void alarmAttach(pin_t pin) { pinMode(pin, OUTPUT); }
 void alarmSilence(pin_t pin, bool value) { digitalWrite(pin, !value); }
 bool alarmSilence(pin_t pin) { return !digitalRead(pin); }
 void sensorSetAref(const ArefSource src) { analogReference(src == ArefSource::Internal ? DEFAULT : EXTERNAL); }
+
+#pragma endregion
 
 #endif // !defined __PG_THERMOSTAT_H

@@ -1,6 +1,5 @@
 /*
- *	Config file for <PIDThermostat.ino>, defines immutable constant used by 
- *	the program.
+ *	Config file for <PIDThermostat.ino>, defines immutable program constants.
  *
  *	***************************************************************************
  *
@@ -28,41 +27,28 @@
  *
  *	**************************************************************************/
 
-#if !defined __PG_THERMOMETER_CONFIG_H
-# define __PG_THERMOMETER_CONFIG_H 20211025L
+#if !defined __PG_THERMOSTAT_CONFIG_H
+# define __PG_THERMOSTAT_CONFIG_H 20211025L
 
 using namespace pg;
 using namespace std::chrono;
 
-#pragma region Program Component Types
-
-using Settings = SettingsType<float, analog_t, milliseconds>;
-using TemperatureSensor = AnalogInput<Settings::adc_type>;
-using InputFilter = MovingAverage<TemperatureSensor::value_type, 4>;
-using Pid = PIDController<Settings::display_type>;
-using Pwm = PWMOutput<Settings::display_type>;
-using Display = LCDDisplay<16, 2>;
-using Keypad = AnalogKeypad<Settings::adc_type>;
-using Scheduler = TaskScheduler<>;
-using Adjustment = Keypad::Multiplier;
-
-#pragma endregion
 #pragma region Hardware Properties and Interfacing
 
-const Settings::display_type Ka = 1.125e-3;	// Steinhart-Hart thermistor eqn coeff a.
-const Settings::display_type Kb = 2.347e-4;	// Steinhart-Hart thermistor eqn coeff b.
-const Settings::display_type Kc = 8.566e-8;	// Steinhart-Hart thermistor eqn coeff c.
+const float Ka = 1.125e-3;	// Steinhart-Hart thermistor eqn coeff a.
+const float Kb = 2.347e-4;	// Steinhart-Hart thermistor eqn coeff b.
+const float Kc = 8.566e-8;	// Steinhart-Hart thermistor eqn coeff c.
 
-const Settings::display_type R = 10030.0;	// Thermistor voltage divider resistor R (Ohms).
-const Settings::display_type Vss = 4.97;	// Thermistor voltage divider supply voltage (Volts).
-const Settings::display_type Vbe = 0.6;		// Thermistor voltage divider amplifier voltage drop (Volts).
+const float R = 10030.0;	// Thermistor voltage divider resistor R (Ohms).
+const float Vss = 4.97;		// Thermistor voltage divider supply voltage (Volts).
+const float Vbe = 0.6;		// Thermistor voltage divider amplifier voltage drop (Volts).
 
-/* These pins are for an ATMega 2560 */
+/* These pins are for an ATMega 2560 and D1 Robot LCD/Keypad Shield. */
 
 const pin_t KeypadInput = A0;
 const pin_t SensorInput = A15;
 const pin_t AlarmOutput = 53;
-const pin_t PwmOut = 46;
+const pin_t PwmOutput = 46;
 const pin_t LcdRs = 8;
 const pin_t LcdEn = 9;
 const pin_t LcdD4 = 4;
@@ -70,15 +56,13 @@ const pin_t LcdD5 = 5;
 const pin_t LcdD6 = 6;
 const pin_t LcdD7 = 7;
 
-/* Published values for D1 Robot LCD/Keypad Shield. */
-
 const Keypad::value_type RightButtonTriggerLevel = 60;
 const Keypad::value_type UpButtonTriggerLevel = 200;
 const Keypad::value_type DownButtonTriggerLevel = 400;
 const Keypad::value_type LeftButtonTriggerLevel = 600;
 const Keypad::value_type SelectButtonTriggerLevel = 800;
 
-const TemperatureSensor::value_type SensorOutMax = AnalogMax<board_type>();
+const sensor_t SensorOutMax = AnalogMax<board_type>();
 
 const long EepromID = 20211010L;	// Value used to determine existence and validity of EEPROM data.
 
@@ -96,41 +80,20 @@ const milliseconds AdjustmentMultiplyInterval = seconds(4);
 #pragma endregion 
 #pragma region Program Behavior Constants.
 
-const Keypad::LongPress KeypadLongPressMode = Keypad::LongPress::Hold;
-const Adjustment::factor_type AdjustmentMultiplyMax = 100;
-const Settings::display_type DecimalAdjustmentFactor = 0.1;
-const Settings::display_type UnitAdjustmentFactor = 1.0;
-const Settings::display_type PwmAdjustmentFactor = 0.0001;
-const TemperatureSensor::value_type SensorAdjustmentFactor = 1;
-const Settings::display_type TemperatureMin = -999.9;	// Smallest value that fits temperature display fields. 
-const Settings::display_type TemperatureMax = +999.9;	// Largest value that fits temperature display fields.
-const Pid::value_type PidCoeffMin = 0.0;				// Min pid coeff value.
-const Pid::value_type PidCoeffMax = 100.0;				// Max pid coeff value.
-const Pwm::value_type PwmRangeLow = 0.0;				// Min pwm dc range.
-const Pwm::value_type PwmRangeHigh = 1.0;				// Max pwm dc value.
-const Pid::value_type PidCoeffThreshold = 10.0;			// Value at which pid display format changes.
+const longpress_t KeypadLongPressMode = Keypad::LongPress::Hold;
+const factor_t AdjustmentMultiplyMax = 100;
+const data_t DecimalAdjustmentFactor = 0.1;
+const data_t UnitAdjustmentFactor = 1.0;
+const pid_t PwmAdjustmentFactor = 0.0001;
+const sensor_t SensorAdjustmentFactor = 1;
+const data_t TemperatureMin = -999.9;	// Smallest value that fits temperature display fields. 
+const data_t TemperatureMax = +999.9;	// Largest value that fits temperature display fields.
+const pid_t PidCoeffMin = 0.0;					// Min pid coeff value.
+const pid_t PidCoeffMax = 100.0;				// Max pid coeff value.
+const pid_t PidCoeffThreshold = 10.0;			// Value at which pid display format changes.
 
 #pragma endregion
-#pragma region Display Symbols and Formatting
-
-const char DegreeSymbol = 0xDF;
-const char FarenheitSymbol = 'F';
-const char CelsiusSymbol = 'C';
-const char KelvinSymbol = 'K';
-const char YesSymbol = 'Y';
-const char NoSymbol = 'N';
-const char EnabledSymbol = '*';
-const char DisabledSymbol = ' ';
-const char LessSymbol = '<';
-const char GreaterSymbol = '>';
-const char* const InternalSymbol = "IN";
-const char* const ExternalSymbol = "EX";
-
-const char* const TemperatureDisplayFormat = "%6.1f";	// [-999.9,+999.9]
-const char* const TimingDisplayFormat = "%4u";			// [0,9999]
-const char* const PidDecimalFormat = "%3.1f";			// [0.0, +9.9]
-const char* const PidUnitFormat = "%3.0f";				// [+10, +100]
-
+#pragma region Display Formatting Constants
 #pragma region RUN Screen
 
 /******************
@@ -406,4 +369,4 @@ const bool DisplayUnitEdit = true;
 #pragma endregion
 #pragma endregion
 
-#endif // !defined __PG_THERMOMETER_CONFIG_H
+#endif // !defined __PG_THERMOSTAT_CONFIG_H
