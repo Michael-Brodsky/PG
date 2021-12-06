@@ -4,7 +4,7 @@
  *	***************************************************************************
  *
  *	File: callback.h
- *	Date: July 17, 2021
+ *	Date: December 5, 2021
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -51,7 +51,7 @@
  *	***************************************************************************/
 
 #if !defined __PG_CALLBACK_H
-# define __PG_CALLBACK_H 20210717L
+# define __PG_CALLBACK_H 20211205L
 
 # include "pg.h"	// Pg environment.
 
@@ -67,6 +67,7 @@ namespace pg
 	struct callback
 	{
 		typedef Ret(Obj::* type)(Args ...);
+		typedef Ret(Obj::* const_type)(Args ...) const;
 	};
 
 	template <class Ret, class ... Args>
@@ -81,6 +82,7 @@ namespace pg
 	struct callback
 	{
 		typedef Ret(Obj::* type)(Arg);
+		typedef Ret(Obj::* const_type)(Arg) const;
 	};
 
 	template <class Ret, class Arg>
@@ -97,6 +99,7 @@ namespace pg
 	struct callback<Ret, Obj, void>
 	{
 		typedef Ret(Obj::* type)();
+		typedef Ret(Obj::* const_type)() const;
 	};
 
 	template <class Ret>
