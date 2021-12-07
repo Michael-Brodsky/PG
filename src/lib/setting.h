@@ -1,6 +1,6 @@
 /*
- *	This file defines a type for storing a program setting and displayable 
- *	value as a pair.
+ *	This file defines a type for dealing with program settings and display 
+ *	values.
  *
  *	***************************************************************************
  *
@@ -37,8 +37,19 @@
 
 namespace pg
 {
+	template<class T>
+	struct value_t
+	{
+		using value_type = T;
+
+		value_type value_;
+
+		value_type& value() { return value_; }
+		const value_type& value() const { return value_; }
+	};
+
 	template<class T, class DT>
-	struct setting
+	struct setting_t
 	{
 		using value_type = T;
 		using display_type = DT;
@@ -50,8 +61,6 @@ namespace pg
 		const value_type& value() const { return setting_.first; }
 		display_type& display_value() { return setting_.second; }
 		const display_type& display_value() const { return setting_.second; }
-		bool operator==(const setting& other) { return setting_ == other.setting_; }
-		bool operator!=(const setting& other) { return !(*this == other); }
 	};
 } // namespace pg
 
