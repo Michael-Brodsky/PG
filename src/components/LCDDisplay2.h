@@ -5,7 +5,7 @@
  *	***************************************************************************
  *
  *	File: LCDDisplay.h
- *	Date: December 4, 2021
+ *	Date: December 12, 2021
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -38,7 +38,7 @@
  *	**************************************************************************/
 
 #if !defined __PG_LCDDISPLAY_H
-# define __PG_LCDDISPLAY_H 20211204L
+# define __PG_LCDDISPLAY_H 20211212L
 
 # include "cstdio"					// String formatting funcs.
 # include "array"					// Fixed-size array type.
