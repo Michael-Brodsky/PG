@@ -63,7 +63,7 @@ namespace pg
 		};
 		using value_type = typename Command::value_type;
 		using command_type = typename Command::command_type;
-		using container_type = std::ArrayWrapper<Command>;
+		using container_type = std::ArrayWrapper<Command*>;
 		using iterator = typename container_type::iterator;
 		using pointer = value_type*;
 
@@ -71,9 +71,9 @@ namespace pg
 
 	public:
 		template<std::size_t Size>
-		SerialControl(Command (&)[Size], bool = false);
-		SerialControl(Command [], std::size_t, bool = false);
-		explicit SerialControl(Command* = nullptr, Command* = nullptr, bool = false);
+		SerialControl(Command* (&)[Size], bool = false);
+		SerialControl(Command* [], std::size_t, bool = false);
+		explicit SerialControl(Command** = nullptr, Command** = nullptr, bool = false);
 		SerialControl(std::initializer_list<Command*>, bool = false);
 
 	public:
@@ -90,6 +90,7 @@ namespace pg
 
 	private:
 		void clock() override;
+		Command** find(Command**, Command**, const Command&);
 
 	private:
 		value_type		buf_[N];	// Input buffer.
@@ -101,21 +102,21 @@ namespace pg
 
 	template<std::size_t N, class T>
 	template<std::size_t Size>
-	SerialControl<N, T>::SerialControl(Command (&commands)[Size], bool echo) :
+	SerialControl<N, T>::SerialControl(Command* (&commands)[Size], bool echo) :
 		buf_(), data_(buf_), commands_(commands), current_(std::begin(commands_)), echo_(echo)
 	{
 		
 	}
 
 	template<std::size_t N, class T>
-	SerialControl<N, T>::SerialControl(Command commands[], std::size_t sz, bool echo) :
+	SerialControl<N, T>::SerialControl(Command* commands[], std::size_t sz, bool echo) :
 		buf_(), data_(buf_), commands_(commands, sz), current_(std::begin(commands_)), echo_(echo)
 	{
 
 	}
 
 	template<std::size_t N, class T>
-	SerialControl<N, T>::SerialControl(Command* first, Command* last, bool echo) :
+	SerialControl<N, T>::SerialControl(Command** first, Command** last, bool echo) :
 		buf_(), data_(buf_), commands_(first, last), current_(std::begin(commands_)), echo_(echo)
 	{
 		
@@ -123,7 +124,7 @@ namespace pg
 
 	template<std::size_t N, class T>
 	SerialControl<N, T>::SerialControl(std::initializer_list<Command*> il, bool echo) :
-		buf_(), data_(buf_), commands_(const_cast<Command*>(*il.begin()), il.size()), 
+		buf_(), data_(buf_), commands_(const_cast<Command**>(il.begin()), il.size()), 
 		current_(std::begin(commands_)), echo_(echo)
 	{
 
@@ -161,12 +162,12 @@ namespace pg
 			if (*(data_ - 1) == EndOfTextChar || data_ == std::end(buf_))
 			{
 				*(--data_) = '\0';
-				current_ = std::find(std::begin(commands_), std::end(commands_), Command{ {buf_,nullptr} });
+				current_ = find(std::begin(commands_), std::end(commands_), Command{ {buf_,nullptr} });
 				if (current_ != std::end(commands_))
 				{
-					current_->program()->execute();
+					(*current_)->program()->execute();
 					if (echo_)
-						Serial.print(buf_);
+						Serial.println(buf_);
 				}
 				data_ = std::begin(buf_);
 			}
@@ -177,6 +178,23 @@ namespace pg
 	void SerialControl<N, T>::clock()
 	{
 		poll();
+	}
+
+	template<std::size_t N, class T>
+	typename SerialControl<N, T>::Command** SerialControl<N, T>::find(Command** first, Command** last, const Command& cmd)
+	{
+		Command** it = last;
+
+		for (; first != last; ++first)
+		{
+			if (**first == cmd)
+			{
+				it = first;
+				break;
+			}
+		}
+
+		return it;
 	}
 
 } // namespace pg
