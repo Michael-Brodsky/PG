@@ -19,9 +19,14 @@ The PIDController class is a control loop mechanism used in industrial automatio
 ### PWMOutput.h
 The PwmOutput class provides a simple interface for managing pulse-width modulated (PWM) outputs and generating waveforms.
 
-### SerialProtocols.h 
-The SerialProtocols class manipulates and stores/retrieves communications settings in EEPROM. It allows programs to enable real-time editing, storage and retrieval of communications settings with single lines of code.
+### RemoteControl.h
+The RemoteControl class facilitates asynchronous control of peripheral hardware by a remote host using commands sent over a serial port. 
+
+### Serial.h 
+Defines constants frequently used in controlling serial ports and types for easily manipulating them.
 
 ### Unique.h 
 Unique is a base class that provides a unique identifier (number) to derived types which clients can use to identify multiple instances of the same object type.
 
+### Values.h 
+Defines several wrapper types that encapsulate objects and object pairs and expose getters and setters with familiar semantics.
