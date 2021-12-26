@@ -82,12 +82,12 @@ const milliseconds AdjustmentMultiplyInterval = seconds(4);
 
 const longpress_t KeypadLongPressMode = Keypad::LongPress::Hold;
 const factor_t AdjustmentMultiplyMax = 100;
-const data_t DecimalAdjustmentFactor = 0.1;
-const data_t UnitAdjustmentFactor = 1.0;
+const temperature_t DecimalAdjustmentFactor = 0.1;
+const temperature_t UnitAdjustmentFactor = 1.0;
 const pid_t PwmAdjustmentFactor = 0.0001;
 const sensor_t SensorAdjustmentFactor = 1;
-const data_t TemperatureMin = -999.9;	// Smallest value that fits temperature display fields. 
-const data_t TemperatureMax = +999.9;	// Largest value that fits temperature display fields.
+const temperature_t TemperatureMin = -999.9;	// Smallest value that fits temperature display fields. 
+const temperature_t TemperatureMax = +999.9;	// Largest value that fits temperature display fields.
 const pid_t PidCoeffMin = 0.0;					// Min pid coeff value.
 const pid_t PidCoeffMax = 100.0;				// Max pid coeff value.
 const pid_t PidCoeffThreshold = 10.0;			// Value at which pid display format changes.

@@ -26,12 +26,13 @@
  *	along with this file. If not, see <http://www.gnu.org/licenses/>.
  *
  *	**************************************************************************/
-
+//Program size : 27, 202 bytes(used 11 % of a 253, 952 byte maximum) (4.21 secs)
+//Minimum Memory Usage : 1199 bytes(15 % of a 8192 byte maximum)
 #if !defined __PG_THERMOSTAT_H
 # define __PG_THERMOSTAT_H 20211015L
 
 # include <lib/thermo.h>				// Temperature maths.
-# include <lib/setting.h>				// Program setting pair type.
+# include <utilities/Values.h>				// Program Setting pair type.
 # include <interfaces/iserializable.h>	// iserializable interface.
 # include <components/AnalogKeypad.h>	// Async keypad polling.
 # include <components/LCDDisplay.h>		// Async display manager.
@@ -47,17 +48,17 @@ using namespace std::chrono;
 
 #pragma region Program Type Definitions
 
-using data_t = float; // Thermostat floating point value type.
+using temperature_t = float; // Thermostat floating point value type.
 using TemperatureSensor = AnalogInput<analog_t>;
 using InputFilter = MovingAverage<TemperatureSensor::value_type, 4>;
 using Display = LCDDisplay<16, 2>;
-using Pwm = PWMOutput<data_t>;
-using Pid = PIDController<data_t>;
+using Pwm = PWMOutput<float>;
+using Pid = PIDController<float>;
 using Keypad = AnalogKeypad<analog_t>;
 using Scheduler = TaskScheduler<>;
+using ScheduledTask = Scheduler::Task;
 using Adjustment = Keypad::Multiplier;
 
-using ScheduledTask = Scheduler::Task;
 using task_state_t = ScheduledTask::State;
 using sensor_t = TemperatureSensor::value_type;
 using factor_t = Adjustment::factor_type;
@@ -75,15 +76,18 @@ enum class ArefSource
 
 // Program settings/display value types.
 
-using temp_units_t = setting<
-	typename callback<data_t, void, data_t>::type,
+using temperature_v = Value<temperature_t>;
+using pid_v = Value<pid_t>;
+using sensor_poll_v = Value<milliseconds>;
+using temp_units_t = DisplayValue<
+	typename callback<temperature_t, void, temperature_t>::type,
 	char>;
-using alarm_compare_t = setting<
-	typename callback<bool, void, data_t, data_t>::type,
+using alarm_cmp_t = DisplayValue<
+	typename callback<bool, void, temperature_t, temperature_t>::type,
 	char>;
-using alarm_enable_t = setting<bool, char>;
-using sp_enable_t = setting<bool, char>;
-using sensor_aref_t = setting<ArefSource, const char*>;
+using alarm_en_t = DisplayValue<bool, char>;
+using setpoint_en_t = DisplayValue<bool, char>;
+using sensor_aref_t = DisplayValue<ArefSource, const char*>;
 
 
 #pragma endregion 
@@ -105,42 +109,39 @@ const char* const TimingDisplayFormat = "%4u";			// [0,9999]
 const char* const PidDecimalFormat = "%3.1f";			// [0.0, +9.9]
 const char* const PidUnitFormat = "%3.0f";				// [+10, +100]
 
-class Settings : public iserializable
-{
-public:
-	Settings() = default;
+#pragma endregion
 
-public:
-	data_t& temperatureLow() { return temp_low_; }
-	const data_t& temperatureLow() const { return temp_low_; }
-	data_t& temperatureHigh() { return temp_high_; }
-	const data_t& temperatureHigh() const { return temp_high_; }
-	temp_units_t& temperatureUnits() { return temp_units_; }
-	const temp_units_t& temperatureUnits() const { return temp_units_; }
-	sp_enable_t& setpointEnable() { return setpoint_enable_; }
-	const sp_enable_t& setpointEnable() const { return setpoint_enable_; }
-	data_t& setpointValue() { return setpoint_value_; }
-	const data_t& setpointValue() const { return setpoint_value_; }
-	alarm_compare_t& alarmCompare() { return alarm_compare_; }
-	const alarm_compare_t& alarmCompare() const { return alarm_compare_; }
-	alarm_enable_t& alarmEnable() { return alarm_enable_; }
-	const alarm_enable_t& alarmEnable() const { return alarm_enable_; }
-	data_t& alarmSetpoint() { return alarm_setpoint_; }
-	const data_t& alarmSetpoint() const { return alarm_setpoint_; }
-	Pwm::Range& pwmRange() { return pwm_range_; }
-	const Pwm::Range& pwmRange() const { return pwm_range_; }
-	Pid::value_type& pidProportional() { return pid_p_; }
-	const Pid::value_type& pidProportional() const { return pid_p_; }
-	Pid::value_type& pidIntegral() { return pid_i_; }
-	const Pid::value_type& pidIntegral() const { return pid_i_; }
-	Pid::value_type& pidDerivative() { return pid_d_; }
-	const Pid::value_type& pidDerivative() const { return pid_d_; }
-	Pid::value_type& pidGain() { return pid_a_; }
-	const Pid::value_type& pidGain() const { return pid_a_; }
-	sensor_aref_t& sensorAref() { return sensor_aref_; }
-	const sensor_aref_t& sensorAref() const { return sensor_aref_; }
-	milliseconds& sensorPollIntvl() { return sensor_tpoll_; }
-	const milliseconds& sensorPollIntvl() const { return sensor_tpoll_; }
+struct Settings : public iserializable
+{
+	temperature_v	temperatureLow;
+	temperature_v	temperatureHigh;
+	temp_units_t	temperatureUnits;
+	setpoint_en_t	setpointEnable;
+	temperature_v	setpointValue;
+	alarm_cmp_t		alarmCompare;
+	alarm_en_t		alarmEnable;
+	temperature_v	alarmSetpoint;
+	Pwm::Range		pwmRange;
+	pid_v			pidProportional;
+	pid_v			pidIntegral;
+	pid_v			pidDerivative;
+	pid_v			pidGain;
+	sensor_aref_t	sensorAref;
+	sensor_poll_v	sensorPollIntvl;
+
+	Settings() = default;
+	Settings(temperature_v temperature_low, temperature_v temperature_high, temp_units_t temperature_units,
+		setpoint_en_t setpoint_enable, temperature_v setpoint_value,
+		alarm_cmp_t	alarm_compare, alarm_en_t alarm_enable, temperature_v alarm_setpoint,
+		Pwm::Range pwm_range, pid_v pid_proportional, pid_v	pid_integral, pid_v pid_derivative, pid_v pid_gain,
+		sensor_aref_t sensor_aref, sensor_poll_v sensor_poll_intvl) : iserializable(),
+		temperatureLow(temperature_low), temperatureHigh(temperature_high), temperatureUnits(temperature_units),
+		setpointEnable(setpoint_enable), setpointValue(setpoint_value),
+		alarmCompare(alarm_compare), alarmEnable(alarm_enable), alarmSetpoint(alarm_setpoint),
+		pwmRange(pwm_range),
+		pidProportional(pid_proportional), pidIntegral(pid_integral), pidDerivative(pid_derivative), pidGain(pid_gain),
+		sensorAref(sensor_aref), sensorPollIntvl(sensor_poll_intvl)
+	{}
 
 	void copy(Settings& copy)
 	{
@@ -162,58 +163,41 @@ public:
 
 	void serialize(EEStream& e) const override
 	{
-		e << temperatureLow(); e << temperatureHigh(), e << temperatureUnits().display_value();
+		e << temperatureLow(); e << temperatureHigh(), e << temperatureUnits.display_value();
 		e << pidProportional(); e << pidIntegral(); e << pidDerivative(); e << pidGain();
-		e << setpointEnable().display_value(); e << setpointValue();
-		e << alarmEnable().display_value();	e << alarmCompare().display_value(); e << alarmSetpoint();
-		e << sensorAref().value(); e << sensorPollIntvl().count();
-		e << pwmRange().low(); e << pwmRange().high();
+		e << setpointEnable.display_value(); e << setpointValue();
+		e << alarmEnable.display_value();	e << alarmCompare.display_value(); e << alarmSetpoint();
+		e << sensorAref.value(); e << sensorPollIntvl().count();
+		e << pwmRange.low(); e << pwmRange.high();
 	}
 
 	void deserialize(EEStream& e) override
 	{
-		e >> temperatureLow(); e >> temperatureHigh(), e >> temperatureUnits().display_value();
+		e >> temperatureLow(); e >> temperatureHigh(), e >> temperatureUnits.display_value();
 		e >> pidProportional(); e >> pidIntegral(); e >> pidDerivative(); e >> pidGain();
-		e >> setpointEnable().display_value(); e >> setpointValue();
-		e >> alarmEnable().display_value();	e >> alarmCompare().display_value(); e >> alarmSetpoint();
-		e >> sensorAref().value(); typename milliseconds::rep r; e >> r; sensorPollIntvl() = milliseconds(r);
-		e >> pwmRange().low(); e >> pwmRange().high();
+		e >> setpointEnable.display_value(); e >> setpointValue();
+		e >> alarmEnable.display_value();	e >> alarmCompare.display_value(); e >> alarmSetpoint();
+		e >> sensorAref.value(); typename milliseconds::rep r; e >> r; sensorPollIntvl() = milliseconds(r);
+		e >> pwmRange.low(); e >> pwmRange.high();
 
-		temperatureUnits().value() = temperatureUnits().display_value() == FarenheitSymbol
+		temperatureUnits.value() = temperatureUnits.display_value() == FarenheitSymbol
 			? static_cast<typename temp_units_t::value_type>(temperature<units::fahrenheit>)
-			: temperatureUnits().display_value() == CelsiusSymbol
+			: temperatureUnits.display_value() == CelsiusSymbol
 			? static_cast<typename temp_units_t::value_type>(temperature<units::celsius>)
 			: static_cast<typename temp_units_t::value_type>(temperature<units::kelvin>);
-		alarmEnable().value() = alarmEnable().display_value() == EnabledSymbol
+		alarmEnable.value() = alarmEnable.display_value() == EnabledSymbol
 			? true
 			: false;
-		alarmCompare().value() = alarmCompare().display_value() == LessSymbol
-			? static_cast<typename alarm_compare_t::value_type>(alarm_lt)
-			: static_cast<typename alarm_compare_t::value_type>(alarm_gt);
-		sensorAref().display_value() = sensorAref().value() == ArefSource::Internal
-			? "IN"
-			: "EX";
-		setpointEnable().value() = setpointEnable().display_value() == EnabledSymbol
+		alarmCompare.value() = alarmCompare.display_value() == LessSymbol
+			? static_cast<typename alarm_cmp_t::value_type>(alarm_lt)
+			: static_cast<typename alarm_cmp_t::value_type>(alarm_gt);
+		sensorAref.display_value() = sensorAref.value() == ArefSource::Internal
+			? InternalSymbol
+			: ExternalSymbol;
+		setpointEnable.value() = setpointEnable.display_value() == EnabledSymbol
 			? true
 			: false;
 	}
-
-private:
-	data_t			temp_low_;
-	data_t			temp_high_;
-	temp_units_t	temp_units_;
-	sp_enable_t		setpoint_enable_;
-	data_t			setpoint_value_;
-	alarm_compare_t	alarm_compare_;
-	alarm_enable_t	alarm_enable_;
-	data_t			alarm_setpoint_;
-	Pwm::Range		pwm_range_;
-	pid_t			pid_p_;
-	pid_t			pid_i_;
-	pid_t			pid_d_;
-	pid_t			pid_a_;
-	sensor_aref_t	sensor_aref_;
-	milliseconds	sensor_tpoll_;
 };
 
 // Enumerates valid thermostat operating modes.
@@ -233,17 +217,17 @@ enum class mode_t
 #pragma endregion
 #pragma region Program Settings Constants
 
-const sensor_aref_t SensorArefInternal{ {ArefSource::Internal,InternalSymbol} };
-const sensor_aref_t SensorArefExternal{ {ArefSource::External,ExternalSymbol} };
-const alarm_enable_t AlarmDisabled{ {false,DisabledSymbol} };
-const alarm_enable_t AlarmEnabled{ {true,EnabledSymbol} };
-const alarm_compare_t AlarmCmpLess{ {alarm_lt,LessSymbol} };
-const alarm_compare_t AlarmCmpGreater{ {alarm_gt,GreaterSymbol} };
-const sp_enable_t SetpointEnabled{ {true,EnabledSymbol} };
-const sp_enable_t SetpointDisabled{ {false,DisabledSymbol} };
-const temp_units_t DegreesKelvin{ {temperature<units::kelvin>,KelvinSymbol} };
-const temp_units_t DegreesCelsius{ {temperature<units::celsius>,CelsiusSymbol} };
-const temp_units_t DegreesFahrenheit{ {temperature<units::fahrenheit>,FarenheitSymbol} };
+const sensor_aref_t SensorArefInternal(ArefSource::Internal, InternalSymbol);
+const sensor_aref_t SensorArefExternal(ArefSource::External, ExternalSymbol);
+const alarm_en_t	AlarmDisabled(false, DisabledSymbol);
+const alarm_en_t	AlarmEnabled(true, EnabledSymbol);
+const alarm_cmp_t	AlarmCmpLess(alarm_lt, LessSymbol);
+const alarm_cmp_t	AlarmCmpGreater(alarm_gt, GreaterSymbol);
+const setpoint_en_t SetpointEnabled(true, EnabledSymbol);
+const setpoint_en_t SetpointDisabled(false, DisabledSymbol);
+const temp_units_t	DegreesKelvin(temperature<units::kelvin>, KelvinSymbol);
+const temp_units_t	DegreesCelsius(temperature<units::celsius>, CelsiusSymbol);
+const temp_units_t	DegreesFahrenheit(temperature<units::fahrenheit>, FarenheitSymbol);
 
 #pragma endregion
 #pragma region Arduino API Interface
