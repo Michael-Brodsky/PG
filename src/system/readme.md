@@ -11,3 +11,6 @@ Definitions of implementation-specific sources for the std::chrono clock types.
 
 ### types.h 
 Defines some useful data types and constants. 
+
+### utils.h 
+Defines low-level hardware utilities and convenience functions.
