@@ -86,6 +86,7 @@ namespace std
 	template<class T>
 	class _foward_list_iterator;
 
+	// template<class T, std::size_t N, template<class = _foward_list_node<T>, std::size_t = N> Alloc>
 	template<class T, std::size_t N, class Alloc>
 	class forward_list;
 
@@ -177,6 +178,7 @@ namespace std
 	};
 
 	// Singly-linked list container type.
+	// template<class T, std::size_t N, template<class = _foward_list_node<T>, std::size_t = N> Alloc = std::array>
 	template<class T, std::size_t N, class Alloc = std::array<_foward_list_node<T>, N>>
 	class forward_list
 	{

@@ -1205,8 +1205,8 @@ struct tuple_size<std::array<T, N>> :
 
 #  if defined __PG_HAS_CPP17
 // Specialization of std::size for std::array.
-template<class T, size_t Size>
-constexpr size_t size(std::array<T, Size>)
+template<class T, std::size_t Size>
+constexpr std::size_t size(std::array<T, Size>)
 {
 	return Size;
 }

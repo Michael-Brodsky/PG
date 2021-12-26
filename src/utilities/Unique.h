@@ -40,7 +40,7 @@ namespace pg
 	class Unique
 	{
 	public:
-		using unique_type = uint8_t;	// unique_type type alias, max of 256 unique objects.
+		using unique_type = unsigned short;	// unique id type alias.
 
 	protected:
 		Unique();				// Not directly constructable, copyable or assignable.			

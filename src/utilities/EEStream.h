@@ -114,7 +114,7 @@
 
 # include <Arduino.h>	// Arduino system api.
 # include <EEPROM.h>	// Arduino EEPROM api.
-# include <type_traits>	// Type support library.
+# include "type_traits"	// Type support library.
 
 # if defined __PG_HAS_NAMESPACES 
 

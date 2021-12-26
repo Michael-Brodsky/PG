@@ -40,11 +40,17 @@
 # define __PG_FUNCTIONAL_ 20210819L
 
 # include "pg.h"
+# include "iterator"
+# include "utility"
 
 # if defined __PG_HAS_NAMESPACES 
 
 namespace std
 {
+
+#pragma region functional types
+
+#pragma endregion
 #pragma region compare_functions
 
 	// Function object compares two objects of type T for equality using operator==.

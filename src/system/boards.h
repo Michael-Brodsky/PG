@@ -4,7 +4,7 @@
  *	***************************************************************************
  *
  *	File: boards.h
- *	Date: October 2, 2021
+ *	Date: December 25, 2021
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -44,6 +44,8 @@
  *		pwm_frequency(pin): default PWM frequency of the given output pin, 
  *		pwm_timer(pin): timer number that controls the PWM output of the pin, 
  *		clock_frequency: CPU clock frequency in Hz.
+ *		board: Human-readable board name as a C-string,
+ *		mcu: Human-readable microcontroller name as a C-string,
  * 
  *	Both `board_type' and `board_traits' are visible to and can be evaluated by 
  *	clients at compile-time:
@@ -58,11 +60,10 @@
  *	The list of known boards and traits is incomplete and in the process of 
  *	being updated as more information becomes available.
  *		
- *
  *	***************************************************************************/
 
 #if !defined __PG_BOARDS_H
-# define __PG_BOARDS_H 20211002L
+# define __PG_BOARDS_H 20211225L
 
 # include "system/types.h"
 
@@ -157,6 +158,8 @@ namespace pg
 		static constexpr frequency_t pwm_frequency(pin_t pin) { return T::pwm_frequency(pin); }
 		static constexpr uint8_t pwm_timer(pin_t pin) { return T::pwm_timer(pin); }
 		static constexpr frequency_t clock_frequency = T::clock_frequency;
+		static constexpr const char* board = T::board;
+		static constexpr const char* mcu = T::mcu;
 	};
 
 	template<>
@@ -182,6 +185,8 @@ namespace pg
 						: InvalidPin;
 		}
 		static constexpr frequency_t clock_frequency = 16000000;
+		static constexpr const char* board = "Arduino Uno";
+		static constexpr const char* mcu = "ATmega328P";
 	};
 
 	template<>
@@ -197,6 +202,8 @@ namespace pg
 			return board_traits<Arduino_Uno>::pwm_timer(pin);
 		}
 		static constexpr frequency_t clock_frequency = 16000000;
+		static constexpr const char* board = "Arduino Nano";
+		static constexpr const char* mcu = "ATmega328";
 	};
 
 	template<>
@@ -212,6 +219,8 @@ namespace pg
 			return board_traits<Arduino_Uno>::pwm_timer(pin);
 		}
 		static constexpr frequency_t clock_frequency = 16000000; // 8MHz for 3.3V, detection undefined.
+		static constexpr const char* board = "Arduino Mini";
+		static constexpr const char* mcu = "ATmega328";
 	};
 
 	template<>
@@ -227,6 +236,8 @@ namespace pg
 			return board_traits<Arduino_Mini>::pwm_timer(pin);
 		}
 		static constexpr frequency_t clock_frequency = 16000000; // 8MHz for 3.3V, detection undefined.
+		static constexpr const char* board = "Arduino Pro";
+		static constexpr const char* mcu = "ATmega328P";
 	};
 
 	template<>
@@ -258,6 +269,8 @@ namespace pg
 									: InvalidPin;
 		}
 		static constexpr frequency_t clock_frequency = 16000000;
+		static constexpr const char* board = "Arduino Mega";
+		static constexpr const char* mcu = "ATmega1280";
 	};
 
 	template<>
@@ -273,6 +286,25 @@ namespace pg
 			return board_traits<Arduino_Mega>::pwm_timer(pin);
 		}
 		static constexpr frequency_t clock_frequency = 16000000;
+		static constexpr const char* board = "Arduino Mega2560";
+		static constexpr const char* mcu = "ATmega2560";
+	};
+
+	template<>
+	struct board_traits<Arduino_MegaAdk>
+	{
+		static constexpr uint8_t adc_digits = 10;
+		static constexpr frequency_t pwm_frequency(pin_t pin)
+		{
+			return board_traits<Arduino_Mega>::pwm_frequency(pin);
+		}
+		static constexpr uint8_t pwm_timer(pin_t pin)
+		{
+			return board_traits<Arduino_Mega>::pwm_timer(pin);
+		}
+		static constexpr frequency_t clock_frequency = 16000000;
+		static constexpr const char* board = "Arduino Mega ADK";
+		static constexpr const char* mcu = "ATmega2560";
 	};
 
 	template<>
@@ -300,6 +332,8 @@ namespace pg
 							: InvalidPin;
 		}
 		static constexpr frequency_t clock_frequency = 16000000;
+		static constexpr const char* board = "Arduino Leonardo";
+		static constexpr const char* mcu = "ATmega32U4";
 	};
 
 	template<>
@@ -315,6 +349,8 @@ namespace pg
 			return board_traits<Arduino_Leonardo>::pwm_timer(pin);
 		}
 		static constexpr frequency_t clock_frequency = 16000000;
+		static constexpr const char* board = "Arduino Micro";
+		static constexpr const char* mcu = "ATmega32U4";
 	};
 
 	template<>
@@ -331,6 +367,8 @@ namespace pg
 		}
 
 		static constexpr frequency_t clock_frequency = 16000000;
+		static constexpr const char* board = "Arduino Yun";
+		static constexpr const char* mcu = "Atmega32U4";
 	};
 
 	template<>
@@ -344,6 +382,50 @@ namespace pg
 				: 0;
 		}
 		static constexpr frequency_t clock_frequency = 16000000;
+		static constexpr const char* board = "Arduino Uno Wifi";
+		static constexpr const char* mcu = "ATmega328P";
+	};
+
+	template<>
+	struct board_traits<Arduino_Ethernet>
+	{
+		static constexpr uint8_t adc_digits = 10;
+		static constexpr frequency_t pwm_frequency(pin_t pin)
+		{
+			return pin == 3 || pin == 5 || pin == 6 || pin == 9 || pin == 10
+				? 976.5625
+				: 0;
+		}
+		static constexpr frequency_t clock_frequency = 16000000;
+		static constexpr const char* board = "Arduino Ethernet";
+		static constexpr const char* mcu = "ATmega328";
+	};
+
+	template<>
+	struct board_traits<Arduino_Fio>
+	{
+		static constexpr uint8_t adc_digits = 10;
+		static constexpr frequency_t pwm_frequency(pin_t pin)
+		{
+			return pin == 5 || pin == 6
+				? 980.392
+				: pin == 3 || pin == 9 || pin == 10 || pin == 11
+				? 490.196
+				: 0;
+		}
+		static constexpr uint8_t pwm_timer(pin_t pin)
+		{
+			return pin == 5 || pin == 6
+				? 0
+				: pin == 9 || pin == 10
+				? 1
+				: pin == 3 || pin == 11
+				? 2
+				: InvalidPin;
+		}
+		static constexpr frequency_t clock_frequency = 8000000;
+		static constexpr const char* board = "Arduino Fio";
+		static constexpr const char* mcu = "ATmega328P";
 	};
 
 	template<>
@@ -361,6 +443,8 @@ namespace pg
 			return board_traits<Arduino_Uno>::pwm_timer(pin);
 		}
 		static constexpr frequency_t clock_frequency = 16000000;
+		static constexpr const char* board = "Arduino Duemilanove";
+		static constexpr const char* mcu = "ATmega328";
 	};
 
 	template<>
@@ -371,6 +455,9 @@ namespace pg
 		{
 			return board_traits<Arduino_Uno_Wifi>::pwm_frequency(pin);
 		}
+		static constexpr frequency_t clock_frequency = 20000000;
+		static constexpr const char* board = "Arduino Nano Every";
+		static constexpr const char* mcu = "ATMega4809";
 	};
 	
 	template<>
@@ -386,6 +473,8 @@ namespace pg
 				: 0;
 		}
 		static constexpr frequency_t clock_frequency = 32000000;
+		static constexpr const char* board = "Arduino 101";
+		static constexpr const char* mcu = "Intel Curie";
 	}; 
 
 	template<>
@@ -399,6 +488,8 @@ namespace pg
 				: 0;
 		}
 		static constexpr frequency_t clock_frequency = 84000000;
+		static constexpr const char* board = "Arduino Due";
+		static constexpr const char* mcu = "ATSAM3X8E";
 	};
 
 	template<>
@@ -412,6 +503,8 @@ namespace pg
 				: 0;
 		}
 		static constexpr frequency_t clock_frequency = 48000000;
+		static constexpr const char* board = "Arduino Zero";
+		static constexpr const char* mcu = "ATSAMD21G18A";
 	};
 	template<>
 	struct board_traits<Arduino_MKR_1000>
@@ -424,6 +517,8 @@ namespace pg
 				: 0;
 		}
 		static constexpr frequency_t clock_frequency = 48000000;
+		static constexpr const char* board = "Arduino MKR1000";
+		static constexpr const char* mcu = "ATSAMW25";
 	};
 
 	template<>
@@ -437,6 +532,8 @@ namespace pg
 				: 0;
 		}
 		static constexpr frequency_t clock_frequency = 48000000;
+		static constexpr const char* board = "Arduino MKR Zero";
+		static constexpr const char* mcu = "ATSAMD21";
 	};
 
 	template<>
@@ -448,6 +545,8 @@ namespace pg
 			return board_traits<Arduino_MKR_Zero>::pwm_frequency(pin);
 		}
 		static constexpr frequency_t clock_frequency = 48000000;
+		static constexpr const char* board = "Arduino MKR 1200";
+		static constexpr const char* mcu = "ATSAMD21";
 	};
 
 	template<>
@@ -459,6 +558,8 @@ namespace pg
 			return board_traits<Arduino_MKR_Zero>::pwm_frequency(pin);
 		}
 		static constexpr frequency_t clock_frequency = 48000000;
+		static constexpr const char* board = "Arduino MKR 1300";
+		static constexpr const char* mcu = "ATSAMD21";
 	};
 
 	template<>
@@ -470,6 +571,8 @@ namespace pg
 			return board_traits<Arduino_MKR_Zero>::pwm_frequency(pin);
 		}
 		static constexpr frequency_t clock_frequency = 48000000;
+		static constexpr const char* board = "Arduino MKR 1400";
+		static constexpr const char* mcu = "ATSAMD21";
 	};
 
 	template<>
@@ -485,6 +588,8 @@ namespace pg
 					: 0;
 		}
 		static constexpr frequency_t clock_frequency = 16000000;
+		static constexpr const char* board = "Teensy 2.0";
+		static constexpr const char* mcu = "ATmega32U4";
 	};
 
 	template<>
@@ -500,6 +605,8 @@ namespace pg
 					: 0;
 		}
 		static constexpr frequency_t clock_frequency = 16000000;
+		static constexpr const char* board = "Teensy++ 2.0";
+		static constexpr const char* mcu = "AT90USB1286";
 	};
 
 	template<>
@@ -513,6 +620,8 @@ namespace pg
 				: 0;
 		}
 		static constexpr frequency_t clock_frequency = 48000000;
+		static constexpr const char* board = "Teensy 3.0";
+		static constexpr const char* mcu = "MK20DX128";
 	};
 
 	template<>
@@ -527,6 +636,8 @@ namespace pg
 				: 0;
 		}
 		static constexpr frequency_t clock_frequency = 48000000;
+		static constexpr const char* board = "Teensy LC";
+		static constexpr const char* mcu = "MKL26Z64VFT4";
 	};
 
 	template<>
@@ -541,6 +652,8 @@ namespace pg
 				: 0;
 		}
 		static constexpr frequency_t clock_frequency = 72000000;
+		static constexpr const char* board = "Teensy 3.2";
+		static constexpr const char* mcu = "ARM Cortex-M4";
 	};
 
 	template<>
@@ -555,6 +668,8 @@ namespace pg
 				: 0;
 		}
 		static constexpr frequency_t clock_frequency = 120000000;
+		static constexpr const char* board = "Teensy 3.5";
+		static constexpr const char* mcu = "ARM Cortex-M4";
 	};
 
 	template<>
@@ -569,6 +684,8 @@ namespace pg
 				: 0;
 		}
 		static constexpr frequency_t clock_frequency = 180000000;
+		static constexpr const char* board = "Teensy 3.6";
+		static constexpr const char* mcu = "ARM Cortex-M4F";
 	};
 
 	template<>
@@ -584,6 +701,8 @@ namespace pg
 					: 0;
 		}
 		static constexpr frequency_t clock_frequency = 600000000;
+		static constexpr const char* board = "Teensy 4.0";
+		static constexpr const char* mcu = "ARM Cortex-M7";
 	};
 
 	template<>
@@ -600,6 +719,8 @@ namespace pg
 					: 0;
 		}
 		static constexpr frequency_t clock_frequency = 600000000;
+		static constexpr const char* board = "Teensy 4.1";
+		static constexpr const char* mcu = "ARM Cortex-M7";
 	};
 
 #pragma endregion

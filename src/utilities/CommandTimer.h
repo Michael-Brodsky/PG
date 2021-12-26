@@ -31,7 +31,7 @@
  *	Description:
  *
  *		The `CommandTimer' class can be used to execute `Command' objects 
- *		(see ICommand.h) at specified intervals. `CommandTimer' extends 
+ *		(see icommand.h) at specified intervals. `CommandTimer' extends 
  *		the base class 'Timer' by adding three methods: `command()', `repeats() 
  *		and `tick()', otherwise it behaves identically except when the current  
  *		interval expires, the timer is automatically stopped or reset based on 
@@ -53,7 +53,7 @@
 # define __PG_COMMANDTIMER_H 20210403L
 
 # include "interfaces/icommand.h"	// `icommand' interface.
-# include "Timer.h"						// `Timer' class.
+# include "Timer.h"					// `Timer' class.
 
 # if defined __PG_HAS_NAMESPACES 
 

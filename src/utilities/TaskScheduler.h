@@ -4,7 +4,7 @@
  *	***************************************************************************
  *
  *	File: TaskScheduler.h
- *	Date: July 18, 2021
+ *	Date: December 25, 2021
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -51,9 +51,9 @@
  *	**************************************************************************/
 
 #if !defined __PG_TASKSCHEDULER_H
-# define __PG_TASKSCHEDULER_H 20210718L 
+# define __PG_TASKSCHEDULER_H 20211225L 
 
-# include "array"			// STL fixed-size array types.
+# include "array"			// Fixed-size array types.
 # include "CommandTimer.h"	// CommandTimer type.
 
 # if defined __PG_HAS_NAMESPACES 
@@ -115,6 +115,12 @@ namespace pg
 		};
 
 	public:
+		// Enumerates the valid task scheduler states.
+		enum class State
+		{
+			Idle = 0,	// Indicates the scheduler is not currently active.
+			Active		// Indicates the scheduler is currently active.
+		};
 		using container_type = typename std::ArrayWrapper<Task*>;
 
 	public:
@@ -129,32 +135,39 @@ namespace pg
 		TaskScheduler(Task**, Task**);
 		// Constructs a TaskScheduler from a list of Tasks.
 		TaskScheduler(std::initializer_list<Task*>);
-		// Constructs a TaskScheduler from a container of Tasks.
+		// Constructs a TaskScheduler from a collection of Tasks.
 		TaskScheduler(const container_type&);
 
 	public:
-		// Starts the TaskScheduler.
+		// Starts all active tasks.
 		void start();
-		// Stops the TaskScheduler.
+		// Stops all active tasks.
 		void stop();
-		// Sets the tasks from an array (requires a restart).
+		// Resets all tasks.
+		void reset();
+		// Returns an immutable reference to the current state.
+		const State& state() const;
+		// Sets the tasks from an array.
 		template <std::size_t N>
 		void tasks(Task* (&)[N]);
-		// Sets the tasks from a pointer and size (requires a restart).
+		// Sets the tasks from a pointer and size.
 		void tasks(Task* [], std::size_t n);
-		// Sets the tasks from a range (requires a restart).
+		// Sets the tasks from a range.
 		void tasks(Task**, Task**);
-		// Sets the tasks from a list (requires a restart).
+		// Sets the tasks from a list.
 		void tasks(std::initializer_list<Task*>); 
-		// Sets the tasks from a list (requires a restart).
+		// Sets the tasks from a collection.
 		void tasks(const container_type&);
-		// Returns the current tasks collection.
+		// Returns an immutable reference to the current tasks collection.
 		const container_type& tasks() const;
-		// Checks for and executes any currently scheduled tasks.
+		// Returns a mutable reference to the current tasks collection.
+		container_type& tasks();
+		// Executes any currently active scheduled tasks.
 		void tick();
 
 	private:
-		container_type tasks_;	// The current tasks collection.
+		container_type	tasks_;	// The current tasks collection.
+		State			state_;	// The current scheduler state.
 	};
 
 #pragma region TaskScheduler
@@ -162,36 +175,36 @@ namespace pg
 	template<class T>
 	template <std::size_t N>
 	TaskScheduler<T>::TaskScheduler(Task* (&tasks)[N]) :
-		tasks_(tasks)
+		tasks_(tasks), state_()
 	{
-		assert(N > 0);
+		
 	}
 
 	template<class T>
 	TaskScheduler<T>::TaskScheduler(Task* tasks[], size_t n) :
-		tasks_(tasks, n)
+		tasks_(tasks, n), state_()
 	{
-		assert(n > 0);
+
 	}
 
 	template<class T>
 	TaskScheduler<T>::TaskScheduler(Task** first, Task** last) :
-		tasks_(first, last)
+		tasks_(first, last), state_()
 	{
-		assert(first && last);
+
 	}
 
 	template<class T>
 	TaskScheduler<T>::TaskScheduler(std::initializer_list<Task*> il) : 
-		tasks_(const_cast<Task**>(il.begin()), il.size())
+		tasks_(const_cast<Task**>(il.begin()), il.size()), state_()
 		
 	{
-		assert(il.size() > 0);
+
 	}
 
 	template<class T>
 	TaskScheduler<T>::TaskScheduler(const container_type& tasks) : 
-		tasks_(tasks) 
+		tasks_(tasks), state_()
 	{
 
 	}
@@ -200,60 +213,82 @@ namespace pg
 	template <std::size_t N>
 	void TaskScheduler<T>::tasks(Task* (&tasks)[N])
 	{
-		// Calling this method requires a subsequent call to start().
 		tasks_ = container_type(tasks);
 	}
 
 	template<class T>
 	void TaskScheduler<T>::tasks(Task* tasks[], std::size_t n)
 	{
-		// Calling this method requires a subsequent call to start().
 		tasks_ = container_type(tasks, n);
 	}
 
 	template<class T>
 	void TaskScheduler<T>::tasks(Task** first, Task** last)
 	{
-		// Calling this method requires a subsequent call to start().
 		tasks_ = container_type(first, last);
 	}
 
 	template<class T>
 	void TaskScheduler<T>::tasks(std::initializer_list<Task*> il)
 	{
-		// Calling this method requires a subsequent call to start().
 		tasks_ = container_type(const_cast<Task**>(il.begin()), il.size());
 	}
 
 	template<class T>
 	void TaskScheduler<T>::tasks(const container_type& tasks)
 	{
-		// Calling this method requires a subsequent call to start().
 		tasks_ = tasks;
+	}
+
+	template<class T>
+	const typename TaskScheduler<T>::container_type& TaskScheduler<T>::tasks() const
+	{
+		return tasks_;
+	}
+
+	template<class T>
+	typename TaskScheduler<T>::container_type& TaskScheduler<T>::tasks() 
+	{
+		return tasks_;
 	}
 
 	template<class T>
 	void TaskScheduler<T>::start()
 	{
+		state_ = State::Active;
 		for (auto i : tasks_)
 			if (i->state_ == Task::State::Active)
-				i->timer_.start();
+				i->timer_.resume();
 	}
 
 	template<class T>
 	void TaskScheduler<T>::stop()
 	{
+		state_ = State::Idle;
+	}
+
+	template<class T>
+	void TaskScheduler<T>::reset()
+	{
 		for (auto i : tasks_)
-			i->timer_.stop();
+			i->reset();
+	}
+
+	template<class T>
+	const typename TaskScheduler<T>::State& TaskScheduler<T>::state() const
+	{
+		return state_;
 	}
 
 	template<class T>
 	void TaskScheduler<T>::tick()
 	{
-		for (auto i : tasks_)
-			if (i->state_ == Task::State::Active)
-				i->timer_.tick();
-
+		if (state_ == State::Active)
+		{
+			for (auto i : tasks_)
+				if (i->state_ == Task::State::Active)
+					i->timer_.tick();
+		}
 	}
 
 #pragma endregion

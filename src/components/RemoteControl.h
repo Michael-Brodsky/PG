@@ -1,10 +1,10 @@
 /*
- *	This files defines a class that asynchronously executes Command objects 
- *	in response to key strings received by the serial port..
+ *	This files defines a class that asynchronously executes function calls in  
+ *	response to command strings received over the serial port.
  *
  *	***************************************************************************
  *
- *	File: SerialControl.h
+ *	File: RemoteControl.h
  *	Date: October 14, 2021
  *	Version: 1.0
  *	Author: Michael Brodsky
@@ -28,8 +28,8 @@
  *
  *	**************************************************************************/
 
-#if !defined __PG_SERIALCONTROL_H 
-# define __PG_SERIALCONTROL_H 20211014L
+#if !defined __PG_REMOTECONTROL_H 
+# define __PG_REMOTECONTROL_H 20211014L
 
 # include "cstdio"					// std::sprintf
 # include "cstring"					// C string cmp functions.
@@ -146,7 +146,7 @@ namespace pg
 
 	// Type that reads, executes and writes remote commands to and from the serial port.
 	template<std::size_t N>
-	class SerialControl : public iclockable, public icomponent 
+	class RemoteControl : public iclockable, public icomponent 
 	{
 	private:
 		// Remote command interface type.
@@ -241,10 +241,10 @@ namespace pg
 
 	public:
 		template<std::size_t Size>
-		SerialControl(ICommand* (&)[Size], char = DefaultEndOfTextChar, bool = false);
-		SerialControl(ICommand* [], std::size_t, char = DefaultEndOfTextChar, bool = false);
-		explicit SerialControl(ICommand** = nullptr, ICommand** = nullptr, char = DefaultEndOfTextChar, bool = false);
-		SerialControl(std::initializer_list<ICommand*>, char = DefaultEndOfTextChar, bool = false);
+		RemoteControl(ICommand* (&)[Size], char = DefaultEndOfTextChar, bool = false);
+		RemoteControl(ICommand* [], std::size_t, char = DefaultEndOfTextChar, bool = false);
+		explicit RemoteControl(ICommand** = nullptr, ICommand** = nullptr, char = DefaultEndOfTextChar, bool = false);
+		RemoteControl(std::initializer_list<ICommand*>, char = DefaultEndOfTextChar, bool = false);
 
 	public:
 		// Sets/clears the echo flag.
@@ -280,28 +280,28 @@ namespace pg
 
 	template<std::size_t N>
 	template<std::size_t Size>
-	SerialControl<N>::SerialControl(ICommand* (&commands)[Size], char eot, bool echo) :
+	RemoteControl<N>::RemoteControl(ICommand* (&commands)[Size], char eot, bool echo) :
 		buf_(), data_(buf_), commands_(commands), eot_(eot), echo_(echo)
 	{
 		
 	}
 
 	template<std::size_t N>
-	SerialControl<N>::SerialControl(ICommand* commands[], std::size_t sz, char eot, bool echo) :
+	RemoteControl<N>::RemoteControl(ICommand* commands[], std::size_t sz, char eot, bool echo) :
 		buf_(), data_(buf_), commands_(commands, sz), eot_(eot), echo_(echo)
 	{
 
 	}
 
 	template<std::size_t N>
-	SerialControl<N>::SerialControl(ICommand** first, ICommand** last, char eot, bool echo) :
+	RemoteControl<N>::RemoteControl(ICommand** first, ICommand** last, char eot, bool echo) :
 		buf_(), data_(buf_), commands_(first, last), eot_(eot), echo_(echo)
 	{
 		
 	}
 
 	template<std::size_t N>
-	SerialControl<N>::SerialControl(std::initializer_list<ICommand*> il, char eot, bool echo) :
+	RemoteControl<N>::RemoteControl(std::initializer_list<ICommand*> il, char eot, bool echo) :
 		buf_(), data_(buf_), commands_(const_cast<ICommand**>(il.begin()), il.size()), 
 		eot_(eot), echo_(echo)
 	{
@@ -309,43 +309,43 @@ namespace pg
 	}
 
 	template<std::size_t N>
-	void SerialControl<N>::echo(bool value)
+	void RemoteControl<N>::echo(bool value)
 	{
 		echo_ = value;
 	}
 
 	template<std::size_t N>
-	bool SerialControl<N>::echo() const
+	bool RemoteControl<N>::echo() const
 	{
 		return echo_;
 	}
 
 	template<std::size_t N>
-	char& SerialControl<N>::eot() 
+	char& RemoteControl<N>::eot() 
 	{
 		return eot_;
 	}
 
 	template<std::size_t N>
-	const char& SerialControl<N>::eot() const
+	const char& RemoteControl<N>::eot() const
 	{
 		return eot_;
 	}
 
 	template<std::size_t N>
-	char* SerialControl<N>::buf()
+	char* RemoteControl<N>::buf()
 	{
 		return buf_;
 	}
 
 	template<std::size_t N>
-	const char* SerialControl<N>::buf() const
+	const char* RemoteControl<N>::buf() const
 	{
 		return buf_;
 	}
 
 	template<std::size_t N>
-	void SerialControl<N>::poll()
+	void RemoteControl<N>::poll()
 	{
 		{
 			data_ += Serial.readBytes(data_, std::distance(data_, std::end(buf_)));
@@ -367,14 +367,14 @@ namespace pg
 	}
 
 	template<std::size_t N>
-	void SerialControl<N>::clock()
+	void RemoteControl<N>::clock()
 	{
 		poll();
 	}
 
 	template<std::size_t N>
 	template<class ...Args>
-	void SerialControl<N>::sendMessage(char* buf, const char* fmt, Args... args)
+	void RemoteControl<N>::sendMessage(char* buf, const char* fmt, Args... args)
 	{
 		std::sprintf(buf, fmt, args...);
 		Serial.println(buf);
@@ -386,5 +386,4 @@ namespace pg
 #  error Requires C++11 and namespace support.
 # endif // defined __PG_HAS_NAMESPACES 
 
-
-#endif // !defined __PG_SERIALCONTROL_H 
+#endif // !defined __PG_REMOTECONTROL_H 

@@ -46,8 +46,18 @@
 # define __PG_COMPLEX_ 20210915L
 
 # include "limits"
+# include "numeric"
 
 # if defined __PG_HAS_NAMESPACES 
+
+#  if !defined __PG_FMATH_H
+namespace pg
+{
+	/* Returns x**2. */
+	template<class T>
+	inline T sqr(const T& x) { return x * x; }
+} //  namespace pg
+#  endif // !defined __PG_FMATH_H
 
 namespace std
 {
@@ -232,19 +242,19 @@ namespace std
 #pragma endregion
 #pragma region non-members
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator+(const std::complex<T>& val)
 	{
 		return std::complex<T>(val);
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator-(const std::complex<T>& val)
 	{
 		return std::complex<T>(-val.real(), -val.imag());
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator+(const std::complex<T>& lhs, const std::complex<T>& rhs)
 	{
 		complex<T> ret(lhs);
@@ -252,7 +262,7 @@ namespace std
 		return ret;
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator+(const std::complex<T>& lhs, const T& val)
 	{
 		complex<T> ret(lhs);
@@ -260,7 +270,7 @@ namespace std
 		return ret;
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator+(const T& val, const std::complex<T>& rhs)
 	{
 		complex<T> ret(rhs);
@@ -268,7 +278,7 @@ namespace std
 		return ret;
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator-(const std::complex<T>& lhs, const std::complex<T>& rhs)
 	{
 		complex<T> ret(lhs);
@@ -276,7 +286,7 @@ namespace std
 		return ret;
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator-(const std::complex<T>& lhs, const T& val)
 	{
 		complex<T> ret(lhs);
@@ -284,7 +294,7 @@ namespace std
 		return ret;
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator-(const T& val, const std::complex<T>& rhs)
 	{
 		complex<T> ret(rhs);
@@ -292,7 +302,7 @@ namespace std
 		return ret;
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator*(const std::complex<T>& lhs, const std::complex<T>& rhs)
 	{
 		complex<T> ret(lhs);
@@ -300,7 +310,7 @@ namespace std
 		return ret;
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator*(const std::complex<T>& lhs, const T& val)
 	{
 		complex<T> ret(lhs);
@@ -308,7 +318,7 @@ namespace std
 		return ret;
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator*(const T& val, const std::complex<T>& rhs)
 	{
 		complex<T> ret(rhs);
@@ -316,7 +326,7 @@ namespace std
 		return ret;
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator/(const std::complex<T>& lhs, const std::complex<T>& rhs)
 	{
 		complex<T> ret(lhs);
@@ -324,7 +334,7 @@ namespace std
 		return ret;
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator/(const std::complex<T>& lhs, const T& val)
 	{
 		complex<T> ret(lhs);
@@ -332,7 +342,7 @@ namespace std
 		return ret;
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> operator/(const T& val, const std::complex<T>& rhs)
 	{
 		complex<T> ret(rhs);
@@ -340,91 +350,80 @@ namespace std
 		return ret;
 	}
 
-	template< class T >
+	template<class T>
 	bool operator==(const complex<T>& lhs, const complex<T>& rhs)
 	{
 		return lhs.real() == rhs.real() && lhs.imag() == rhs.imag();
 	}
 
-	template< class T >
+	template<class T>
 	bool operator==(const complex<T>& lhs, const T& val)
 	{
 		return lhs.real() == val && lhs.imag == T();
 	}
 
-	template< class T >
+	template<class T>
 	bool operator==(const T& val, const complex<T>& rhs)
 	{
 		return rhs.real() == val && rhs.imag == T();
 	}
 
-	template< class T >
+	template<class T>
 	bool operator!=(const complex<T>& lhs, const complex<T>& rhs)
 	{
 		return !(lhs == rhs);
 	}
 
-	template< class T >
+	template<class T>
 	bool operator!=(const complex<T>& lhs, const T& val)
 	{
 		return !(lhs == val);
 	}
 
-	template< class T >
+	template<class T>
 	bool operator!=(const T& val, const complex<T>& rhs)
 	{
 		return !(rhs == val);
 	}
 
-	//template <class T, class CharT, class Traits>
-	//std::basic_ostream<CharT, Traits>&
-	//	operator<<(std::basic_ostream<CharT, Traits>& os,
-	//		const std::complex<T>& x);
-
-	//	template <class T, class CharT, class Traits>
-	//std::basic_istream<CharT, Traits>&
-	//	operator>>(std::basic_istream<CharT, Traits>& is,
-	//		std::complex<T>& x);
-
-	template< class T >
+	template<class T>
 	T real(const std::complex<T>& z)
 	{
 		return z.real();
 	}
 
-	template< class T >
+	template<class T>
 	T imag(const std::complex<T>& z)
 	{
 		return z.imag();
 	}
 
-	template< class T >
+	template<class T>
 	T abs(const complex<T>& z)
 	{
 		return std::sqrt(z.real() * z.real() + z.imag() * z.imag());
 	}
 
-	template< class T >
+	template<class T>
 	T arg(const complex<T>& z)
 	{
 		return std::atan2(z.imag(), z.real());
 	}
 
-	template< class T >
+	template<class T>
 	T norm(const complex<T>& z)
 	{
 		return std::atan2(z.imag(), z.real());
 	}
 
-	template< class T >
+	template<class T>
 	std::complex<T> conj(const std::complex<T>& z)
 	{
 		return std::complex<T>(z.real(), -z.imag());
 	}
 
-	template< class T >
-	typename std::enable_if<std::numeric_limits<T>::has_infinity, std::complex<T>>::type
-		proj(const std::complex<T>& z)
+	template<class T>
+	std::complex<T>	proj(const std::complex<T>& z)
 	{
 		T r = z.real();
 		T i = r == INFINITY ? (z.imag() < 0 ? -0.0 : 0.0) : z.imag();
@@ -432,10 +431,128 @@ namespace std
 		return std::complex<T>(r, i);
 	}
 
-	template< class T >
-	complex<T> polar(const T& r, const T& theta = T())
+	template<class T>
+	std::complex<T> polar(const T& r, const T& theta = T())
 	{
 		return std::complex<T>(r * std::cos(theta), r * std::sin(theta));
+	}
+
+	template<class T> 
+	std::complex<T> cos(const std::complex<T>& z)
+	{
+		return std::complex<T>(std::cos(z.real()) * std::cosh(z.imag()), -std::sin(z.real()) * std::sinh(z.imag()));
+	}
+
+	template<class T> 
+	std::complex<T> cosh(const std::complex<T>& z)
+	{
+		return std::complex<T>(std::cosh(z.real()) * std::cos(z.imag()), std::sinh(z.real()) * std::sin(z.imag()));
+	}
+
+	template<class T> 
+	std::complex<T> exp(const std::complex<T>& z)
+	{
+		return std::polar(std::exp(z.real()), z.imag());
+	}
+
+	template<class T> 
+	std::complex<T> log(const std::complex<T>& z)
+	{
+		return std::complex<T>(std::log(std::abs(z)), std::arg(z));
+	}
+
+	template<class T> 
+	std::complex<T> log10(const std::complex<T>& z)
+	{
+		return (std::log(z) / std::log(T(10.)));
+	}
+
+	template<class T> 
+	std::complex<T> pow(const std::complex<T>& z, int p)
+	{
+		T rho = std::pow(std::abs(z), p);
+		T theta = std::arg(z);
+
+		return std::complex<T>(rho * std::cos(p * theta), rho * std::sin(p * theta));
+	}
+
+	template<class T> 
+	std::complex<T> pow(const std::complex<T>& z, const T& p)
+	{
+		return std::polar(std::pow(std::abs(z), p), std::arg(z) * p);
+	}
+
+	template<class T> 
+	std::complex<T> pow(const std::complex<T>& z, const std::complex<T>& p)
+	{
+		return z == T() 
+			? T()
+			: std::exp(p * std::log(z));
+	}
+
+	template<class T> 
+	std::complex<T> pow(const T& z, const std::complex<T>& p)
+	{
+		return z == T()
+			? T()
+			: std::polar(std::pow(z, p.real()), p.imag() * std::log(z));
+	}
+
+	template<class T> 
+	std::complex<T> sin(const std::complex<T>& z)
+	{
+		return std::complex<T>(std::sin(z.real()) * std::cosh(z.imag()), std::cosh(z.real()) * std::sin(z.imag()));
+	}
+
+	template<class T> 
+	std::complex<T> sinh(const std::complex<T>& z)
+	{
+		return std::complex<T>(std::sinh(z.real()) * std::cos(z.imag()), std::cosh(z.real()) * std::sin(z.imag()));
+	}
+
+	template<class T> 
+	std::complex<T> sqrt(const std::complex<T>& z)
+	{
+		if (z.imag() == T())
+		{
+			if (z.real() == T())
+				return std::complex<T>();
+			else if (z.real() < T())
+				return std::complex<T>(T(), std::sqrt(-z.real()));
+			else
+				return std::complex<T>(std::sqrt(z.real()));
+		}
+		else
+		{
+			const T w = std::abs(z);
+
+			std::complex<T>(std::sqrt((w + z.real()) / 2), z.imag() / std::abs(z.imag()) * std::sqrt((w - z.real()) / 2));
+		}
+		/*if (z.real() < T())
+		{
+			if(z.imag() == T())
+				return std::complex<T>(T(), std::sqrt(-z.real()))
+		}
+		else if()
+		return z.imag() == T() 
+			? z.real() == T() 
+				? std::complex<T>()
+				: std::complex<T>(std::sqrt(z.real()))
+			: z.real() < T()
+				? std::complex<T>(T(), std::sqrt(-z.real()))
+				: std::complex<T>(std::sqrt((x + z.real()) / 2), z.imag() / std::abs(z.imag()) * std::sqrt((x - z.real()) / 2));*/
+	}
+
+	template<class T> 
+	std::complex<T> tan(const std::complex<T>& z)
+	{
+		return std::sin(z) / std::cos(z);
+	}
+
+	template<class T> 
+	std::complex<T> tanh(const std::complex<T>& z)
+	{
+		return std::sinh(z) / std::cosh(z);
 	}
 
 #pragma endregion

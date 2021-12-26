@@ -655,7 +655,7 @@ namespace std
         // Advances the state of the underlying engine and returns the generated value.
         result_type operator()()
         {
-            size_t i = shuffle();
+            std::size_t i = shuffle();
             result_type result = table_[i];
 
             table_[i] = engine_();
@@ -685,7 +685,7 @@ namespace std
         }
 
     private:
-        inline size_t shuffle()
+        inline std::size_t shuffle()
         {
             return shuffler_() % K;
         }

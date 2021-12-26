@@ -271,8 +271,8 @@ namespace std
 #  endif // defined __PG_HAS_CPP20
 #  if defined __PG_HAS_CPP17
 	// Returns Size.
-	template<class T, size_t Size>
-	constexpr size_t size(T(&arr)[Size])
+	template<class T, std::size_t Size>
+	constexpr std::size_t size(T(&arr)[Size])
 	{
 		return Size;
 	}
@@ -469,7 +469,7 @@ namespace std
 
 	namespace experimental
 	{
-		constexpr bool is_pow2(size_t n) { return (n && !(n & (n - 1))); }
+		constexpr bool is_pow2(std::size_t n) { return (n && !(n & (n - 1))); }
 
 		// Random access iterator that behaves as if Container were a circular buffer.
 		template<class Container>
@@ -480,9 +480,9 @@ namespace std
 		private:
 			// The iterator selects the best wraparound algorithm for the container size, 
 			// which is significantly faster if the container size is a power of two.
-			static constexpr size_t __size() { return Container().size(); }
-			inline size_t __wrap(size_t i, std::false_type) { return i % __size(); }
-			inline size_t __wrap(size_t i, std::true_type) { return i & (__size() - 1); }
+			static constexpr std::size_t __size() { return Container().size(); }
+			inline std::size_t __wrap(std::size_t i, std::false_type) { return i % __size(); }
+			inline std::size_t __wrap(std::size_t i, std::true_type) { return i & (__size() - 1); }
 
 		public:
 			using container_type = Container;
@@ -516,7 +516,7 @@ namespace std
 			self_type operator-(difference_type n) const { self_type it = *this; it.i_ -= n; return it; }
 			self_type& operator+=(difference_type n) { i_ += n; return *this; }
 			self_type& operator-=(difference_type n) { i_ -= n; return *this; }
-			inline size_t size() { return __size(); }
+			inline std::size_t size() { return __size(); }
 
 		public:
 			friend bool operator==(const circular_iterator& lhs, const circular_iterator& rhs)
