@@ -40,12 +40,21 @@
 #if !defined __PG_UTILITY_
 # define __PG_UTILITY_ 20210903L
 
-# include "tuple"	// Needed to specialize std::tuple primary templates.
+# include "type_traits"	// Needed to specialize std::tuple primary templates.
 
 # if defined __PG_HAS_NAMESPACES
 
 namespace std
 {
+	template <class T, class... Ts>
+	class tuple;
+
+	template <class T>
+	struct tuple_size;
+
+	template<std::size_t I, class T>
+	struct tuple_element;
+
 	template<class T1, class T2>
 	struct pair;
 
@@ -101,45 +110,6 @@ namespace std
 	// The constant std::piecewise_construct is an instance of an empty struct tag type 
 	// std::piecewise_construct_t.
 	constexpr piecewise_construct_t piecewise_construct{};
-
-	namespace detail
-	{
-		template<size_t N>
-		struct Apply {
-			template<typename F, typename T, typename... A>
-			static inline auto apply(F&& f, T&& t, A &&... a)
-				-> decltype(Apply<N - 1>::apply(
-					std::forward<F>(f), std::forward<T>(t),
-					std::get<N - 1>(std::forward<T>(t)), std::forward<A>(a)...
-				))
-			{
-				return Apply<N - 1>::apply(std::forward<F>(f), std::forward<T>(t),
-					std::get<N - 1>(std::forward<T>(t)), std::forward<A>(a)...
-				);
-			}
-		};
-
-		template<>
-		struct Apply<0> {
-			template<typename F, typename T, typename... A>
-			static inline auto apply(F&& f, T&&, A &&... a)
-				-> decltype(std::forward<F>(f)(std::forward<A>(a)...))
-			{
-				return std::forward<F>(f)(std::forward<A>(a)...);
-			}
-		};
-	} // namespace detail
-
-	template<typename F, typename T>
-	inline auto apply(F&& f, T&& t)
-		-> decltype(detail::Apply<std::tuple_size<
-			typename std::decay<T>::type
-		>::value>::apply(std::forward<F>(f), std::forward<T>(t)))
-	{
-		return detail::Apply<std::tuple_size<
-			typename std::decay<T>::type
-		>::value>::apply(std::forward<F>(f), std::forward<T>(t));
-	}
 
 	// Class template std::pair provides a way to store two heterogeneous objects as a single unit.
 	template<class T1, class T2>

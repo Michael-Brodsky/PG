@@ -1,10 +1,10 @@
 /*
- *	This file defines wrapper types that encapsulate objects or object pairs 
+ *	This file defines wrapper types that encapsulate objects or collections 
  *	and expose getters and setters with familiar semantics
  *
  *	***************************************************************************
  *
- *	File: Wrappers.h
+ *	File: ValueWrappers.h
  *	Date: December 18, 2021
  *	Version: 1.0
  *	Author: Michael Brodsky
@@ -57,7 +57,7 @@ namespace pg
 		{}
 
 	public:
-		operator value_type() { return value_; }
+		//operator value_type() { return value_; }
 		value_type& operator()() { return value_; }
 		const value_type& operator()() const { return value_; }
 
@@ -67,32 +67,31 @@ namespace pg
 
 	// Wrapper type for a pair of objects of type KeyType and ValueType that exposes getters and setters.
 	template<class KeyType, class ValueType>
-	class KeyValueWrapper
+	class KeyValueWrapper 
 	{
 	public:
 		using key_type = KeyType;
 		using value_type = ValueType;
-		using key_value_type = std::pair<key_type, value_type>;
+		using data_type = std::pair<key_type, value_type>;
 
 	public:
 		KeyValueWrapper() = default;
-		KeyValueWrapper(const key_type& key, const value_type& value) :
-			key_value_(key_value_type{ key,value }) 
+		KeyValueWrapper(const key_type& key, const value_type& value) : 
+			data_(data_type{ key, value })
 		{}
-		KeyValueWrapper(const key_value_type& key_value) :
-			key_value_(key_value) 
+		KeyValueWrapper(const data_type& data) :
+			data_(data)
 		{}
-
 	public:
-		key_value_type& operator()() { return key_value_; }
-		const key_value_type& operator()() const { return key_value_; }
-		key_type& key() { return key_value_.first; }
-		const key_type& key() const { return key_value_.first; }
-		value_type& value() { return key_value_.second; }
-		const value_type& value() const { return key_value_.second; }
+		data_type& operator()() { return data_; }
+		const data_type& operator()() const { return data_; }
+		key_type& key() { return data_.first; }
+		const key_type& key() const { return data_.first; }
+		value_type& value() { return data_.second; }
+		const value_type& value() const { return data_.second; }
 
 	private:
-		key_value_type key_value_;
+		data_type data_;
 	};
 
 	// Wrapper type that maps machine- to human-readable values and exposes getters and setters.
@@ -104,29 +103,57 @@ namespace pg
 	public:
 		using value_type = T;
 		using string_type = CharT;
-		using string_value_type = std::pair<value_type, string_type>;
+		using data_type = std::pair<value_type, string_type>;
 
 	public:
 		StringValueWrapper() = default;
 		StringValueWrapper(const value_type& value, const string_type& str) :
-			string_value_(string_value_type{ value,str })
+			data_(data_type{ value,str })
 		{}
-		StringValueWrapper(const string_value_type& string_value) :
-			string_value_(string_value)
+		StringValueWrapper(const data_type& string_value) :
+			data_(string_value)
 		{}
 
 	public:
 		friend bool operator==(const StringValueWrapper& other, const value_type& val) { return val == other.value(); }
 		friend bool operator==(const StringValueWrapper& other, const string_type& val) { return !std::strncmp(other.string(), val, std::strlen(other.string())); }
-		string_value_type& operator()() { return string_value_; }
-		const string_value_type& operator()() const { return string_value_; }
-		value_type& value() { return string_value_.first; }
-		const value_type& value() const { return string_value_.first; }
-		string_type& string() { return string_value_.second; }
-		const string_type& string() const { return string_value_.second; }
+		data_type& operator()() { return data_; }
+		const data_type& operator()() const { return data_; }
+		value_type& value() { return data_.first; }
+		const value_type& value() const { return data_.first; }
+		string_type& string() { return data_.second; }
+		const string_type& string() const { return data_.second; }
 
 	private:
-		string_value_type string_value_;
+		data_type data_;
+	};
+
+	template<class T>
+	class RangeValueWrapper
+	{
+	public:
+		using value_type = T;
+		using data_type = std::pair<value_type, value_type>;
+
+	public:
+		RangeValueWrapper() = default;
+		RangeValueWrapper(const value_type& value) : data_(data_type{value,value}) {}
+		RangeValueWrapper(const value_type& low, const value_type& high) : data_(data_type{ low,high }) {}
+		RangeValueWrapper(const data_type& data) : data_(data) {}
+
+	public:
+		friend bool operator==(const RangeValueWrapper<T>& lhs, const RangeValueWrapper<T>& rhs) { return lhs.data_ == rhs.data_; }
+		friend bool operator<(const RangeValueWrapper<T>& lhs, const RangeValueWrapper<T>& rhs) { return lhs.data_ < rhs.data_; }
+		data_type& operator()() { return data_; }
+		const data_type& operator()() const { return data_; }
+		value_type& low() { return data_.first; }
+		const value_type& low() const { return data_.first; }
+		value_type& high() { return data_.second; }
+		const value_type& high() const { return data_.second; }
+		bool in_range(value_type value) { return value >= low() && value <= high(); }
+
+	private:
+		data_type data_;
 	};
 
 	template<class T>

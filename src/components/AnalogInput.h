@@ -78,6 +78,7 @@
 # include "system/types.h"			// pin_t and analog_t types.
 # include "interfaces/icomponent.h"	// icomponent interface.
 # include "interfaces/iclockable.h"	// iclockable interface.
+# include "utilities/ValueWrappers.h"
 # include "utilities/Unique.h"		// Unique base class.
 
 # if defined __PG_HAS_NAMESPACES
@@ -92,29 +93,15 @@ namespace pg
 		using value_type = T;
 
 		// Encapsulates information about a range of analog input values.
-		struct Range : public Unique 
+		struct Range : public RangeValueWrapper<T>, public Unique
 		{
-			using range_type = std::pair<value_type, value_type>; // first is low, second is high.
-
-			range_type	range_;	// The input range, low, high.
+			using base_type = RangeValueWrapper<T>;
+			using data_type = typename base_type::data_type;
 
 			Range() = default;
-			Range(const range_type& range) : range_(range) {}
-
-			// Checks whether value is within the range.
-			bool in_range(value_type value) { return value >= range_.first && value <= range_.second; }
-
-			// Checks whether two ranges are equal.
-			friend bool operator==(const Range& lhs, const Range& rhs)
-			{
-				return lhs.range_ == rhs.range_;
-			}
-
-			// Checks whether lhs is less than rhs.
-			friend bool operator<(const Range& lhs, const Range& rhs)
-			{
-				return lhs.range_ < rhs.range_;
-			}
+			Range(const value_type& value) : base_type(data_type{ value,value }) {}
+			Range(const value_type& low, const value_type & high) : base_type(data_type{ low,high }) {}
+			Range(const data_type& data) : base_type(data) {}
 		};
 
 		using callback_type = typename callback<void>::type;
@@ -360,7 +347,7 @@ namespace pg
 	void AnalogInput<T>::poll()
 	{
 		iterator i = read_input();
-
+		Serial.print("poll");
 		if (match_any_ || i != current_) 
 		{
 			current_ = i;
