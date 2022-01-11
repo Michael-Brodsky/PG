@@ -22,12 +22,15 @@ void inputCallback();
 // analogRead() is in [first, second]. `std::pair' is a type defined by 
 // the C++ Standard Library in header <utility>. `analog_t' is a 
 // descriptive type alias that holds values of the type returned by the 
-// analogRead() function. 
-AnalogInput<>::Range rangeA{ AnalogInput<>::Range::range_type { 0, 60 } };
-AnalogInput<>::Range rangeB{ AnalogInput<>::Range::range_type { 61,200 } };
-AnalogInput<>::Range rangeC{ AnalogInput<>::Range::range_type { 201,400 } };
-AnalogInput<>::Range rangeD{ AnalogInput<>::Range::range_type { 401,600 } };
-AnalogInput<>::Range rangeE{ AnalogInput<>::Range::range_type { 601,800 } };
+// analogRead() function.
+using Input = AnalogInput<>;
+using InputRange = typename Input::Range;
+
+AnalogInput<>::Range rangeA{ InputRange { 0, 60 } };
+AnalogInput<>::Range rangeB{ InputRange { 61,200 } };
+AnalogInput<>::Range rangeC{ InputRange { 201,400 } };
+AnalogInput<>::Range rangeD{ InputRange { 401,600 } };
+AnalogInput<>::Range rangeE{ InputRange { 601,800 } };
 
 // Analog input pin. AnalogInput objects must be attached to a valid GPIO 
 // analog input pin. `pin_t is a descriptive type alias that holds values 
@@ -64,7 +67,7 @@ void inputCallback()
   Serial.print("input("); Serial.print(analog_input.attach()); Serial.print(") = "); Serial.println(analog_input.value());
   if (analog_input.range())
   {
-    Serial.print("range {"); Serial.print(analog_input.range()->range_.first); Serial.print(",");
-    Serial.print(analog_input.range()->range_.second); Serial.println("}");
+    Serial.print("range {"); Serial.print(analog_input.range()->low()); Serial.print(",");
+    Serial.print(analog_input.range()->high()); Serial.println("}");
   }
 }

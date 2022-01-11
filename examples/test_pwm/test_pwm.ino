@@ -24,7 +24,7 @@ void setup()
   Serial.println("");
   Serial.print("pin="); Serial.println(pwm0.attach());
   Serial.print("freq="); Serial.print(pwm0.frequency()); Serial.println(" Hz");
-  Serial.print("dc="); Serial.print(pwm0.duty_cycle() * 100.0f); Serial.println("%");
+  Serial.print("dc="); Serial.print(pwm0.dutyCycle() * 100.0f); Serial.println("%");
   Serial.print("en="); Serial.println(pwm0.enabled());
 }
 
@@ -32,9 +32,9 @@ void loop()
 {
   // Change the duty cycle every so often.
   delay(2000);
-  pwm0.duty_cycle(0.5f);
+  pwm0.dutyCycle(0.5f);
   delay(2000);
-  pwm0.duty_cycle(0.0f);
+  pwm0.dutyCycle(0.0f);
   delay(2000);
-  pwm0.duty_cycle(1.0f);
+  pwm0.dutyCycle(1.0f);
 }

@@ -25,12 +25,12 @@ void doit(); // Function that does something.
 // *Temp          nn.m*
 // *                  *
 // ********************
-Display::Field field1 = { 6,0,"","%02u:" }; // Hours field
-Display::Field field2 = { 9,0,"","%02u:" }; // Minutes field
-Display::Field field3 = { 12,0,"","%02u." };  // Seconds field.
-Display::Field field4 = { 15,0,"","%1u" };  // Tenths field.
-Display::Field field5 = { 10,0,"","%5.1f" };  // Temperature field.
-Display::Field field6 = { 15,0,"","%c" };  // Degree symbol field.
+Display::Field field1 = { 6,0,"","%02u:",true }; // Hours field
+Display::Field field2 = { 9,0,"","%02u:",true }; // Minutes field
+Display::Field field3 = { 12,0,"","%02u.",true };  // Seconds field.
+Display::Field field4 = { 15,0,"","%1u",true };  // Tenths field.
+Display::Field field5 = { 10,0,"","%5.1f",true };  // Temperature field.
+Display::Field field6 = { 15,0,"","%c",true };  // Degree symbol field.
 Display::Screen screen1({ &field1,&field2,&field3,&field4 }, "Time"); // Time screen uses fields 1-4.
 Display::Screen screen2({ &field5,&field6 }, "Temp"); // Temp screen uses fields 5-6.
 

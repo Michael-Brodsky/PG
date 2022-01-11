@@ -11,7 +11,7 @@ using Keypad = AnalogKeypad<>;
 // This program demonstrates how a TaskScheduler can be used to trigger tasks asynchronously,  
 // at predefined intervals and start/stop tasks based on criteria. This can greatly improve 
 // CPU resource use by executing tasks only when they're needed and at a rate which doesn't 
-// overload the CPU or prevent other tasks from timely execution.
+// overload the CPU or block other tasks.
 
 // Func fwd decls.
 void keypad_cb(const Keypad::Button*, Keypad::Event); 
@@ -55,7 +55,7 @@ Scheduler task_scheduler({ &keypad_task,&sequencer_task });
 void setup() 
 {
   Serial.begin(9600);
-  Serial.println("Press the <Select> key to start.");
+  Serial.println("Press the <Select> key to start/stop.");
   task_scheduler.start();
 }
 
