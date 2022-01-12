@@ -23,7 +23,7 @@ The PwmOutput class provides a simple interface for managing pulse-width modulat
 The RemoteControl class facilitates asynchronous control of peripheral hardware by a remote host using commands sent over a serial port. 
 
 ### Serial.h 
-Defines constants frequently used in controlling serial ports and types for easily manipulating them.
+Defines several types that extend the capabilities of the Arduino HardwareSerial objects.
 
 ### Unique.h 
 Unique is a base class that provides a unique identifier (number) to derived types which clients can use to identify multiple instances of the same object type.
