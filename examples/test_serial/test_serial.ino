@@ -1,31 +1,26 @@
 #include <pg.h>
-#include <components/SerialControl.h>
+#include <utilities/Serial.h>
 
-using namespace pg;
-using SerialController = SerialControl<8>;
+using pg::usart::serial;
+using pg::usart::hardware_serial;
 
-void f1() { Serial.println("f1() called"); }
-void f2() { Serial.println("f2() called"); }
-
-struct Cmd1:public icommand { void execute() override { f1(); } } cmd1;
-struct Cmd2:public icommand { void execute() override { f2(); } } cmd2;
-SerialController::value_type buf[32] = {'\0'};
-SerialController::Command commands[] = 
-{
-  SerialController::Command{{"cmd1",&cmd1}}, // Command string "cmd1" calls f1(). 
-  SerialController::Command{{"cmd2",&cmd2}}, // Command string "cmd2" calls f2(). 
-};
-
-SerialController sc(commands);
+serial<0> sp0;
 
 void setup() 
 {
-  Serial.begin(9600);
-  Serial.println("Send command strings to the serial port.");
-  Serial.flush();
+  sp0.begin();
+  if(sp0.isOpen())
+  {
+    char buf[64];
+    
+    sp0.printFmt(buf, "%s: %s=%lu, %s=%3s, %s=%lu", "sp0", "baud", sp0.baud(), "frame", 
+      std::find(sp0.SupportedFrames.begin(), sp0.SupportedFrames.end(), sp0.frame())->string(), 
+      "timeout", sp0.getTimeout());
+  }
+  sp0.println("Send strings to the serial port.");
 }
 
 void loop() 
 {
-  sc.poll();
+  sp0.loopBack();
 }

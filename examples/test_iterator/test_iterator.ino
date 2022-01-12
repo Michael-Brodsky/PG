@@ -52,7 +52,7 @@ struct Array
     T* begin() { return data_; }
     T* end() { return data_ + SIZE; }
     T& operator[](size_t n) { return data_[n]; }
-    constexpr size_t size() const { return SIZE; }
+    constexpr std::size_t size() const { return SIZE; }
     void push_front(const T& t) { for (size_t i = 0; i < SIZE - 1; ++i) data_[i + 1] = data_[i]; data_[0] = t; }
     T data_[SIZE];
 };
