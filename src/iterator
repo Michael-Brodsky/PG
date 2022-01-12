@@ -516,7 +516,7 @@ namespace std
 			self_type operator-(difference_type n) const { self_type it = *this; it.i_ -= n; return it; }
 			self_type& operator+=(difference_type n) { i_ += n; return *this; }
 			self_type& operator-=(difference_type n) { i_ -= n; return *this; }
-			inline std::size_t size() { return __size(); }
+			constexpr std::size_t size() { return __size(); }
 
 		public:
 			friend bool operator==(const circular_iterator& lhs, const circular_iterator& rhs)
