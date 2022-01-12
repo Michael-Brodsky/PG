@@ -28,5 +28,5 @@ Defines constants frequently used in controlling serial ports and types for easi
 ### Unique.h 
 Unique is a base class that provides a unique identifier (number) to derived types which clients can use to identify multiple instances of the same object type.
 
-### Values.h 
-Defines several wrapper types that encapsulate objects and object pairs and expose getters and setters with familiar semantics.
+### ValueWrappers.h 
+Defines several wrapper classes that encapsulate objects and collections, and expose getters and setters with familiar semantics. They are useful, for instance, in mapping machine- to human-readable values for user interfaces and eeprom storage of program settings.
