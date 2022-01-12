@@ -32,31 +32,6 @@
 
 # include "cassert"
 # include "cstring"
-# include "tokens.h"
-
-# if defined STRINGIZE
-#  if !defined Stringize
-#   define Stringize(a) STRINGIZE(a)	// Converts a to "a".
-#  endif
-# else
-#  define Stringize(a) ((void)0)		// Not defined.
-# endif
-
-# if defined CONCAT
-#  if !defined Concat
-#   define Concat(a, b) CONCAT(a, b)	// Concatenates a and b to ab.
-#  endif
-# else
-#  define Concat(a, b) ((void)0)		// Not defined.
-# endif
-
-# if defined CONCAT3
-#  if !defined Concat3
-#   define Concat3(a, b, c) CONCAT3(a, b, c)	// Concatenates a, b and c to abc.
-#  endif
-# else
-#  define Concat3(a, b, c) ((void)0)			// Not defined.
-# endif
 
 # if !defined AssertMsg
 #  define AssertMsg(x, msg) assert(((void) msg, (x))) // Prints `msg' on assertion failure of `x'.
