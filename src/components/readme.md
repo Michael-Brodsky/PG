@@ -13,11 +13,14 @@ Asynchronous GPIO digital input polling.
 ### EventSequencer.h 
 Asynchronous event sequencer.
 
+### Jack.h
+Facilitates remote reading/writing values to and getting/setting status of gpio pins over a serial port.
+
 ### LCDDisplay.h 
 Asynchronous lcd display configuration and management.
 
-### SerialControl.h 
-Facilitates remote, asynchronous command execution and application control over a serial port.
+### RemoteControl.h 
+Facilitates remote execution of client code over a serial port.
 
 ### SweepServo.h 
 Asynchronous servo controller that uses natural units, degrees of rotation and angular velocity, instead of pulse widths.
