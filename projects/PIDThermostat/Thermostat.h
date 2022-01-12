@@ -32,7 +32,6 @@
 # define __PG_THERMOSTAT_H 20211015L
 
 # include <lib/thermo.h>				// Temperature maths.
-# include <utilities/Values.h>				// Program Setting pair type.
 # include <interfaces/iserializable.h>	// iserializable interface.
 # include <components/AnalogKeypad.h>	// Async keypad polling.
 # include <components/LCDDisplay.h>		// Async display manager.
@@ -76,18 +75,18 @@ enum class ArefSource
 
 // Program settings/display value types.
 
-using temperature_v = Value<temperature_t>;
-using pid_v = Value<pid_t>;
-using sensor_poll_v = Value<milliseconds>;
-using temp_units_t = DisplayValue<
+using temperature_v = ValueWrapper<temperature_t>;
+using pid_v = ValueWrapper<pid_t>;
+using sensor_poll_v = ValueWrapper<milliseconds>;
+using temp_units_t = StringValueWrapper<
 	typename callback<temperature_t, void, temperature_t>::type,
 	char>;
-using alarm_cmp_t = DisplayValue<
+using alarm_cmp_t = StringValueWrapper<
 	typename callback<bool, void, temperature_t, temperature_t>::type,
 	char>;
-using alarm_en_t = DisplayValue<bool, char>;
-using setpoint_en_t = DisplayValue<bool, char>;
-using sensor_aref_t = DisplayValue<ArefSource, const char*>;
+using alarm_en_t = StringValueWrapper<bool, char>;
+using setpoint_en_t = StringValueWrapper<bool, char>;
+using sensor_aref_t = StringValueWrapper<ArefSource, const char*>;
 
 
 #pragma endregion 
@@ -163,38 +162,38 @@ struct Settings : public iserializable
 
 	void serialize(EEStream& e) const override
 	{
-		e << temperatureLow(); e << temperatureHigh(), e << temperatureUnits.display_value();
+		e << temperatureLow(); e << temperatureHigh(), e << temperatureUnits.string();
 		e << pidProportional(); e << pidIntegral(); e << pidDerivative(); e << pidGain();
-		e << setpointEnable.display_value(); e << setpointValue();
-		e << alarmEnable.display_value();	e << alarmCompare.display_value(); e << alarmSetpoint();
+		e << setpointEnable.string(); e << setpointValue();
+		e << alarmEnable.string();	e << alarmCompare.string(); e << alarmSetpoint();
 		e << sensorAref.value(); e << sensorPollIntvl().count();
 		e << pwmRange.low(); e << pwmRange.high();
 	}
 
 	void deserialize(EEStream& e) override
 	{
-		e >> temperatureLow(); e >> temperatureHigh(), e >> temperatureUnits.display_value();
+		e >> temperatureLow(); e >> temperatureHigh(), e >> temperatureUnits.string();
 		e >> pidProportional(); e >> pidIntegral(); e >> pidDerivative(); e >> pidGain();
-		e >> setpointEnable.display_value(); e >> setpointValue();
-		e >> alarmEnable.display_value();	e >> alarmCompare.display_value(); e >> alarmSetpoint();
+		e >> setpointEnable.string(); e >> setpointValue();
+		e >> alarmEnable.string();	e >> alarmCompare.string(); e >> alarmSetpoint();
 		e >> sensorAref.value(); typename milliseconds::rep r; e >> r; sensorPollIntvl() = milliseconds(r);
 		e >> pwmRange.low(); e >> pwmRange.high();
 
-		temperatureUnits.value() = temperatureUnits.display_value() == FarenheitSymbol
+		temperatureUnits.value() = temperatureUnits.string() == FarenheitSymbol
 			? static_cast<typename temp_units_t::value_type>(temperature<units::fahrenheit>)
-			: temperatureUnits.display_value() == CelsiusSymbol
+			: temperatureUnits.string() == CelsiusSymbol
 			? static_cast<typename temp_units_t::value_type>(temperature<units::celsius>)
 			: static_cast<typename temp_units_t::value_type>(temperature<units::kelvin>);
-		alarmEnable.value() = alarmEnable.display_value() == EnabledSymbol
+		alarmEnable.value() = alarmEnable.string() == EnabledSymbol
 			? true
 			: false;
-		alarmCompare.value() = alarmCompare.display_value() == LessSymbol
+		alarmCompare.value() = alarmCompare.string() == LessSymbol
 			? static_cast<typename alarm_cmp_t::value_type>(alarm_lt)
 			: static_cast<typename alarm_cmp_t::value_type>(alarm_gt);
-		sensorAref.display_value() = sensorAref.value() == ArefSource::Internal
+		sensorAref.string() = sensorAref.value() == ArefSource::Internal
 			? InternalSymbol
 			: ExternalSymbol;
-		setpointEnable.value() = setpointEnable.display_value() == EnabledSymbol
+		setpointEnable.value() = setpointEnable.string() == EnabledSymbol
 			? true
 			: false;
 	}

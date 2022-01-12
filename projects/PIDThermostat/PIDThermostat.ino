@@ -329,13 +329,13 @@ void displayCallback()
     {
     case mode_t::Setpoint:
         display.refresh(clamp(Tsense, settings.temperatureLow(), settings.temperatureHigh()), 
-            DegreeSymbol, settings.temperatureUnits.display_value(), settings_copy.setpointValue(), 
-            settings_copy.setpointEnable.display_value(), settings_copy.alarmEnable.display_value());
+            DegreeSymbol, settings.temperatureUnits.string(), settings_copy.setpointValue(), 
+            settings_copy.setpointEnable.string(), settings_copy.alarmEnable.string());
         break;
     case mode_t::Run:
         display.refresh(clamp(Tsense, settings.temperatureLow(), settings.temperatureHigh()), 
-            DegreeSymbol, settings.temperatureUnits.display_value(), settings.setpointValue(), 
-            settings.setpointEnable.display_value(), settings.alarmEnable.display_value());
+            DegreeSymbol, settings.temperatureUnits.string(), settings.setpointValue(), 
+            settings.setpointEnable.string(), settings.alarmEnable.string());
         break;
     case mode_t::Menu:
         display.refresh(MenuItemRun, MenuItemPid, MenuItemPwm, MenuItemAlarm, MenuItemSensor, MenuItemDisplay);
@@ -349,15 +349,15 @@ void displayCallback()
         display.update(); // Always update the pwm output duty cycle.
         break;
     case mode_t::Alarm:
-        display.refresh(settings_copy.alarmEnable.display_value(), settings_copy.alarmSetpoint(),
-            settings_copy.alarmCompare.display_value());
+        display.refresh(settings_copy.alarmEnable.string(), settings_copy.alarmSetpoint(),
+            settings_copy.alarmCompare.string());
         break;
     case mode_t::Sensor:
-        display.refresh(settings_copy.sensorAref.display_value(), settings_copy.sensorPollIntvl());
+        display.refresh(settings_copy.sensorAref.string(), settings_copy.sensorPollIntvl());
         break;
     case mode_t::Display:
         display.refresh(settings_copy.temperatureLow(), settings_copy.temperatureHigh(),
-            settings_copy.temperatureUnits.display_value());
+            settings_copy.temperatureUnits.string());
         break;
     default:
         break;
@@ -621,7 +621,7 @@ void adjustAlarm(const Display::Field* field, Adjustment::Direction dir)
         ? AlarmDisabled
         : AlarmEnabled;
     else if (field == &alarm_cmp_field)
-        settings_copy.alarmCompare = settings_copy.alarmCompare.display_value() == LessSymbol
+        settings_copy.alarmCompare = settings_copy.alarmCompare.string() == LessSymbol
         ? AlarmCmpGreater
         : AlarmCmpLess;
     else if (field == &alarm_set_field)
