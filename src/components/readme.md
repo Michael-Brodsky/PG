@@ -1,23 +1,23 @@
 # Pg Component Library
-A collection of generic, reusable objects that provide common services to programs.
+A collection of generic, reusable objects, built on the mediator/component design pattern, that provide common services to programs.
 
 ### AnalogInput.h
 Asynchronous GPIO analog input polling.
 
 ### AnalogKeypad.h 
-Asynchronous keypad management and polling.
+Configuration and asynchronous polling of keypads connected to an analog input..
 
 ### DigitalInput.h 
 Asynchronous GPIO digital input polling.
 
 ### EventSequencer.h 
-Asynchronous event sequencer.
+Facilitates asynchronous execution of code as a timed sequence.
 
 ### Jack.h
 Facilitates remote reading/writing values to and getting/setting status of gpio pins over a serial port.
 
 ### LCDDisplay.h 
-Asynchronous lcd display configuration and management.
+Configuration and asynchronous operation of an LCD display including formatted printing.
 
 ### RemoteControl.h 
 Facilitates remote execution of client code over a serial port.
