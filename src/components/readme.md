@@ -17,7 +17,7 @@ Facilitates asynchronous execution of code as a timed sequence.
 Facilitates remote reading/writing values to and getting/setting status of gpio pins over a serial port.
 
 ### LCDDisplay.h 
-Configuration and asynchronous operation of an LCD display including formatted printing.
+Facilitates configuration and asynchronous operation of an LCD display including formatted printing.
 
 ### RemoteControl.h 
 Facilitates remote execution of client code over a serial port.
