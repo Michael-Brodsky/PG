@@ -37,6 +37,7 @@
 # include <system/utils.h>
 # include <interfaces/iserializable.h>
 # include <utilities/EEStream.h>
+# include <utilities/Timer.h>
 # include <components/RemoteControl.h>
 
 # if defined __PG_HAS_NAMESPACES  
@@ -46,6 +47,7 @@ namespace pg
 	using pg::usart::serial;
 	using pg::usart::hardware_serial;
 	using pg::RemoteControl;
+	using std::chrono::milliseconds;
 
 	class Jack : public iclockable, public icomponent
 	{
@@ -55,6 +57,8 @@ namespace pg
 		static constexpr const uint8_t LedPinNumber = LED_BUILTIN;
 		static constexpr const unsigned long DeviceId() { return 20211226UL; }
 		static constexpr const std::size_t MaxCommands = 32;
+		static constexpr const std::size_t TimersCount = 4;
+		static constexpr const int8_t NoTimer = -1;
 
 		// Enumerates valid i/o pin types.
 		enum gpio_type : uint8_t 
@@ -78,6 +82,8 @@ namespace pg
 		{ 
 			gpio_type	type_;		// Pin i/o type.
 			gpio_mode	mode_;		// Pin i/o mode.
+			bool		enabled_;	// Pin enabled flag.
+			int8_t		timer_;		// Event timer number, -1 if not assigned.
 		};
 		
 		using Pins = std::array<GpioPin, GpioCount>;						// GpioPin collection container type.
@@ -87,9 +93,12 @@ namespace pg
 		using frame_v = usart::frame_map_type;								// Port frame to string mapping type.
 		using command_type = RemoteControl::command_type;					// Jack command type.
 		using cmdkey_t = typename command_type::key_type;					// Command key storage type.
-		using container_type = typename std::valarray<command_type*, MaxCommands>;	// Commands collection container type.
 		using ilist_type = std::initializer_list<command_type*>;			// Commands initializer list type.
 		using callback_type = typename callback<void>::type;				// Client callback signature type.
+		using timer_type = Timer<milliseconds>;								// Event timer type.
+		using timer_cmd_type = Command<void, Jack, int8_t>;
+		using commands_cont = typename std::valarray<command_type*, MaxCommands>;	// Commands collection container type.
+		using timers_cont = typename std::array<timer_type, TimersCount>;	// Event timers collection container type.
 
 		// Serializable type that stores current program settings.
 		class Settings : public iserializable 
@@ -133,6 +142,8 @@ namespace pg
 		static constexpr const cmdkey_t KeyDigitalRead = "drd";
 		static constexpr const cmdkey_t KeyDigitalWrite = "dwr";
 		static constexpr const cmdkey_t KeyReadAllPins = "all";
+		static constexpr const cmdkey_t KeySetTimer = "stm";
+		static constexpr const cmdkey_t KeyGetTimer = "gtm";
 
 		// 
 		// Command reply formatting strings.
@@ -149,17 +160,13 @@ namespace pg
 
 	public: // Class Methods
 		void poll();
-		const container_type& commands() const;
-		container_type& commands();
+		const commands_cont& commands() const;
+		commands_cont& commands();
 		hardware_serial& commsHardware();
-		void initPins(Pins&);
-		void initComms(Settings&);
 		void initialize();
-		void loadSettings(EEStream&, Settings&);
-		void storeSettings(EEStream&, const Settings&);
 		void readDigital(pin_t);
 		void readAnalog(pin_t);
-		void readAll(bool);
+		void readAllPins();
 		void writeDigital(pin_t, bool);
 		void writeAnalog(pin_t, analog_t);
 		void setPinMode(pin_t, uint8_t);
@@ -167,16 +174,23 @@ namespace pg
 		void getPins();
 		void setComms(baud_t, frame_t, timeout_t);
 		void getComms();
+		void setTimer(uint8_t, time_t, const char*);
+		void getTimer(uint8_t);
 		void devInfo();
 		void devReset();
 		void devPing();
 
 	private:
 		void addCommands(ilist_type&);
-		void readPin(pin_t);
-		void setPin(pin_t, uint8_t);
-		void sendPin(pin_t, uint16_t);
+		void loadSettings(EEStream&, Settings&);
+		void storeSettings(EEStream&, const Settings&);
 		void clock() override;
+		void initPins(Pins&);
+		void initComms(Settings&);
+		void readAll(int8_t);
+		void readPin(pin_t);
+		void sendPin(pin_t, uint16_t);
+		void setPin(pin_t, uint8_t);
 
 	private: // Class Members
 		RemoteControl::Command<void, Jack, void> cmd_devreset_{ KeyDevReset, *this, &Jack::devReset };
@@ -184,7 +198,7 @@ namespace pg
 		RemoteControl::Command<void, Jack, void> cmd_devping_{ KeyDevPing, *this, &Jack::devPing };
 		RemoteControl::Command<void, Jack, pin_t> cmd_dread_{ KeyDigitalRead, *this, &Jack::readDigital };
 		RemoteControl::Command<void, Jack, pin_t> cmd_aread_{ KeyAnalogRead, *this, &Jack::readAnalog };
-		RemoteControl::Command<void, Jack, bool> cmd_readall_{ KeyReadAllPins, *this, &Jack::readAll };
+		RemoteControl::Command<void, Jack, void> cmd_readall_{ KeyReadAllPins, *this, &Jack::readAllPins };
 		RemoteControl::Command<void, Jack, pin_t, bool> cmd_dwrite_{ KeyDigitalWrite, *this, &Jack::writeDigital };
 		RemoteControl::Command<void, Jack, pin_t, analog_t> cmd_awrite_{ KeyAnalogWrite, *this, &Jack::writeAnalog };
 		RemoteControl::Command<void, Jack, pin_t, uint8_t> cmd_setmode_{ KeySetPinMode, *this, &Jack::setPinMode };
@@ -192,18 +206,22 @@ namespace pg
 		RemoteControl::Command<void, Jack, void> cmd_getpins_{ KeyGetPins, *this, &Jack::getPins };
 		RemoteControl::Command<void, Jack, baud_t, frame_t, timeout_t> cmd_setcomms_{ KeySetComms, *this, &Jack::setComms };
 		RemoteControl::Command<void, Jack, void> cmd_getcomms_{ KeyGetComms, *this, &Jack::getComms };
+		RemoteControl::Command<void, Jack, uint8_t, time_t, const char*> cmd_settimer_{ KeySetTimer, *this, &Jack::setTimer };
+		RemoteControl::Command<void, Jack, uint8_t> cmd_gettimer_{ KeyGetTimer, *this, &Jack::getTimer };
 		hardware_serial hs_;
 		RemoteControl	rc_;
 		Pins			pins_;
-		container_type	commands_;
+		commands_cont	commands_;
+		timers_cont		timers_;
 		EEStream&		eeprom_;
 		callback_type	callback_;
 	};
 
 	Jack::Jack(hardware_serial hs, EEStream& eeprom, callback_type callback, ilist_type commands) :
 		commands_({ &cmd_devreset_, &cmd_devinfo_, &cmd_devping_, &cmd_dread_, &cmd_aread_, &cmd_readall_, &cmd_dwrite_, 
-			& cmd_awrite_, & cmd_setmode_, & cmd_getmode_, & cmd_getpins_, & cmd_setcomms_, & cmd_getcomms_ }),
-		hs_(hs), rc_(nullptr, nullptr, hs_.hardware()), eeprom_(eeprom), callback_(callback)
+			& cmd_awrite_, & cmd_setmode_, & cmd_getmode_, & cmd_getpins_, & cmd_setcomms_, & cmd_getcomms_,
+			& cmd_settimer_, & cmd_gettimer_ }),
+		timers_(), hs_(hs), rc_(nullptr, nullptr, hs_.hardware()), eeprom_(eeprom), callback_(callback)
 	{
 		initPins(pins_); 
 		addCommands(commands);
@@ -212,14 +230,22 @@ namespace pg
 	void Jack::poll()
 	{
 		rc_.poll();
+		for (std::size_t i = 0; i < timers_.size(); ++i)
+		{
+			if (timers_[i].expired())
+			{
+				readAll(i);
+				timers_[i].reset();
+			}
+		}
 	}
 
-	const typename Jack::container_type& Jack::commands() const 
+	const typename Jack::commands_cont& Jack::commands() const
 	{ 
 		return commands_; 
 	}
 
-	typename Jack::container_type& Jack::commands() 
+	typename Jack::commands_cont& Jack::commands()
 	{ 
 		return commands_; 
 	}
@@ -246,6 +272,8 @@ namespace pg
 				: gpio_type::Analog;
 			pin.mode_ = i == LedPinNumber ? gpio_mode::Output : gpio_mode::Input;
 			setPin(i, pin.mode_);
+			pin.enabled_ = true;
+			pin.timer_ = NoTimer;
 		}
 	}
 
@@ -321,6 +349,39 @@ namespace pg
 			(*callback_)();
 	}
 
+	void Jack::setTimer(uint8_t n, time_t duration, const char* pins)
+	{
+		timer_type& timer = timers_[n];
+		char* tok = std::strtok((char*)pins, ".");
+
+		timer.stop();
+		timer.interval(milliseconds(duration));
+		while (tok)
+		{
+			pin_t pin = std::atoi(tok);
+
+			if(pin <= GpioCount && (pin > 0 || pins[0] == '0'))
+				pins_[std::atoi(tok)].timer_ = n;
+			tok = std::strtok(nullptr, ".");
+		}
+		if(duration != 0) 
+			timer.start();
+	}
+
+	void Jack::getTimer(uint8_t n)
+	{
+		char buf[64];
+
+		std::sprintf(buf, "%s=%u,%lu", KeyGetTimer, n, timers_[n].interval().count());
+		for (std::size_t i = 0; i < pins_.size(); ++i)
+		{
+			if (pins_[i].timer_ == n)
+				std::sprintf(buf + std::strlen(buf), ",%u", i);
+		}
+		hs_.println(buf);
+	}
+
+
 	void Jack::devReset()
 	{
 		resetFunc();
@@ -354,13 +415,18 @@ namespace pg
 		sendPin(pin, analogRead(pin));
 	}
 
-	void Jack::readAll(bool active)
+	void Jack::readAllPins()
+	{
+		readAll(NoTimer);
+	}
+
+	void Jack::readAll(int8_t timer)
 	{
 		pin_t pin = 0;
 
 		for (auto& i : pins_)
 		{
-			if (i.mode_ == gpio_mode::Input)
+			if ((i.mode_ == gpio_mode::Input || i.mode_ == gpio_mode::Pullup) && i.enabled_ && (timer == NoTimer || i.timer_ == timer))
 				readPin(pin);
 			++pin;
 		}
