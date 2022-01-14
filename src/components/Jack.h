@@ -63,7 +63,7 @@ namespace pg
 		// Enumerates valid i/o pin types.
 		enum gpio_type : uint8_t 
 		{ 
-			Digital = 4,	// Digital i/o
+			Digital = 4,	// Digital i/o								
 			Analog = 5,		// Analog in
 			Pwm = 6 		// Pwm out
 		};
@@ -77,6 +77,13 @@ namespace pg
 			Disabled = 3	// Pin is disabled.
 		};
 
+		// Pin type, mode & operation
+		// 
+		//				DigitalInput			DigitalOutput				PwmOutput				AnalogInput
+		// Digital		1						2							X						X
+		// Analog
+		// Pwm
+		// 
 		// Aggregates i/o pin type and mode info.
 		struct GpioPin 
 		{ 
@@ -135,15 +142,17 @@ namespace pg
 		static constexpr const cmdkey_t KeyGetComms = "gcm";
 		static constexpr const cmdkey_t KeySetComms = "scm";
 		static constexpr const cmdkey_t KeyGetPins = "pns";
-		static constexpr const cmdkey_t KeyGetPinMode = "gpm";
-		static constexpr const cmdkey_t KeySetPinMode = "spm";
-		static constexpr const cmdkey_t KeyAnalogRead = "ard";
+		static constexpr const cmdkey_t KeyGetPinMode = "gpm"; // gpm[=n] w/o arg = get all pins (pns)
+		static constexpr const cmdkey_t KeySetPinMode = "spm";	// Include timer field? spm=n,m,t
+		static constexpr const cmdkey_t KeyAnalogRead = "ard"; // ard[=n] w/o arg = read all analog ins
 		static constexpr const cmdkey_t KeyAnalogWrite = "awr";
-		static constexpr const cmdkey_t KeyDigitalRead = "drd";
+		static constexpr const cmdkey_t KeyDigitalRead = "drd"; // drd[=n] w/o arg = read all digital ins
 		static constexpr const cmdkey_t KeyDigitalWrite = "dwr";
+																// rdp[=n] read pin n, w/o arg = read all ins using native gpiotype (all). 
 		static constexpr const cmdkey_t KeyReadAllPins = "all";
-		static constexpr const cmdkey_t KeySetTimer = "stm";
-		static constexpr const cmdkey_t KeyGetTimer = "gtm";
+		static constexpr const cmdkey_t KeySetTimer = "stm"; // set timer, assigns any pins in list not already assigned to timer m
+															// utm=m[,n.n. ...] = update timer m pins to n..., removes all if none given.
+		static constexpr const cmdkey_t KeyGetTimer = "gtm"; // gtm[=m] w/o arg = get all timers
 
 		// 
 		// Command reply formatting strings.
