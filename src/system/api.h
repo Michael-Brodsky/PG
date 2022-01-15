@@ -3,7 +3,7 @@
  *
  *	***************************************************************************
  *
- *	File: library.h
+ *	File: api.h
  *	Date: March 10, 2021
  *	Version: 1.0
  *	Author: Michael Brodsky
