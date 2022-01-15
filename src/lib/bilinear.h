@@ -1,5 +1,5 @@
 /*
- *	This file defines a library algorithms for computing bilinear transforms.
+ *	This file defines algorithms for computing bilinear transforms.
  *
  *	***************************************************************************
  *
@@ -29,7 +29,7 @@
  *
  *	Description:
  * 
- *	    This file several algorithms for computing discrete time (digital) 
+ *	    This file has several algorithms for computing discrete time (digital) 
  *      transfer function coefficients from their continuous-time (analog) 
  *      counterparts using the bilinear transform, where: 
  * 
