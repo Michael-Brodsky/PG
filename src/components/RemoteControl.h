@@ -5,7 +5,7 @@
  *	***************************************************************************
  *
  *	File: RemoteControl.h
- *	Date: January 10, 2022
+ *	Date: January 15, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -29,7 +29,7 @@
  *	**************************************************************************/
 
 #if !defined __PG_REMOTECONTROL_H 
-# define __PG_REMOTECONTROL_H 20220110L
+# define __PG_REMOTECONTROL_H 20220115L
 
 # include "cstdlib"					// atoi(), atol(), atof().
 # include "tuple"					// std::tuple, std::apply
@@ -162,7 +162,7 @@ namespace pg
 			ICommand(const key_type& key) : key_(const_cast<key_type>(key)) {}
 			virtual ~ICommand() = default;
 
-			virtual void execute(char*) = 0;
+			virtual void execute(char*) = 0;	// virtual bool execute(char*) = 0;
 			key_type key() { return key_; }
 			const key_type key() const { return key_; }
 
@@ -190,6 +190,11 @@ namespace pg
 		public:
 			void execute(char* str) override 
 			{
+				// To support "variadic" commands, command strings must have the 
+				// number of arguments equal to the tuple size -> args_.size().
+
+				/*if(RemoteControl::parseCommand(str, args_) == args_.size())
+					std::experimental::apply(&object_, delegate_, args_);*/
 				RemoteControl::parseCommand(str, args_);
 				std::experimental::apply(&object_, delegate_, args_);
 			}
@@ -219,6 +224,8 @@ namespace pg
 		public:
 			virtual void execute(char* str) override
 			{
+				/*if(RemoteControl::parseCommand(str, args_) == args_.size())
+					std::experimental::apply(&object_, delegate_, args_);*/
 				RemoteControl::parseCommand(str, args_);
 				std::experimental::apply(delegate_, args_);
 			}

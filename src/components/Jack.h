@@ -77,13 +77,6 @@ namespace pg
 			Disabled = 3	// Pin is disabled.
 		};
 
-		// Pin type, mode & operation
-		// 
-		//				DigitalInput			DigitalOutput				PwmOutput				AnalogInput
-		// Digital		1						2							X						X
-		// Analog
-		// Pwm
-		// 
 		// Aggregates i/o pin type and mode info.
 		struct GpioPin 
 		{ 
@@ -104,7 +97,7 @@ namespace pg
 		using callback_type = typename callback<void>::type;				// Client callback signature type.
 		using timer_type = Timer<milliseconds>;								// Event timer type.
 		using timer_cmd_type = Command<void, Jack, int8_t>;
-		using commands_cont = typename std::valarray<command_type*, MaxCommands>;	// Commands collection container type.
+		using commands_cont = typename std::valarray<command_type*, MaxCommands>;	// Commands collection container type (valarray has resize()).
 		using timers_cont = typename std::array<timer_type, TimersCount>;	// Event timers collection container type.
 
 		// Serializable type that stores current program settings.
@@ -154,6 +147,60 @@ namespace pg
 															// utm=m[,n.n. ...] = update timer m pins to n..., removes all if none given.
 		static constexpr const cmdkey_t KeyGetTimer = "gtm"; // gtm[=m] w/o arg = get all timers
 
+		//
+		// Variadic command scheme, one key many prototypes.
+		// 
+		
+		// rst						rst							static constexpr const cmdkey_t KeyDevReset = "rst";
+		// inf						inf							static constexpr const cmdkey_t KeyDevInfo = "inf";
+		// com[=b,f,t]				com=b,f,t	com				static constexpr const cmdkey_t KeyCommsStatus = "com";
+		// pin[=n][,=mode]			pin=n,mode	pin=n	pin		static constexpr const cmdkey_t KeyPinMode = "pin";
+		// ard[=n]					ard=n		ard				static constexpr const cmdkey_t KeyAnalogRead = "ard";
+		// drd[=n]					drd=n		drd				static constexpr const cmdkey_t KeyDigitalRead = "drd";
+		// rdp[=n]					rdp=n		rdp				static constexpr const cmdkey_t KeyReadPin = "rdp";
+		// awr=n,v					awr=n,v						static constexpr const cmdkey_t KeyAnalogWrite = "awr";
+		// dwr=n,v					dwr=n,v						static constexpr const cmdkey_t KeyDigitalWrite = "dwr";
+		// tms[=m][,intv]			tmr=m,intv	tmr=m	tmr		static constexpr const cmdkey_t KeyTimerStatus = "tms";
+		// atm=m[,n.n. ... .n]		atm=m[,n.n. ... .n]			static constexpr const cmdkey_t KeyTimerAttach = "atm";
+		// 
+		// RemoteControl::Command<void, Jack, void> cmd_devreset_{ KeyDevReset, *this, &Jack::devReset };
+		// RemoteControl::Command<void, Jack, void> cmd_devinfo_{ KeyDevInfo, *this, &Jack::devInfo };
+		// RemoteControl::Command<void, Jack, baud_t, frame_t, timeout_t> cmd_setcomms_{ KeyCommsStatus, *this, &Jack::commsStatus };
+		// RemoteControl::Command<void, Jack, void> cmd_getcomms_{ KeyCommsStatus, *this, &Jack::commsStatus };
+		// RemoteControl::Command<void, Jack, pin_t, uint8_t> cmd_setpin_{ KeyPinMode, *this, &Jack::pinMode };
+		// RemoteControl::Command<void, Jack, pin_t> cmd_getpin_{ KeyPinMode, *this, &Jack::pinMode };
+		// RemoteControl::Command<void, Jack, void> cmd_getallpins_{ KeyPinMode, *this, &Jack::pinMode };
+		// RemoteControl::Command<void, Jack, pin_t> cmd_aread_{ KeyAnalogRead, *this, &Jack::readAnalog };
+		// RemoteControl::Command<void, Jack, void> cmd_areadall_{ KeyAnalogRead, *this, &Jack::readAnalog };
+		// RemoteControl::Command<void, Jack, pin_t> cmd_dread_{ KeyDigitalRead, *this, &Jack::readDigital };
+		// RemoteControl::Command<void, Jack, void> cmd_dreadall_{ KeyDigitalRead, *this, &Jack::readDigital };
+		// RemoteControl::Command<void, Jack, pin_t> cmd_readpin_{ KeyReadPin, *this, &Jack::readPin };
+		// RemoteControl::Command<void, Jack, void> cmd_readallpins_{ KeyReadPin, *this, &Jack::readPin };
+		// RemoteControl::Command<void, Jack, pin_t, analog_t> cmd_awrite_{ KeyAnalogWrite, *this, &Jack::writeAnalog };
+		// RemoteControl::Command<void, Jack, pin_t, bool> cmd_dwrite_{ KeyDigitalWrite, *this, &Jack::writeDigital };
+		// RemoteControl::Command<void, Jack, uint8_t, time_t> cmd_settimer_{ KeyTimerStatus, *this, &Jack::timerStatus };
+		// RemoteControl::Command<void, Jack, uint8_t> cmd_gettimer_{ KeyTimerStatus, *this, &Jack::timerStatus };
+		// RemoteControl::Command<void, Jack, void> cmd_getalltimers_{ KeyTimerStatus, *this, &Jack::timerStatus };
+		// RemoteControl::Command<void, Jack, uint8_t, const char*> cmd_attachtimer_{ KeyTimerAttach, *this, &Jack::timerAttach };
+		// 
+		// void devReset();
+		// void devInfo();
+		// void commsStatus(baud_t, frame_t, timeout_t);
+		// void commsStatus();
+		// void pinMode(pin_t, mode_t); using mode_t = uint8_t;
+		// void pinMode(pin_t);
+		// void readAnalog(pin_t);
+		// void readAnalog();
+		// void readDigital(pin_t);
+		// void readDigital();
+		// void readPin(pin_t);
+		// void readPin();
+		// void writeAnalog(pin_t, analog_t);
+		// void writeDigital(pin_t, bool);
+		// void timerStatus(uint8_t, time_t);
+		// void timerStatus(uint8_t);
+		// void timerStatus();
+		// void timerAttach(uint8_t, const char*);
 		// 
 		// Command reply formatting strings.
 		//
