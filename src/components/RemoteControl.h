@@ -162,7 +162,7 @@ namespace pg
 			ICommand(const key_type& key) : key_(const_cast<key_type>(key)) {}
 			virtual ~ICommand() = default;
 
-			virtual void execute(char*) = 0;	// virtual bool execute(char*) = 0;
+			virtual bool execute(char*) = 0;	// virtual bool execute(char*) = 0;
 			key_type key() { return key_; }
 			const key_type key() const { return key_; }
 
@@ -188,15 +188,19 @@ namespace pg
 				ICommand(key), object_(object), delegate_(del) {}
 
 		public:
-			void execute(char* str) override 
+			bool execute(char* str) override 
 			{
 				// To support "variadic" commands, command strings must have the 
 				// number of arguments equal to the tuple size -> args_.size().
 
-				/*if(RemoteControl::parseCommand(str, args_) == args_.size())
-					std::experimental::apply(&object_, delegate_, args_);*/
-				RemoteControl::parseCommand(str, args_);
-				std::experimental::apply(&object_, delegate_, args_);
+				bool result = false;
+
+				if((result = RemoteControl::parseCommand(str, args_) == args_.size()))
+					std::experimental::apply(&object_, delegate_, args_);
+
+				return result;
+				//RemoteControl::parseCommand(str, args_);
+				//std::experimental::apply(&object_, delegate_, args_);
 			}
 			const object_type& object() const { return object_; }
 			const delegate_type& delegate() const { return delegate_; }
@@ -222,12 +226,16 @@ namespace pg
 				ICommand(key), delegate_(del) {}
 
 		public:
-			virtual void execute(char* str) override
+			bool execute(char* str) override
 			{
-				/*if(RemoteControl::parseCommand(str, args_) == args_.size())
-					std::experimental::apply(&object_, delegate_, args_);*/
-				RemoteControl::parseCommand(str, args_);
-				std::experimental::apply(delegate_, args_);
+				bool result = false;
+
+				if((result = RemoteControl::parseCommand(str, args_) == args_.size()))
+					std::experimental::apply(delegate_, args_);
+
+				return result;
+				//RemoteControl::parseCommand(str, args_);
+				//std::experimental::apply(delegate_, args_);
 			}
 			const delegate_type& delegate() const { return delegate_; }
 			const args_type& args() const { return args_; }
@@ -250,7 +258,7 @@ namespace pg
 			Command(const key_type& key, object_type& object, delegate_type del) :
 				ICommand(key), delegate_(del), object_(object) {}
 		public:
-			void execute(char* str) override { (object_.*delegate_)(); }
+			bool execute(char* str) override { (object_.*delegate_)(); return true; }
 			const object_type& object() const { return object_; }
 			const delegate_type& delegate() const { return delegate_; }
 
@@ -272,7 +280,7 @@ namespace pg
 				ICommand(key), delegate_(del) {}
 
 		public:
-			virtual void execute(key_type str) override { (*delegate_)(); }
+			bool execute(key_type str) override { (*delegate_)(); return true; }
 			const delegate_type& delegate() const { return delegate_; }
 
 		private:
@@ -417,10 +425,12 @@ namespace pg
 			{
 				if (*i == buf)
 				{
-					i->execute(buf);
-					if (echo_)
-						hardware_.println(buf);
-					break;
+					if (i->execute(buf))
+					{
+						if (echo_)
+							hardware_.println(buf);
+						break;
+					}
 				}
 			}
 		}
@@ -434,10 +444,12 @@ namespace pg
 	template<class...Ts>
 	std::size_t RemoteControl::parseCommand(char* cmd, std::tuple<Ts...>& args, const char* cmd_delim, const char* args_delim)
 	{
+		char tmp[hardware_serial::RxBufferSize];
 		char* tok = nullptr;
 		std::size_t n = 0;
 
-		if ((tok = std::strtok(cmd, cmd_delim)))
+		std::strncpy(tmp, cmd, hardware_serial::RxBufferSize);
+		if ((tok = std::strtok(tmp, cmd_delim)))
 			n = detail::getCmdArgs(args_delim, args);
 
 		return n;
