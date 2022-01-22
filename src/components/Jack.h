@@ -109,6 +109,7 @@ namespace pg
 				timeout_t timeout = hardware_serial::DefaultTimeout) :
 				baud_(baud), frame_(frame), timeout_(timeout)
 			{}
+
 		public:
 			baud_t& baud() { return baud_; }
 			const baud_t& baud() const { return baud_; }
@@ -129,6 +130,7 @@ namespace pg
 
 		static constexpr const cmdkey_t KeyDevReset = "rst";
 		static constexpr const cmdkey_t KeyDevInfo = "inf";
+		static constexpr const cmdkey_t KeyAcknowledge = "ack";
 		static constexpr const cmdkey_t KeyCommsStatus = "com";
 		static constexpr const cmdkey_t KeyPinMode = "pin";
 		static constexpr const cmdkey_t KeyAnalogRead = "ard";
@@ -146,6 +148,7 @@ namespace pg
 		static constexpr const char* FmtGetComms = "%s=%lu,%s,%lu";
 		static constexpr const char* FmtDevInfo = "%s=%lu,%s,%s,%.1f";
 		static constexpr const char* FmtSendPin = "%u=%u";
+		static constexpr const char* FmtAcknowledge = "%s=%u";
 
 #pragma endregion
 
@@ -158,6 +161,8 @@ namespace pg
 		Commands& commands();
 		hardware_serial& comms();
 		void initialize();
+		void ack(bool); 
+		void ack();
 		void devReset();
 		void devInfo();
 		void commsStatus(baud_t, frame_t, timeout_t);
@@ -192,6 +197,8 @@ namespace pg
 	private:
 		JackCommand<void> cmd_devreset_{ KeyDevReset, *this, &Jack::devReset };
 		JackCommand<void> cmd_devinfo_{ KeyDevInfo, *this, &Jack::devInfo };
+		JackCommand<bool> cmd_setack_{ KeyAcknowledge, *this, &Jack::ack };
+		JackCommand<void> cmd_getack_{ KeyAcknowledge, *this, &Jack::ack };
 		JackCommand<baud_t, frame_t, timeout_t> cmd_setcomms_{ KeyCommsStatus, *this, &Jack::commsStatus };
 		JackCommand<void> cmd_getcomms_{ KeyCommsStatus, *this, &Jack::commsStatus };
 		JackCommand<pin_t, uint8_t> cmd_setpin_{ KeyPinMode, *this, &Jack::gpioMode };
@@ -215,15 +222,17 @@ namespace pg
 		callback_type		callback_;	// Client callback function.
 		Pins				pins_;		// GPIO pins collection.
 		Timers				timers_;	// Event timers collection.
+		bool				ack_;		// Flag indicating whether to acknowledge a "write" command.
 		Commands			commands_;	// Remote commands collection.
 		RemoteControl		rc_;		// Remote command processor.
 	};
 
 	Jack::Jack(hardware_serial& hs, EEStream& eeprom, callback_type callback, ilist_type commands) : 
-		hs_(hs), eeprom_(eeprom), callback_(callback), pins_(), timers_(), 
+		hs_(hs), eeprom_(eeprom), callback_(callback), pins_(), timers_(), ack_(), 
 		commands_({ &cmd_aread_, &cmd_areadall_, &cmd_dread_, &cmd_dreadall_, &cmd_readpin_, &cmd_readallpins_,
 			&cmd_awrite_, &cmd_dwrite_, &cmd_settimer_, &cmd_gettimer_, &cmd_getalltimers_, &cmd_attachtimer_,
-			&cmd_setpin_, &cmd_getpin_, &cmd_getallpins_, &cmd_setcomms_, &cmd_getcomms_, &cmd_devinfo_, &cmd_devreset_ }),
+			&cmd_setpin_, &cmd_getpin_, &cmd_getallpins_, &cmd_setcomms_, &cmd_getcomms_, &cmd_setack_, 
+			&cmd_getack_, &cmd_devinfo_, &cmd_devreset_ }),
 		rc_(nullptr, nullptr, hs_.hardware())
 	{
 		initPins(pins_);
@@ -271,8 +280,29 @@ namespace pg
 		initComms(settings);
 	}
 
+	void Jack::ack(bool value)
+	{
+		bool old_value = ack_;
+
+		if((ack_ = value) != old_value)
+			ack();
+	}
+
+	void Jack::ack() 
+	{
+		char buf[8];
+
+		hs_.printFmt(buf, FmtAcknowledge, KeyAcknowledge, ack_);
+	}
+
 	void Jack::devReset()
 	{
+		if (ack_)
+		{
+			hs_.println(KeyDevReset);
+			while (hs_.availableForWrite() < hs_.TxBufferSize - 1)
+				delay(10);	// Wait for write buf to empty.
+		}
 		resetFunc();
 	}
 
@@ -291,6 +321,8 @@ namespace pg
 
 		storeSettings(eeprom_, settings);
 		initComms(settings);
+		if (ack_)
+			commsStatus();
 		if (callback_)
 			(*callback_)();
 	}
@@ -310,6 +342,8 @@ namespace pg
 		{
 			setPin(pin, mode);
 			pins_[pin].mode_ = static_cast<gpio_mode>(mode);
+			if (ack_)
+				gpioMode(pin);
 		}
 	}
 
@@ -404,6 +438,8 @@ namespace pg
 		{
 			timer->stop();
 			timer->interval(milliseconds(interval));
+			if (ack_)
+				timerStatus(tid);
 			if (interval != 0)
 				timer->start();
 		}
@@ -452,6 +488,8 @@ namespace pg
 					pins_[std::atoi(tok)].timer_ = timer;
 				tok = std::strtok(nullptr, ".");
 			}
+			if (ack_)
+				timerStatus(tid);
 		}
 	}
 

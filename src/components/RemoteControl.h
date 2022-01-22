@@ -162,7 +162,7 @@ namespace pg
 			ICommand(const key_type& key) : key_(const_cast<key_type>(key)) {}
 			virtual ~ICommand() = default;
 
-			virtual bool execute(char*) = 0;	// virtual bool execute(char*) = 0;
+			virtual bool execute(char*) = 0;
 			key_type key() { return key_; }
 			const key_type key() const { return key_; }
 
@@ -191,7 +191,7 @@ namespace pg
 			bool execute(char* str) override 
 			{
 				// To support "variadic" commands, command strings must have the 
-				// number of arguments equal to the tuple size -> args_.size().
+				// number of arguments equal to the tuple size: args_.size().
 
 				bool result = false;
 
@@ -199,8 +199,6 @@ namespace pg
 					std::experimental::apply(&object_, delegate_, args_);
 
 				return result;
-				//RemoteControl::parseCommand(str, args_);
-				//std::experimental::apply(&object_, delegate_, args_);
 			}
 			const object_type& object() const { return object_; }
 			const delegate_type& delegate() const { return delegate_; }
@@ -234,8 +232,6 @@ namespace pg
 					std::experimental::apply(delegate_, args_);
 
 				return result;
-				//RemoteControl::parseCommand(str, args_);
-				//std::experimental::apply(delegate_, args_);
 			}
 			const delegate_type& delegate() const { return delegate_; }
 			const args_type& args() const { return args_; }
