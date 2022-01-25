@@ -146,7 +146,7 @@ namespace pg
 
 		static constexpr const char* FmtGetPinMode = "%s=%u,%u,%u";
 		static constexpr const char* FmtGetComms = "%s=%lu,%s,%lu";
-		static constexpr const char* FmtDevInfo = "%s=%lu,%s,%s,%.1f";
+		static constexpr const char* FmtDevInfo = "%s=%lu,%s,%s,%.1f,%u,%u";
 		static constexpr const char* FmtSendPin = "%u=%u";
 		static constexpr const char* FmtAcknowledge = "%s=%u";
 
@@ -299,7 +299,8 @@ namespace pg
 	{
 		if (ack_)
 		{
-			hs_.println(KeyDevReset);
+			if (ack_)
+				hs_.println(KeyDevReset);
 			while (hs_.availableForWrite() < hs_.TxBufferSize - 1)
 				delay(10);	// Wait for write buf to empty.
 		}
@@ -312,7 +313,7 @@ namespace pg
 
 		hs_.printFmt(buf, FmtDevInfo, cmd_devinfo_.key(), DeviceId(),
 			board_traits<board_type>::board, board_traits<board_type>::mcu,
-			board_traits<board_type>::clock_frequency);
+			board_traits<board_type>::clock_frequency / 1000000, (unsigned)pins_.size(), (unsigned)timers_.size());
 	}
 
 	void Jack::commsStatus(baud_t baud, frame_t frame, timeout_t timeout)
