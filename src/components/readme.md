@@ -14,7 +14,7 @@ Asynchronous GPIO digital input polling.
 Facilitates asynchronous execution of code as a timed sequence.
 
 ### Jack.h
-Facilitates remote reading/writing values to and getting/setting status of gpio pins over a serial port.
+Facilitates remote reading/writing values to and getting/setting status of gpio pins over a serial connection.
 
 ### LCDDisplay.h 
 Facilitates configuration and asynchronous operation of an LCD display including formatted printing.
