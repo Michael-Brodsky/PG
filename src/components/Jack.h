@@ -1,6 +1,5 @@
 /*
- *	This files defines a class that remotely controls gpio pins using a serial  
- *	port.
+ *	This files defines a class that remotely controls and queries gpio pins.
  *
  *	***************************************************************************
  *
@@ -57,7 +56,7 @@ namespace pg
 		static const uint8_t LedPinNumber = LED_BUILTIN;					// Built-in LED pin number.
 		static const std::size_t CommandsMaxCount = 32;						// Maximum number of storable remote commands.
 		static const std::size_t TimersCount = 4;							// Number of event timers.
-		static constexpr const unsigned long DeviceId() { return 20211226UL; }	// Unique id used to validate eeprom.
+		static constexpr const unsigned long DeviceId() { return 20211226UL; }	// Unique id used to validate eeprom contents.
 
 		struct GpioPin;	// Forward decl.
 		using baud_t = usart::baud_type;									// Port baud rate storage type. 
@@ -78,9 +77,9 @@ namespace pg
 		// Enumerates valid i/o pin types.
 		enum gpio_type : uint8_t
 		{
-			Digital = 4,	// Digital i/o								
-			Analog = 5,		// Analog in
-			Pwm = 6 		// Pwm out
+			Digital = 0,	// Digital i/o								
+			Analog = 1,		// Analog in
+			Pwm = 2 		// Pwm out
 		};
 
 		// Enumerates valid pin i/o modes.
@@ -97,7 +96,7 @@ namespace pg
 		{
 			gpio_type	type_;		// Pin i/o type.
 			gpio_mode	mode_;		// Pin i/o mode.
-			timer_type*	timer_;		// Assigned event timer, if any.
+			timer_type*	timer_;		// Attached event timer, if any.
 		};
 
 		// Serializable type that stores current program settings.
@@ -124,31 +123,36 @@ namespace pg
 			baud_t		baud_;
 			frame_t		frame_;
 			timeout_t	timeout_;
+
+			// These can be expanded to include pin & timer states and init the device 
+			// to a known state on power up/reset.
 		};
 
 #pragma region built-in command key strings
 
-		static constexpr const cmdkey_t KeyDevReset = "rst";
-		static constexpr const cmdkey_t KeyDevInfo = "inf";
-		static constexpr const cmdkey_t KeyAcknowledge = "ack";
-		static constexpr const cmdkey_t KeyCommsStatus = "com";
-		static constexpr const cmdkey_t KeyPinMode = "pin";
-		static constexpr const cmdkey_t KeyAnalogRead = "ard";
-		static constexpr const cmdkey_t KeyDigitalRead = "drd";
-		static constexpr const cmdkey_t KeyReadPin = "rdp";
-		static constexpr const cmdkey_t KeyAnalogWrite = "awr";
-		static constexpr const cmdkey_t KeyDigitalWrite = "dwr";
-		static constexpr const cmdkey_t KeyTimerStatus = "tms";
-		static constexpr const cmdkey_t KeyTimerAttach = "atm";
+		static constexpr const cmdkey_t KeyDevReset = "rst";					// Device reset.
+		static constexpr const cmdkey_t KeyDevInfo = "inf";						// Device info.
+		static constexpr const cmdkey_t KeyAcknowledge = "ack";					// Device acknowledge.
+		static constexpr const cmdkey_t KeyCommsStatus = "com";					// Comms settings and status.
+		static constexpr const cmdkey_t KeyPinMode = "pin";						// Pin type and mode.
+		static constexpr const cmdkey_t KeyAnalogRead = "ard";					// Analog read pin.
+		static constexpr const cmdkey_t KeyDigitalRead = "drd";					// Digital read pin.
+		static constexpr const cmdkey_t KeyReadPin = "rdp";						// Read pin (depends on type).
+		static constexpr const cmdkey_t KeyAnalogWrite = "awr";					// Analog write pin.
+		static constexpr const cmdkey_t KeyDigitalWrite = "dwr";				// Digital write pin.
+		static constexpr const cmdkey_t KeyWritePin = "wrp";					// Write pin (depends on type).
+		static constexpr const cmdkey_t KeyTimerStatus = "tms";					// Timer interval and attached pins.
+		static constexpr const cmdkey_t KeyTimerAttach = "atm";					// Timer attach pin.
 
 #pragma endregion
 #pragma region command reply print format strings
 
-		static constexpr const char* FmtGetPinMode = "%s=%u,%u,%u";
-		static constexpr const char* FmtGetComms = "%s=%lu,%s,%lu";
-		static constexpr const char* FmtDevInfo = "%s=%lu,%s,%s,%.1f,%u,%u";
-		static constexpr const char* FmtSendPin = "%u=%u";
-		static constexpr const char* FmtAcknowledge = "%s=%u";
+		static constexpr const char* FmtGetPinMode = "%s=%u,%u,%u";				// pin=p#,type,mode
+		static constexpr const char* FmtGetComms = "%s=%lu,%s,%lu";				// com=baud,frame,timeout
+		static constexpr const char* FmtDevInfo = "%s=%lu,%s,%s,%.1f,%u,%u";	// inf=id,type,mcu,clkspd,#pins,#timers
+		static constexpr const char* FmtSendPin = "%u=%u";						// p#=value
+		static constexpr const char* FmtAcknowledge = "%s=%u";					// ack=0/1
+		static constexpr const char* FmtTimerStatus = "%s=%u,%lu";				// tmr=t#,intvl,[p0],...,[pn]    
 
 #pragma endregion
 
@@ -179,6 +183,7 @@ namespace pg
 		void readPin();
 		void writeAnalog(pin_t, analog_t);
 		void writeDigital(pin_t, bool);
+		void writePin(pin_t, analog_t);
 		void timerStatus(uint8_t, time_t);
 		void timerStatus(uint8_t);
 		void timerStatus();
@@ -195,6 +200,8 @@ namespace pg
 		void storeSettings(EEStream&, const Settings&);
 
 	private:
+		// Jack built-in command objects.
+
 		JackCommand<void> cmd_devreset_{ KeyDevReset, *this, &Jack::devReset };
 		JackCommand<void> cmd_devinfo_{ KeyDevInfo, *this, &Jack::devInfo };
 		JackCommand<bool> cmd_setack_{ KeyAcknowledge, *this, &Jack::ack };
@@ -212,6 +219,7 @@ namespace pg
 		JackCommand<void> cmd_readallpins_{ KeyReadPin, *this, &Jack::readPin };
 		JackCommand<pin_t, analog_t> cmd_awrite_{ KeyAnalogWrite, *this, &Jack::writeAnalog };
 		JackCommand<pin_t, bool> cmd_dwrite_{ KeyDigitalWrite, *this, &Jack::writeDigital };
+		JackCommand<pin_t, analog_t> cmd_writepin_{ KeyWritePin, *this, &Jack::writePin };
 		JackCommand<uint8_t, time_t> cmd_settimer_{ KeyTimerStatus, *this, &Jack::timerStatus };
 		JackCommand<uint8_t> cmd_gettimer_{ KeyTimerStatus, *this, &Jack::timerStatus };
 		JackCommand<void> cmd_getalltimers_{ KeyTimerStatus, *this, &Jack::timerStatus };
@@ -230,10 +238,9 @@ namespace pg
 	Jack::Jack(hardware_serial& hs, EEStream& eeprom, callback_type callback, ilist_type commands) : 
 		hs_(hs), eeprom_(eeprom), callback_(callback), pins_(), timers_(), ack_(), 
 		commands_({ &cmd_aread_, &cmd_areadall_, &cmd_dread_, &cmd_dreadall_, &cmd_readpin_, &cmd_readallpins_,
-			&cmd_awrite_, &cmd_dwrite_, &cmd_settimer_, &cmd_gettimer_, &cmd_getalltimers_, &cmd_attachtimer_,
-			&cmd_setpin_, &cmd_getpin_, &cmd_getallpins_, &cmd_setcomms_, &cmd_getcomms_, &cmd_setack_, 
-			&cmd_getack_, &cmd_devinfo_, &cmd_devreset_ }),
-		rc_(nullptr, nullptr, hs_.hardware())
+			&cmd_awrite_, &cmd_dwrite_, & cmd_writepin_, &cmd_settimer_, &cmd_gettimer_, &cmd_getalltimers_, 
+			&cmd_attachtimer_, &cmd_setpin_, &cmd_getpin_, &cmd_getallpins_, &cmd_setcomms_, &cmd_getcomms_, 
+			&cmd_setack_, &cmd_getack_, &cmd_devinfo_, &cmd_devreset_ }), rc_(nullptr, nullptr, hs_.hardware())
 	{
 		initPins(pins_);
 		initCommands(commands);
@@ -297,10 +304,9 @@ namespace pg
 
 	void Jack::devReset()
 	{
-		if (ack_)
+		if (ack_) 
 		{
-			if (ack_)
-				hs_.println(KeyDevReset);
+			hs_.println(KeyDevReset);
 			while (hs_.availableForWrite() < hs_.TxBufferSize - 1)
 				delay(10);	// Wait for write buf to empty.
 		}
@@ -431,6 +437,24 @@ namespace pg
 		digitalWrite(pin, value);
 	}
 
+	void Jack::writePin(pin_t pin, analog_t value)
+	{
+		GpioPin& gpio = pins_[pin];
+
+		switch (gpio.type_)
+		{
+		case gpio_type::Pwm:
+		case gpio_type::Analog:
+			writeAnalog(pin, value);
+			break;
+		case gpio_type::Digital:
+			writeDigital(pin, value);
+			break;
+		default:
+			break;
+		}
+	}
+
 	void Jack::timerStatus(uint8_t tid, time_t interval)
 	{
 		timer_type* timer = tid < TimersCount ? &timers_[tid] : nullptr;
@@ -454,7 +478,7 @@ namespace pg
 		{
 			char buf[64];
 
-			std::sprintf(buf, "%s=%u,%lu", KeyTimerStatus, tid, timer->interval().count());
+			std::sprintf(buf, FmtTimerStatus, KeyTimerStatus, tid, timer->interval().count());
 			for (std::size_t i = 0; i < pins_.size(); ++i)
 				if (pins_[i].timer_ == timer)
 					std::sprintf(buf + std::strlen(buf), ",%u", i);
@@ -533,7 +557,7 @@ namespace pg
 
 			// Digital pins are in [0, GpioCount - AnalogInCount), 
 			// Analog pins are in [GpioCount - AnalogInCount, GpioCount), 
-			// digitalPinHasPWM(i) expands to non-zero value if i supports PWM output.
+			// digitalPinHasPWM(i) expands to non-zero value if pin i supports PWM output.
 
 			pin.type_ = digitalPinHasPWM(i)
 				? gpio_type::Pwm
