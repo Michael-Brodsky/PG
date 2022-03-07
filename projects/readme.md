@@ -8,7 +8,7 @@ A simple sketch to read ambient temperature from a thermistor and display it on 
 A simple sketch demonstrating a thermostat that reads ambient temperature from a thermistor and passes through a proportional-integral-derivative (PID) algorithm to generate a pulse-width-modulated (PWM) output that can be used to control machinery, such as a heater. Shows how the Pg Libraries can perform complex tasks in only a few lines of code. 
 
 ### Jack 
-Demonstrates how an Arduino can be used as a remote data acquisition (DAQ) platform.
+Demonstrates how an Arduino can be used as a remote data acquisition (DAQ) platform. Jack uses a simple query language that hosts use to configure and read/write to and from GPIO pins on the device. 
 
 ### PIDThermostat
 A programmable PID-controlled thermostat with a fully functioning user interface, process control, alarm, editable settings and EEPROM storage/recall.
