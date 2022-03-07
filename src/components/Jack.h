@@ -88,7 +88,8 @@ namespace pg
 			Input = 0,		// Input pin.
 			Output = 1,		// Output pin.
 			Pullup = 2,		// Input pin w/ internal pullup resistor.
-			Disabled = 3	// Pin is disabled.
+			PwmOut = 3,		// Pwm output pin.
+			Disabled = 4	// Pin is disabled.
 		};
 
 		// Aggregates i/o pin info.
@@ -345,7 +346,7 @@ namespace pg
 
 	void Jack::gpioMode(pin_t pin, uint8_t mode)
 	{
-		if (pin < GpioCount)
+		if (pin < GpioCount && mode <= gpio_mode::Disabled)
 		{
 			setPin(pin, mode);
 			pins_[pin].mode_ = static_cast<gpio_mode>(mode);
@@ -444,9 +445,14 @@ namespace pg
 		switch (gpio.type_)
 		{
 		case gpio_type::Pwm:
-		case gpio_type::Analog:
-			writeAnalog(pin, value);
+			if(gpio.mode_ == gpio_mode::PwmOut)
+				writeAnalog(pin, value);
+			else
+				writeDigital(pin, value);
 			break;
+		case gpio_type::Analog:
+			//writeAnalog(pin, value);
+			//break;
 		case gpio_type::Digital:
 			writeDigital(pin, value);
 			break;
