@@ -272,11 +272,11 @@ namespace pg
 			using delegate_type = typename callback<Ret>::type; 
 
 		public:
-			Command(key_type& key, delegate_type del) :
+			Command(const key_type& key, delegate_type del) :
 				ICommand(key), delegate_(del) {}
 
 		public:
-			bool execute(key_type str) override { (*delegate_)(); return true; }
+			bool execute(char* str) override { (*delegate_)(); return true; }
 			const delegate_type& delegate() const { return delegate_; }
 
 		private:

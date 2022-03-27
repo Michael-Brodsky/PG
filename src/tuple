@@ -110,7 +110,7 @@ namespace std
         tuple<Ts...> rest;  // The rest of the tuple elements.
     };
 
-    // Type capable of holding a collection of heterogeneous elements.
+    // Type capable to hold a collection of heterogeneous elements.
     template <class T>
     class tuple<T> {
         template <std::size_t N>

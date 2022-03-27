@@ -412,7 +412,6 @@ InputIt find_first_of(InputIt first, InputIt last, ForwardIt s_first, ForwardIt 
 
 	return last;
 }
-
 template<class InputIt, class UnaryPredicate>
 bool is_partitioned(InputIt first, InputIt last, UnaryPredicate p)
 {

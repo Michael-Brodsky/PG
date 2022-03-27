@@ -62,21 +62,29 @@ namespace pg
 	class Command : public icommand
 	{
 	public:
-		// Callback type signature.
-		using callback_type = typename pg::callback<Ret, Obj, Arg>::type;
+		using return_type = Ret;
+		using object_type = Obj;
+		using delegate_type = typename pg::callback<Ret, Obj, Arg>::type;
+		using arg_type = Arg;
 
 	public:
-		Command(Obj* receiver, callback_type callback, Arg arg) :
-			icommand(), arg_(arg), receiver_(receiver), callback_(callback) {}
+		Command(object_type* object = nullptr, delegate_type delegate = nullptr, arg_type arg = arg_type()) :
+			icommand(), arg_(arg), object_(object), delegate_(delegate) {}
 		~Command() {};
 
 	public:
 		// Command execute method.
-		void execute() override { (void)(receiver_->*callback_)(arg_); }
+		void execute() override { (void)(object_->*delegate_)(arg_); }
+		object_type*& object() { return object_; }
+		const object_type*& object() const { return object_; }
+		delegate_type& delegate() { return delegate_; }
+		const delegate_type& delegate() const { return delegate_; }
+		arg_type& arg() { return arg_; }
+		const arg_type& arg() const { return arg_; }
 
 	protected:
-		Obj*			receiver_;	// Command receiver.
-		callback_type	callback_;	// Receiver::method.
+		object_type*	object_;	// Command receiver.
+		delegate_type	delegate_;	// Receiver::method.
 		Arg				arg_;		// Method argument.
 	};
 

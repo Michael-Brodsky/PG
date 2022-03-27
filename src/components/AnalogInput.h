@@ -91,6 +91,7 @@ namespace pg
 	{
 	public:
 		using value_type = T;
+		using range_type = RangeValueWrapper<T>;
 
 		// Encapsulates information about a range of analog input values.
 		struct Range : public RangeValueWrapper<T>, public Unique
@@ -99,9 +100,9 @@ namespace pg
 			using data_type = typename base_type::data_type;
 
 			Range() = default;
-			Range(const value_type& value) : base_type(data_type{ value,value }) {}
-			Range(const value_type& low, const value_type & high) : base_type(data_type{ low,high }) {}
-			Range(const data_type& data) : base_type(data) {}
+			Range(const value_type& value) : base_type(data_type{ value,value }), Unique() {}
+			Range(const value_type& low, const value_type & high) : base_type(data_type{ low,high }), Unique() {}
+			Range(const data_type& data) : base_type(data), Unique() {}
 		};
 
 		using callback_type = typename callback<void>::type;
