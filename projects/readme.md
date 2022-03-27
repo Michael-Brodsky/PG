@@ -13,8 +13,8 @@ Demonstrates how an Arduino can be used as a remote data acquisition (DAQ) platf
 ### PIDThermostat
 A programmable PID-controlled thermostat with a fully functioning user interface, process control, alarm, editable settings and EEPROM storage/recall.
 
-### ServoTest
-Calculates the performance limits of servo motors. Finds the minimum and maximum pulse widths, maximum p/w step (change) and minimum step interval (time between steps).
+### PgServo 
+A simple program that demonstrates how a servo can be controlled remotely with commands over a serial connection.
 
 ### Stopwatch
 A simple stopwatch program that displays the elapsed time and can be controlled from a keypad. Demostrates how to implement multitasking schemes using callbacks.
