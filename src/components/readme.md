@@ -14,7 +14,7 @@ Asynchronous GPIO digital input polling.
 Facilitates asynchronous execution of code as a timed sequence.
 
 ### Jack.h
-Facilitates remote reading/writing values to and getting/setting status of gpio pins over a serial connection.
+Turns an Arduino into a remotely controllable data acquisition (DAQ) device.
 
 ### LCDDisplay.h 
 Facilitates configuration and asynchronous operation of an LCD display including formatted printing.
