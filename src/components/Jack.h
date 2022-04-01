@@ -4,7 +4,7 @@
  *	***************************************************************************
  *
  *	File: Jack.h
- *	Date: January 16, 2022
+ *	Date: March 31, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -28,7 +28,7 @@
  *	**************************************************************************/
 
 #if !defined __PG_JACK_H
-# define __PG_JACK_H 20220116L
+# define __PG_JACK_H 20220331L
 
 # include <Arduino.h>
 # include <valarray>
@@ -47,7 +47,7 @@ namespace pg
 	using pg::usart::serial;
 	using pg::usart::hardware_serial;
 
-	// Facilitates remote control of gpio pins over a serial connection.
+	// Facilitates remote control of gpio pins data acquisition.
 	class Jack : public iclockable, public icomponent
 	{
 	public:
@@ -56,6 +56,7 @@ namespace pg
 		static const uint8_t LedPinNumber = LED_BUILTIN;					// Built-in LED pin number.
 		static const std::size_t CommandsMaxCount = 32;						// Maximum number of storable remote commands.
 		static const std::size_t TimersCount = 4;							// Number of event timers.
+		static const int8_t NoTimer = -1;									// Constant indicating pin has no timer.
 		static constexpr const unsigned long DeviceId() { return 20211226UL; }	// Unique id used to validate eeprom contents.
 
 		struct GpioPin;	// Forward decl.
@@ -68,6 +69,7 @@ namespace pg
 		using ilist_type = std::initializer_list<command_type*>;			// Commands initializer list type.
 		using callback_type = typename callback<void>::type;				// Client callback signature type.
 		using timer_type = Timer<milliseconds>;								// Event timer type.
+		using address_t = EEStream::address_type;							// EEPROM addressing tpe.
 		using Commands = typename std::valarray<command_type*, CommandsMaxCount>;	// Commands collection type (valarray has resize()).
 		using Timers = typename std::array<timer_type, TimersCount>;		// Event timers collection type.
 		using Pins = std::array<GpioPin, GpioCount>;						// GpioPins collection type.
@@ -101,6 +103,8 @@ namespace pg
 		};
 
 		// Serializable type that stores current program settings.
+		//
+		// Need to store a type field = Serial,UDP, etc. and then appropriate params.
 		class Settings : public iserializable
 		{
 		public:
@@ -124,9 +128,6 @@ namespace pg
 			baud_t		baud_;
 			frame_t		frame_;
 			timeout_t	timeout_;
-
-			// These can be expanded to include pin & timer states and init the device 
-			// to a known state on power up/reset.
 		};
 
 #pragma region built-in command key strings
@@ -144,6 +145,8 @@ namespace pg
 		static constexpr const cmdkey_t KeyWritePin = "wrp";					// Write pin (depends on type).
 		static constexpr const cmdkey_t KeyTimerStatus = "tms";					// Timer interval and attached pins.
 		static constexpr const cmdkey_t KeyTimerAttach = "atm";					// Timer attach pin.
+		static constexpr const cmdkey_t KeyLoadConfig = "lda";					// Load device configuration from eeprom.
+		static constexpr const cmdkey_t KeyStoreConfig = "sto";					// Store device configuration to eeprom.
 
 #pragma endregion
 #pragma region command reply print format strings
@@ -168,6 +171,8 @@ namespace pg
 		void initialize();
 		void ack(bool); 
 		void ack();
+		void configLoad();
+		void configStore();
 		void devReset();
 		void devInfo();
 		void commsStatus(baud_t, frame_t, timeout_t);
@@ -196,9 +201,11 @@ namespace pg
 		void initComms(Settings&);
 		void initPins(Pins&);
 		void loadSettings(EEStream&, Settings&);
+		void loadConfig(EEStream&, const address_t);
 		void sendPin(pin_t, uint16_t);
 		void setPin(pin_t, uint8_t);
 		void storeSettings(EEStream&, const Settings&);
+		void storeConfig(EEStream&, const address_t);
 
 	private:
 		// Jack built-in command objects.
@@ -225,6 +232,8 @@ namespace pg
 		JackCommand<uint8_t> cmd_gettimer_{ KeyTimerStatus, *this, &Jack::timerStatus };
 		JackCommand<void> cmd_getalltimers_{ KeyTimerStatus, *this, &Jack::timerStatus };
 		JackCommand<uint8_t, const char*> cmd_attachtimer_{ KeyTimerAttach, *this, &Jack::timerAttach };
+		JackCommand<void> cmd_ldaconfig_{ KeyLoadConfig, *this, &Jack::configLoad };
+		JackCommand<void> cmd_stoconfig_{ KeyStoreConfig, *this, &Jack::configStore };
 
 		hardware_serial&	hs_;		// Serial port hardware.
 		EEStream&			eeprom_;	// EEPROM data stream.
@@ -234,6 +243,7 @@ namespace pg
 		bool				ack_;		// Flag indicating whether to acknowledge a "write" command.
 		Commands			commands_;	// Remote commands collection.
 		RemoteControl		rc_;		// Remote command processor.
+		address_t			addr_cfg_;	// EEPROM address of device configuration.
 	};
 
 	Jack::Jack(hardware_serial& hs, EEStream& eeprom, callback_type callback, ilist_type commands) : 
@@ -241,7 +251,8 @@ namespace pg
 		commands_({ &cmd_aread_, &cmd_areadall_, &cmd_dread_, &cmd_dreadall_, &cmd_readpin_, &cmd_readallpins_,
 			&cmd_awrite_, &cmd_dwrite_, & cmd_writepin_, &cmd_settimer_, &cmd_gettimer_, &cmd_getalltimers_, 
 			&cmd_attachtimer_, &cmd_setpin_, &cmd_getpin_, &cmd_getallpins_, &cmd_setcomms_, &cmd_getcomms_, 
-			&cmd_setack_, &cmd_getack_, &cmd_devinfo_, &cmd_devreset_ }), rc_(nullptr, nullptr, hs_.hardware())
+			&cmd_setack_, &cmd_getack_, &cmd_devinfo_, &cmd_devreset_, &cmd_ldaconfig_, &cmd_stoconfig_ }),
+			rc_(nullptr, nullptr, hs_.hardware()), addr_cfg_()
 	{
 		initPins(pins_);
 		initCommands(commands);
@@ -284,6 +295,7 @@ namespace pg
 		Settings settings;
 
 		rc_.commands(std::begin(commands_), std::end(commands_));
+
 		loadSettings(eeprom_, settings);
 		initComms(settings);
 	}
@@ -301,6 +313,18 @@ namespace pg
 		char buf[8];
 
 		hs_.printFmt(buf, FmtAcknowledge, KeyAcknowledge, ack_);
+	}
+
+	void Jack::configLoad()
+	{
+
+		loadConfig(eeprom_, addr_cfg_);
+	}
+
+	void Jack::configStore()
+	{
+
+		storeConfig(eeprom_, addr_cfg_);
 	}
 
 	void Jack::devReset()
@@ -569,6 +593,8 @@ namespace pg
 				? gpio_type::Pwm
 				: i < GpioCount - AnalogInCount
 				? gpio_type::Digital
+				: analogInputToDigitalPin(GpioCount - i - 1) == -1
+				? gpio_type::Digital
 				: gpio_type::Analog;
 			pin.mode_ = i == LedPinNumber ? gpio_mode::Output : gpio_mode::Input;
 			setPin(i, pin.mode_);
@@ -586,6 +612,30 @@ namespace pg
 			settings.deserialize(eeprom);
 		else
 			storeSettings(eeprom, settings);
+		addr_cfg_ = eeprom.address();
+	}
+
+	void Jack::loadConfig(EEStream& eeprom, const address_t addr)
+	{
+		eeprom.address() = addr;
+		for (std::size_t i = 0; i < pins_.size(); ++i)
+		{
+			int8_t timer_id = NoTimer;
+			uint8_t pin_mode = 0;
+
+			eeprom >> pin_mode;
+			eeprom >> timer_id;
+			gpioMode(i, pin_mode);
+			if (timer_id != NoTimer)
+				pins_[i].timer_ = &timers_[timer_id];
+		}
+		for (std::size_t i = 0; i < timers_.size(); ++i)
+		{
+			time_t intvl = 0;
+
+			eeprom >> intvl;
+			timerStatus(i, intvl);
+		}
 	}
 
 	void Jack::sendPin(pin_t pin, uint16_t value)
@@ -609,6 +659,27 @@ namespace pg
 		eeprom.reset();
 		eeprom << DeviceId();
 		settings.serialize(eeprom);
+	}
+
+	void Jack::storeConfig(EEStream& eeprom, const address_t addr)
+	{
+		eeprom.address() = addr;
+		for (auto i : pins_)
+		{
+			int8_t timer_id = NoTimer;
+
+			eeprom << i.mode_;
+			if (i.timer_)
+			{
+				// Timers need an id field so we dont have to loop through the collection.
+				for (timer_id = 0; timer_id < TimersCount; ++timer_id)
+					if (i.timer_ == &timers_[timer_id])
+						break;
+			}
+			eeprom << timer_id;
+		}
+		for (auto i : timers_)
+			eeprom << i.interval().count();
 	}
 
 #pragma endregion
