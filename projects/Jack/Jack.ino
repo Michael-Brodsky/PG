@@ -20,7 +20,8 @@ EEStream eeprom;				// EEPROM streaming object.
 RemoteCommand<int> cmd1("cmd1", &jackCommand);			// User-defined remote command calls jackCommand<int>.
 RemoteCommand<int, long> cmd2("cmd2", &jackCommand);	// User-defined remote command calls jackCommand<int, long>.
 RemoteCommand<float> cmd3("cmd3", &jackCommand);		// User-defined remote command calls jackCommand<float>.
-Jack jack(serial0, eeprom, jackCallback, { &cmd1,&cmd2,&cmd3 });	// Jack object.
+//Jack jack(serial0, eeprom, jackCallback, { &cmd1,&cmd2,&cmd3 });	// Jack object.
+Jack jack(serial0, eeprom, jackCallback);
 
 void setup() 
 {
