@@ -68,7 +68,7 @@
  *		`__PG_USE_ALL_SERIAL_FRAMES' below.
  * 
  *		The hardware_serial::begin() method differs from the Arduino begin() 
- *		method in that is fully defaulted. Calls to hardware_serial::begin() 
+ *		method in that it's fully defaulted. Calls to hardware_serial::begin() 
  *		with no arguments uses both the default baud rate and frame (see 
  *		`DefaultBaudRate' and `DefaultFrame' below).
  * 
