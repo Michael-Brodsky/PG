@@ -235,6 +235,7 @@ namespace pg
 		JackCommand<void> cmd_ldaconfig_{ KeyLoadConfig, *this, &Jack::configLoad };
 		JackCommand<void> cmd_stoconfig_{ KeyStoreConfig, *this, &Jack::configStore };
 
+		//Connection&			connection_;
 		hardware_serial&	hs_;		// Serial port hardware.
 		EEStream&			eeprom_;	// EEPROM data stream.
 		callback_type		callback_;	// Client callback function.

@@ -36,7 +36,8 @@
 # include "array"					// std::ArrayWrapper
 # include "interfaces/icomponent.h"	// icomponent interface.
 # include "interfaces/iclockable.h"	// iclockable interface.
-# include "utilities/Serial.h"		// pg::usart::serial
+# include "utilities/Connection.h"	// Remote communications types.
+//# include "utilities/Serial.h"		// pg::usart::serial
 
 # if defined __PG_HAS_NAMESPACES
 
