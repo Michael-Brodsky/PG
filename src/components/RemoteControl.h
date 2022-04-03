@@ -37,12 +37,8 @@
 # include "interfaces/icomponent.h"	// icomponent interface.
 # include "interfaces/iclockable.h"	// iclockable interface.
 # include "utilities/Connection.h"	// Remote communications types.
-//# include "utilities/Serial.h"		// pg::usart::serial
 
 # if defined __PG_HAS_NAMESPACES
-
-using pg::usart::serial;
-using pg::usart::hardware_serial;
 
 namespace pg
 {
@@ -100,17 +96,17 @@ namespace pg
 
 		void getArg(const char* str, unsigned long& arg)
 		{
-			arg = static_cast<unsigned long>(std::atoi(str));
+			arg = static_cast<unsigned long>(std::atol(str));
 		}
 
 		void getArg(const char* str, long long& arg)
 		{
-			arg = static_cast<long long>(std::atoi(str));
+			arg = static_cast<long long>(std::atol(str));
 		}
 
 		void getArg(const char* str, unsigned long long& arg)
 		{
-			arg = static_cast<unsigned long long>(std::atoi(str));
+			arg = static_cast<unsigned long long>(std::atol(str));
 		}
 
 		void getArg(const char* str, float& arg)
@@ -192,7 +188,7 @@ namespace pg
 			bool execute(char* str) override 
 			{
 				// To support "variadic" commands, command strings must have the 
-				// number of arguments equal to the tuple size: args_.size().
+				// same number of arguments as the tuple size: args_.size().
 
 				bool result = false;
 
@@ -287,67 +283,27 @@ namespace pg
 		using command_type = ICommand;
 		using container_type = std::ArrayWrapper<command_type*>;
 
-		static constexpr const char DefaultEotChar = '\n';	// Default end of transmission char.
+		static constexpr const char DefaultEotChar = '\n';	// Default end of command char.
 		static constexpr const char* DfltCmdDelimStr = "=";	// Default command/arguments delimiter char.
 		static constexpr const char* DfltArgDelimStr = ",";	// Default arguments list delimiter char.
 
-		// Command strings are transmitted to the client over one of the onboard serial ports.
-		// Command strings have the following format:
-		// key[=arg0,arg1,...]\n
-		//
-		// Command objects are instantiated as follows:
-		// RemoteControl::Command<Ret, Obj=void, Args...> cmd(key, [obj,] &[Obj::]function);
-		// depending on their signature.
-		// 
-		// If a Command string key matches a Command object key, the Command object's
-		// execute() method is called with the contents of the receive buffer. The 
-		// object parses the buffer for tokens, converts them to a collection of typed values and calls 
-		// ([obj::]*function)(args...) expanding the collection into the function arguments, if any.
-		// 
-		// For example:
-		// 
-		// void foo(int); // Client's callable function prototype.
-		//
-		// RemoteControl::Command<void, void, int> bar("foo", &foo); // Instantiates a command object with key "foo"
-		//															 // That calls free-standing function foo() with 
-		//															 // one arg of type int.
-		// 
-		// RemoteControl rc({&bar}, Serial);	// Instantiates a RemoteControl with one command (bar) and listens for 
-		//										// Command strings using the Arduino `Serial' object.
-		// 
-		// Then in the `loop()' function:
-		// void loop() { rc.poll(); }
-		// 
-		// The command string "foo=42" calls foo(42)
-		// "foo=-42" calls foo(-42)
-		// "bar=99" is ignored because no command with key "bar" has been defined.
-		// 
-		// Member method commands work the same as free-standing commands except they require an instance of the object 
-		// at time of construction:
-		//
-		// struct Foo { void foo(int i) {} };
-		// Foo f;
-		// RemoteControl::Command<void, Foo, int> bar_none("bar", f, &Foo::foo);
-		// RemoteControl rc({&bar_none}, Serial);
-		//
-		// Now the command string "bar=42" calls f.foo(42), and so on...
-
 	public:
 		template<std::size_t Size>
-		RemoteControl(command_type* (&)[Size], HardwareSerial& = Serial, char = DefaultEotChar, bool = false);
-		RemoteControl(command_type* [], std::size_t, HardwareSerial& = Serial, char = DefaultEotChar, bool = false);
-		explicit RemoteControl(command_type** = nullptr, command_type** = nullptr, HardwareSerial& = Serial, char = DefaultEotChar, bool = false);
-		RemoteControl(std::initializer_list<command_type*>, HardwareSerial& = Serial, char = DefaultEotChar, bool = false);
+		RemoteControl(Connection*, command_type* (&)[Size], char = DefaultEotChar, bool = false);
+		RemoteControl(Connection*, command_type* [], std::size_t, char = DefaultEotChar, bool = false);
+		explicit RemoteControl(Connection* = nullptr, command_type** = nullptr, command_type** = nullptr, char = DefaultEotChar, bool = false);
+		RemoteControl(Connection*, std::initializer_list<command_type*>, char = DefaultEotChar, bool = false);
 
 	public:
-		void commands(command_type** first, command_type** last) { commands_ = container_type(first, last); }
-		const container_type& commands() const { return commands_; }
+		void commands(command_type**, command_type**);
+		const container_type& commands() const;
+		void connection(Connection*);
+		const Connection* connection() const;
 		void eot(char);
 		char eot() const;
 		void echo(bool);
 		bool echo() const;
 		void poll();
-		HardwareSerial& hardware();
 		template<class...Ts>
 		static std::size_t parseCommand(char*, std::tuple<Ts...>&, const char* = DfltCmdDelimStr, const char* = DfltArgDelimStr);
 
@@ -355,35 +311,55 @@ namespace pg
 		void clock() override;
 
 	private:
-		HardwareSerial& hardware_;
+		Connection*		connection_;
 		container_type	commands_;
 		char			eot_;
 		bool			echo_;
 	};
 
 	template<std::size_t Size>
-	RemoteControl::RemoteControl(command_type* (&commands)[Size], HardwareSerial& hs, char eot, bool echo) :
-		hardware_(hs), commands_(commands), eot_(eot), echo_(echo)
+	RemoteControl::RemoteControl(Connection* connection, command_type* (&commands)[Size], char eot, bool echo) :
+		connection_(connection), commands_(commands), eot_(eot), echo_(echo)
 	{
 
 	}
 
-	RemoteControl::RemoteControl(command_type* commands[], std::size_t sz, HardwareSerial& hs, char eot, bool echo) :
-		hardware_(hs), commands_(commands, sz), eot_(eot), echo_(echo)
+	RemoteControl::RemoteControl(Connection* connection, command_type* commands[], std::size_t sz, char eot, bool echo) :
+		connection_(connection), commands_(commands, sz), eot_(eot), echo_(echo)
 	{
 
 	}
 
-	RemoteControl::RemoteControl(command_type** first, command_type** last, HardwareSerial& hs, char eot, bool echo) :
-		hardware_(hs), commands_(first, last), eot_(eot), echo_(echo)
+	RemoteControl::RemoteControl(Connection* connection, command_type** first, command_type** last, char eot, bool echo) :
+		connection_(connection), commands_(first, last), eot_(eot), echo_(echo)
 	{
 
 	}
 
-	RemoteControl::RemoteControl(std::initializer_list<command_type*> il, HardwareSerial& serial, char eot, bool echo) :
-		hardware_(serial), commands_(const_cast<ICommand**>(il.begin()), il.size()), eot_(eot), echo_(echo) 
+	RemoteControl::RemoteControl(Connection* connection, std::initializer_list<command_type*> il, char eot, bool echo) :
+		connection_(connection), commands_(const_cast<ICommand**>(il.begin()), il.size()), eot_(eot), echo_(echo)
 	{
 
+	}
+
+	void RemoteControl::connection(Connection* cn)
+	{
+		connection_ = cn;
+	}
+
+	const Connection* RemoteControl::connection() const 
+	{
+		return connection_;
+	}
+
+	void RemoteControl::commands(command_type** first, command_type** last)
+	{ 
+		commands_ = container_type(first, last); 
+	}
+
+	const RemoteControl::container_type& RemoteControl::commands() const
+	{ 
+		return commands_; 
 	}
 
 	void RemoteControl::eot(char value)
@@ -406,27 +382,26 @@ namespace pg
 		return echo_;
 	}
 
-	HardwareSerial& RemoteControl::hardware()
-	{
-		return hardware_;
-	}
-
 	void RemoteControl::poll()
 	{
-		char buf[hardware_serial::RxBufferSize] = { '\0' }; // Receive buffer.
-
-		if (hardware_.available())
+		if (connection_)
 		{
-			hardware_.readBytesUntil(eot_, buf, sizeof(buf));
-			for (auto i : commands_)
+			char buf[64] = { '\0' }; // Command buffer.
+
+			char* message = const_cast<char*>(connection_->receive());
+
+			if (*message)
 			{
-				if (*i == buf)
+				for (auto i : commands_)
 				{
-					if (i->execute(buf))
+					if (*i == message)
 					{
-						if (echo_)
-							hardware_.println(buf);
-						break;
+						if (i->execute(message))
+						{
+							if (echo_)
+								connection_->send(message);
+							break;
+						}
 					}
 				}
 			}
@@ -441,11 +416,11 @@ namespace pg
 	template<class...Ts>
 	std::size_t RemoteControl::parseCommand(char* cmd, std::tuple<Ts...>& args, const char* cmd_delim, const char* args_delim)
 	{
-		char tmp[hardware_serial::RxBufferSize];
+		char tmp[64];
 		char* tok = nullptr;
 		std::size_t n = 0;
 
-		std::strncpy(tmp, cmd, hardware_serial::RxBufferSize);
+		std::strncpy(tmp, cmd, sizeof(tmp)); // Need a copy of cmd to work on because strtok mangles it.
 		if ((tok = std::strtok(tmp, cmd_delim)))
 			n = detail::getCmdArgs(args_delim, args);
 

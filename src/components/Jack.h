@@ -31,6 +31,7 @@
 # define __PG_JACK_H 20220331L
 
 # include <Arduino.h>
+# include <cstdio>
 # include <valarray>
 # include <system/boards.h>
 # include <system/utils.h>
@@ -44,8 +45,6 @@
 namespace pg
 {
 	using std::chrono::milliseconds;
-	using pg::usart::serial;
-	using pg::usart::hardware_serial;
 
 	// Facilitates remote control of gpio pins data acquisition.
 	class Jack : public iclockable, public icomponent
@@ -56,14 +55,10 @@ namespace pg
 		static const uint8_t LedPinNumber = LED_BUILTIN;					// Built-in LED pin number.
 		static const std::size_t CommandsMaxCount = 32;						// Maximum number of storable remote commands.
 		static const std::size_t TimersCount = 4;							// Number of event timers.
-		static const int8_t NoTimer = -1;									// Constant indicating pin has no timer.
+		static const int8_t NoTimer = -1;									// EEPROM storable constant indicating pin has no timer.
 		static constexpr const unsigned long DeviceId() { return 20211226UL; }	// Unique id used to validate eeprom contents.
 
 		struct GpioPin;	// Forward decl.
-		using baud_t = usart::baud_type;									// Port baud rate storage type. 
-		using frame_t = usart::frame_type;									// Port frame storage type.  
-		using timeout_t = usart::timeout_type;								// Port timeout storage type.
-		using frame_v = usart::frame_map_type;								// Port frame to string mapping type.
 		using command_type = RemoteControl::command_type;					// Jack command type.
 		using cmdkey_t = typename command_type::key_type;					// Command key storage type.
 		using ilist_type = std::initializer_list<command_type*>;			// Commands initializer list type.
@@ -102,40 +97,11 @@ namespace pg
 			timer_type*	timer_;		// Attached event timer, if any.
 		};
 
-		// Serializable type that stores current program settings.
-		//
-		// Need to store a type field = Serial,UDP, etc. and then appropriate params.
-		class Settings : public iserializable
-		{
-		public:
-			Settings(baud_t baud = hardware_serial::DefaultBaudRate,
-				frame_t frame = hardware_serial::DefaultFrame,
-				timeout_t timeout = hardware_serial::DefaultTimeout) :
-				baud_(baud), frame_(frame), timeout_(timeout)
-			{}
-
-		public:
-			baud_t& baud() { return baud_; }
-			const baud_t& baud() const { return baud_; }
-			frame_t& frame() { return frame_; }
-			const frame_t& frame() const { return frame_; }
-			timeout_t& timeout() { return timeout_; }
-			const timeout_t& timeout() const { return timeout_; }
-			void serialize(EEStream& e) const override { e << baud_; e << frame_; e << timeout_; }
-			void deserialize(EEStream& e) override { e >> baud_; e >> frame_; e >> timeout_; }
-
-		private:
-			baud_t		baud_;
-			frame_t		frame_;
-			timeout_t	timeout_;
-		};
-
 #pragma region built-in command key strings
 
 		static constexpr const cmdkey_t KeyDevReset = "rst";					// Device reset.
 		static constexpr const cmdkey_t KeyDevInfo = "inf";						// Device info.
 		static constexpr const cmdkey_t KeyAcknowledge = "ack";					// Device acknowledge.
-		static constexpr const cmdkey_t KeyCommsStatus = "com";					// Comms settings and status.
 		static constexpr const cmdkey_t KeyPinMode = "pin";						// Pin type and mode.
 		static constexpr const cmdkey_t KeyAnalogRead = "ard";					// Analog read pin.
 		static constexpr const cmdkey_t KeyDigitalRead = "drd";					// Digital read pin.
@@ -152,7 +118,6 @@ namespace pg
 #pragma region command reply print format strings
 
 		static constexpr const char* FmtGetPinMode = "%s=%u,%u,%u";				// pin=p#,type,mode
-		static constexpr const char* FmtGetComms = "%s=%lu,%s,%lu";				// com=baud,frame,timeout
 		static constexpr const char* FmtDevInfo = "%s=%lu,%s,%s,%.1f,%u,%u";	// inf=id,type,mcu,clkspd,#pins,#timers
 		static constexpr const char* FmtSendPin = "%u=%u";						// p#=value
 		static constexpr const char* FmtAcknowledge = "%s=%u";					// ack=0/1
@@ -161,13 +126,15 @@ namespace pg
 #pragma endregion
 
 	public:
-		Jack(hardware_serial&, EEStream&, callback_type = nullptr, ilist_type = ilist_type());
+		Jack(EEStream&, callback_type = nullptr, ilist_type = ilist_type());
+		Jack(Connection*, EEStream&, callback_type = nullptr, ilist_type = ilist_type());
 
 	public:
 		void poll();
 		const Commands& commands() const;
 		Commands& commands();
-		hardware_serial& comms();
+		void connection(Connection*);
+		const Connection* connection() const;
 		void initialize();
 		void ack(bool); 
 		void ack();
@@ -175,8 +142,6 @@ namespace pg
 		void configStore();
 		void devReset();
 		void devInfo();
-		void commsStatus(baud_t, frame_t, timeout_t);
-		void commsStatus();
 		void gpioMode(pin_t, uint8_t);
 		void gpioMode(pin_t);
 		void gpioMode();
@@ -194,18 +159,20 @@ namespace pg
 		void timerStatus(uint8_t);
 		void timerStatus();
 		void timerAttach(uint8_t, const char*);
+		void timerAttach(uint8_t);
 
 	private:
+		void timerDetach(timer_type*);
+		timer_type* getTimer(uint8_t);
 		void clock() override;
 		void initCommands(ilist_type&);
-		void initComms(Settings&);
 		void initPins(Pins&);
-		void loadSettings(EEStream&, Settings&);
 		void loadConfig(EEStream&, const address_t);
 		void sendPin(pin_t, uint16_t);
 		void setPin(pin_t, uint8_t);
-		void storeSettings(EEStream&, const Settings&);
 		void storeConfig(EEStream&, const address_t);
+		template<class... Args>
+		void reply(char*, const char*, Args...);
 
 	private:
 		// Jack built-in command objects.
@@ -214,8 +181,6 @@ namespace pg
 		JackCommand<void> cmd_devinfo_{ KeyDevInfo, *this, &Jack::devInfo };
 		JackCommand<bool> cmd_setack_{ KeyAcknowledge, *this, &Jack::ack };
 		JackCommand<void> cmd_getack_{ KeyAcknowledge, *this, &Jack::ack };
-		JackCommand<baud_t, frame_t, timeout_t> cmd_setcomms_{ KeyCommsStatus, *this, &Jack::commsStatus };
-		JackCommand<void> cmd_getcomms_{ KeyCommsStatus, *this, &Jack::commsStatus };
 		JackCommand<pin_t, uint8_t> cmd_setpin_{ KeyPinMode, *this, &Jack::gpioMode };
 		JackCommand<pin_t> cmd_getpin_{ KeyPinMode, *this, &Jack::gpioMode };
 		JackCommand<void> cmd_getallpins_{ KeyPinMode, *this, &Jack::gpioMode };
@@ -232,11 +197,11 @@ namespace pg
 		JackCommand<uint8_t> cmd_gettimer_{ KeyTimerStatus, *this, &Jack::timerStatus };
 		JackCommand<void> cmd_getalltimers_{ KeyTimerStatus, *this, &Jack::timerStatus };
 		JackCommand<uint8_t, const char*> cmd_attachtimer_{ KeyTimerAttach, *this, &Jack::timerAttach };
+		JackCommand<uint8_t> cmd_detachtimer_{ KeyTimerAttach, *this, &Jack::timerAttach };
 		JackCommand<void> cmd_ldaconfig_{ KeyLoadConfig, *this, &Jack::configLoad };
 		JackCommand<void> cmd_stoconfig_{ KeyStoreConfig, *this, &Jack::configStore };
 
-		//Connection&			connection_;
-		hardware_serial&	hs_;		// Serial port hardware.
+		Connection*			connection_;// Communications connection.
 		EEStream&			eeprom_;	// EEPROM data stream.
 		callback_type		callback_;	// Client callback function.
 		Pins				pins_;		// GPIO pins collection.
@@ -247,13 +212,24 @@ namespace pg
 		address_t			addr_cfg_;	// EEPROM address of device configuration.
 	};
 
-	Jack::Jack(hardware_serial& hs, EEStream& eeprom, callback_type callback, ilist_type commands) : 
-		hs_(hs), eeprom_(eeprom), callback_(callback), pins_(), timers_(), ack_(), 
+	Jack::Jack(EEStream& eeprom, callback_type callback, ilist_type commands) :
+		connection_(), eeprom_(eeprom), callback_(callback), pins_(), timers_(), ack_(), rc_(), addr_cfg_(eeprom_.address()), 
 		commands_({ &cmd_aread_, &cmd_areadall_, &cmd_dread_, &cmd_dreadall_, &cmd_readpin_, &cmd_readallpins_,
-			&cmd_awrite_, &cmd_dwrite_, & cmd_writepin_, &cmd_settimer_, &cmd_gettimer_, &cmd_getalltimers_, 
-			&cmd_attachtimer_, &cmd_setpin_, &cmd_getpin_, &cmd_getallpins_, &cmd_setcomms_, &cmd_getcomms_, 
-			&cmd_setack_, &cmd_getack_, &cmd_devinfo_, &cmd_devreset_, &cmd_ldaconfig_, &cmd_stoconfig_ }),
-			rc_(nullptr, nullptr, hs_.hardware()), addr_cfg_()
+			&cmd_awrite_, &cmd_dwrite_, &cmd_writepin_, &cmd_settimer_, &cmd_gettimer_, &cmd_getalltimers_,
+			&cmd_attachtimer_, &cmd_setpin_, &cmd_getpin_, &cmd_getallpins_, &cmd_detachtimer_, 
+			&cmd_setack_, &cmd_getack_, &cmd_devinfo_, &cmd_devreset_, &cmd_ldaconfig_, &cmd_stoconfig_ })
+		
+	{
+		initPins(pins_);
+		initCommands(commands);
+	}
+
+	Jack::Jack(Connection* connection, EEStream& eeprom, callback_type callback, ilist_type commands) : 
+		connection_(), eeprom_(eeprom), callback_(callback), pins_(), timers_(), ack_(), rc_(), addr_cfg_(eeprom_.address()),
+		commands_({ &cmd_aread_, &cmd_areadall_, &cmd_dread_, &cmd_dreadall_, &cmd_readpin_, &cmd_readallpins_,
+			&cmd_awrite_, &cmd_dwrite_, &cmd_writepin_, &cmd_settimer_, &cmd_gettimer_, &cmd_getalltimers_,
+			&cmd_attachtimer_, &cmd_setpin_, &cmd_getpin_, &cmd_getallpins_, &cmd_detachtimer_,
+			&cmd_setack_, &cmd_getack_, &cmd_devinfo_, &cmd_devreset_, &cmd_ldaconfig_, &cmd_stoconfig_ })
 	{
 		initPins(pins_);
 		initCommands(commands);
@@ -263,7 +239,7 @@ namespace pg
 
 	void Jack::poll()
 	{
-		// Check for new commands received by serial port.
+		// Check for new messages.
 		rc_.poll();
 		// Check for any expired timers.
 		for (std::size_t i = 0; i < timers_.size(); ++i)
@@ -286,19 +262,22 @@ namespace pg
 		return commands_;
 	}
 
-	hardware_serial& Jack::comms()
+	void Jack::connection(Connection* cn)
 	{
-		return hs_;
+		connection_ = cn;
+	}
+
+	const Connection* Jack::connection() const 
+	{
+		return connection_;
 	}
 
 	void Jack::initialize()
 	{
-		Settings settings;
-
+		rc_.connection(connection_);
 		rc_.commands(std::begin(commands_), std::end(commands_));
-
-		loadSettings(eeprom_, settings);
-		initComms(settings);
+		if (callback_)
+			(*callback_)();
 	}
 
 	void Jack::ack(bool value)
@@ -313,18 +292,16 @@ namespace pg
 	{
 		char buf[8];
 
-		hs_.printFmt(buf, FmtAcknowledge, KeyAcknowledge, ack_);
+		reply(buf, FmtAcknowledge, KeyAcknowledge, ack_);
 	}
 
 	void Jack::configLoad()
 	{
-
 		loadConfig(eeprom_, addr_cfg_);
 	}
 
 	void Jack::configStore()
 	{
-
 		storeConfig(eeprom_, addr_cfg_);
 	}
 
@@ -332,9 +309,8 @@ namespace pg
 	{
 		if (ack_) 
 		{
-			hs_.println(KeyDevReset);
-			while (hs_.availableForWrite() < hs_.TxBufferSize - 1)
-				delay(10);	// Wait for write buf to empty.
+			connection_->send(KeyDevReset);
+			delay(50);	// Wait for write buf to empty.
 		}
 		resetFunc();
 	}
@@ -343,30 +319,9 @@ namespace pg
 	{
 		char buf[64];
 
-		hs_.printFmt(buf, FmtDevInfo, cmd_devinfo_.key(), DeviceId(),
+		reply(buf, FmtDevInfo, cmd_devinfo_.key(), DeviceId(),
 			board_traits<board_type>::board, board_traits<board_type>::mcu,
 			board_traits<board_type>::clock_frequency / 1000000, (unsigned)pins_.size(), (unsigned)timers_.size());
-	}
-
-	void Jack::commsStatus(baud_t baud, frame_t frame, timeout_t timeout)
-	{
-		Settings settings(baud, frame, timeout);
-
-		storeSettings(eeprom_, settings);
-		initComms(settings);
-		if (ack_)
-			commsStatus();
-		if (callback_)
-			(*callback_)();
-	}
-
-	void Jack::commsStatus()
-	{
-		char buf[32];
-
-		hs_.printFmt(buf, FmtGetComms, cmd_getcomms_.key(), hs_.baud(),
-			std::find(hs_.SupportedFrames.begin(), hs_.SupportedFrames.end(), hs_.frame())->string(),
-			hs_.getTimeout());
 	}
 
 	void Jack::gpioMode(pin_t pin, uint8_t mode)
@@ -386,7 +341,7 @@ namespace pg
 		{
 			char buf[16];
 
-			hs_.printFmt(buf, FmtGetPinMode, cmd_getpin_.key(), pin, pins_[pin].type_, pins_[pin].mode_);
+			reply(buf, FmtGetPinMode, cmd_getpin_.key(), pin, pins_[pin].type_, pins_[pin].mode_);
 		}
 	}
 
@@ -475,9 +430,7 @@ namespace pg
 			else
 				writeDigital(pin, value);
 			break;
-		case gpio_type::Analog:
-			//writeAnalog(pin, value);
-			//break;
+		case gpio_type::Analog:	// Analog pins are digital out only.
 		case gpio_type::Digital:
 			writeDigital(pin, value);
 			break;
@@ -486,9 +439,14 @@ namespace pg
 		}
 	}
 
+	Jack::timer_type* Jack::getTimer(uint8_t tid)
+	{
+		return tid < TimersCount ? &timers_[tid] : nullptr;
+	}
+
 	void Jack::timerStatus(uint8_t tid, time_t interval)
 	{
-		timer_type* timer = tid < TimersCount ? &timers_[tid] : nullptr;
+		timer_type* timer = getTimer(tid);
 
 		if (timer)
 		{
@@ -503,7 +461,7 @@ namespace pg
 
 	void Jack::timerStatus(uint8_t tid)
 	{
-		timer_type* timer = tid < TimersCount ? &timers_[tid] : nullptr;
+		timer_type* timer = getTimer(tid);
 
 		if (timer)
 		{
@@ -513,7 +471,7 @@ namespace pg
 			for (std::size_t i = 0; i < pins_.size(); ++i)
 				if (pins_[i].timer_ == timer)
 					std::sprintf(buf + std::strlen(buf), ",%u", i);
-			hs_.println(buf);
+			connection_->send(buf);
 		}
 	}
 
@@ -523,18 +481,31 @@ namespace pg
 			timerStatus(i);
 	}
 
+	void Jack::timerDetach(timer_type* timer)
+	{
+		for (auto& i : pins_)
+			if (i.timer_ == timer)
+				i.timer_ = nullptr;
+	}
+
+	void Jack::timerAttach(uint8_t tid)
+	{
+		timer_type* timer = getTimer(tid);
+
+		if (timer)
+			timerDetach(timer);
+	}
+
 	void Jack::timerAttach(uint8_t tid, const char* pins)
 	{
-		timer_type* timer = tid < TimersCount ? &timers_[tid] : nullptr;
+		timer_type* timer = getTimer(tid);
 
 		if (timer)
 		{
 			char* tok = std::strtok((char*)pins, ".");
 
 			// Detach all attached pins from the timer.
-			for (auto& i : pins_)
-				if (i.timer_ == timer)
-					i.timer_ = nullptr;
+			timerDetach(timer);
 			// Attach all pins in list to the timer.
 			while (tok)
 			{
@@ -571,15 +542,6 @@ namespace pg
 		}
 	}
 
-	void Jack::initComms(Settings& settings)
-	{
-# if !defined _DEBUG
-		hs_.begin(settings.baud(), settings.frame());
-		hs_.flush();
-		hs_.setTimeout(settings.timeout());
-# endif // !defined _DEBUG
-	}
-
 	void Jack::initPins(Pins& pins)
 	{
 		for (uint8_t i = 0; i < pins.size(); ++i)
@@ -601,19 +563,6 @@ namespace pg
 			setPin(i, pin.mode_);
 			pin.timer_ = nullptr;
 		}
-	}
-
-	void Jack::loadSettings(EEStream& eeprom, Settings& settings)
-	{
-		unsigned long device_id = 0;
-
-		eeprom.reset();
-		eeprom >> device_id;
-		if (device_id == DeviceId())
-			settings.deserialize(eeprom);
-		else
-			storeSettings(eeprom, settings);
-		addr_cfg_ = eeprom.address();
 	}
 
 	void Jack::loadConfig(EEStream& eeprom, const address_t addr)
@@ -643,7 +592,7 @@ namespace pg
 	{
 		char buf[16];
 
-		hs_.printFmt(buf, FmtSendPin, pin, value);
+		reply(buf, FmtSendPin, pin, value);
 	}
 
 	void Jack::setPin(pin_t pin, uint8_t mode)
@@ -653,13 +602,6 @@ namespace pg
 		pinMode(pin, mode);
 		if (pins_[pin].type_ == gpio_type::Analog)
 			(void)analogRead(pin);
-	}
-
-	void Jack::storeSettings(EEStream& eeprom, const Settings& settings)
-	{
-		eeprom.reset();
-		eeprom << DeviceId();
-		settings.serialize(eeprom);
 	}
 
 	void Jack::storeConfig(EEStream& eeprom, const address_t addr)
@@ -681,6 +623,13 @@ namespace pg
 		}
 		for (auto i : timers_)
 			eeprom << i.interval().count();
+	}
+
+	template<class... Args>
+	void Jack::reply(char* buf, const char* fmt, Args... args)
+	{
+		std::sprintf(buf, fmt, args...);
+		connection_->send(buf);
 	}
 
 #pragma endregion

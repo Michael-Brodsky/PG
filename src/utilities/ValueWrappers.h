@@ -106,10 +106,10 @@ namespace pg
 
 	public:
 		StringValueWrapper() = default;
-		StringValueWrapper(const value_type& value, const string_type& str) :
+		constexpr StringValueWrapper(const value_type& value, const string_type& str) :
 			data_(data_type{ value,str })
 		{}
-		StringValueWrapper(const data_type& string_value) :
+		constexpr StringValueWrapper(const data_type& string_value) :
 			data_(string_value)
 		{}
 
@@ -190,6 +190,28 @@ namespace pg
 		const container_type& values() const { return container_; }
 	private:
 		container_type container_;
+	};
+
+	template<class T>
+	class StringValue
+	{
+	public:
+		using value_type = T;
+		using string_type = const char*;
+
+	public:
+		constexpr StringValue() = default;
+		StringValue(const StringValue&) = default;
+		constexpr StringValue(value_type val, string_type str) : value_(val), string_(str) {}
+		StringValue& operator=(const StringValue& other) = default;
+
+	public:
+		constexpr value_type value() const { return value_; }
+		constexpr string_type string() const { return string_; }
+
+	private:
+		value_type	value_;
+		string_type string_;
 	};
 
 } // namespace pg
