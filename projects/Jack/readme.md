@@ -1,1 +1,1 @@
-Readme.md
+Jack is open source software that emulates the commercial LabJack(tm) devices on Arduino boards. It turns an Arduino into a data acquisition (DAQ) device that can be controlled by a remote host using a simple query language. Hosts can read and write, and set the pin modes of the board's gpio pins and control other board features. Jack supports remote communications over serial (uart), and UDP over WiFi/Ethernet. Updates uploaded regularly, check back often.
