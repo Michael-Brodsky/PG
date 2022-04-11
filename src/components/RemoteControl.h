@@ -32,6 +32,7 @@
 # define __PG_REMOTECONTROL_H 20220115L
 
 # include "cstdlib"					// atoi(), atol(), atof().
+# include "cstring"					// libstdc string functions.
 # include "tuple"					// std::tuple, std::apply
 # include "array"					// std::ArrayWrapper
 # include "interfaces/icomponent.h"	// icomponent interface.
@@ -163,7 +164,7 @@ namespace pg
 			key_type key() { return key_; }
 			const key_type key() const { return key_; }
 
-			friend bool operator==(const ICommand& other, const key_type& str) { return !strncmp(other.key(), str, strlen(other.key())); }
+			friend bool operator==(const ICommand& other, const key_type& str) { return !std::strncmp(other.key(), str, std::strlen(other.key())); }
 			friend bool operator!=(const ICommand& other, const key_type& str) { return !(other == str); }
 
 		private:
@@ -387,7 +388,6 @@ namespace pg
 		if (connection_)
 		{
 			char buf[64] = { '\0' }; // Command buffer.
-
 			char* message = const_cast<char*>(connection_->receive());
 
 			if (*message)

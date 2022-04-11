@@ -48,7 +48,16 @@
 # define NoTimer0Int TIMSK0 &= ~_BV(OCIE0A);					// Disable Timer0 cmp interrupt.
 # define Timer0Int(val) OCR0A = (val); TIMSK0 |= _BV(OCIE0A);	// Sets Timer0 cmp interrupt to trigger on `val'.
 
+# if defined ARDUINO_AVR_UNO_WIFI_REV2
+void resetFunc()
+{
+	CPU_CCP = 0xD8;
+	WDT.CTRLA = 0x4;
+	while (true);
+}
+# else
 void(*resetFunc)(void) = 0;	// Reboots the Arduino device.
+# endif
 
 # if defined __arm__
 // should use unistd.h to define sbrk but Due causes a conflict

@@ -128,6 +128,7 @@ namespace pg
 	struct Arduino_Tian {};
 	struct Arduino_Uno {};
 	struct Arduino_Uno_Wifi {};
+	struct Arduino_Uno_Wifi_Rev2{};
 	struct Arduino_Yun {};
 	struct Arduino_Yun_Mini {};
 	struct Arduino_Zero {};
@@ -386,6 +387,20 @@ namespace pg
 		static constexpr const char* mcu = "ATmega328P";
 	};
 
+	template<>
+	struct board_traits<Arduino_Uno_Wifi_Rev2>
+	{
+		static constexpr uint8_t adc_digits = 12;
+		static constexpr frequency_t pwm_frequency(pin_t pin)
+		{
+			return pin == 3 || pin == 5 || pin == 6 || pin == 9 || pin == 10
+				? 976.5625
+				: 0;
+		}
+		static constexpr frequency_t clock_frequency = 20000000;
+		static constexpr const char* board = "Arduino Uno Wifi Rev2";
+		static constexpr const char* mcu = "ATmega4809";
+	};
 	template<>
 	struct board_traits<Arduino_Ethernet>
 	{
@@ -832,6 +847,8 @@ namespace pg
 		using board_type = Arduino_Uno;
 #    elif defined(ARDUINO_AVR_UNO_WIFI_DEV_ED)
 		using board_type = Arduino_Uno_Wifi;
+#    elif defined ARDUINO_AVR_UNO_WIFI_REV2
+		using board_type = Arduino_Uno_Wifi_Rev2;
 #    elif defined(ARDUINO_AVR_YUN)       
 		using board_type = Arduino_Yun;
 #    elif defined(ARDUINO_AVR_YUNMINI)

@@ -26,91 +26,21 @@
  *  You should have received a copy of the GNU General Public License
  *	along with this file. If not, see <http://www.gnu.org/licenses/>.
  *
- *	**************************************************************************
- *
- *	Description:
- *
- *		This file defines two connection types:
- *		
- *			SerialConnection: manages serial connections, 
- *			UdpConnection: manages UDP/IP connections on a WiFi network.
- * 
- *		Both of these types inherit from a common abstract class `Connection' 
- *		that declares a common interface.
- * 
- *	Usage:
- * 
- *		UdpConnection objects are default constructable, with optional 
- *		connection parameters (see open() method below). For example: 
- *
- *			UdpConnection udp;
- *			UdpConnection udp("MyNetworkSSID,MyPassword,192.168.128.1,5000");
- * 
- *		SerialConnection objects are constructed by passing one of the  
- *		HardwareSerial objects to the constructor and specifying the port 
- *		to use. For example: 
- * 
- *			
- *			SerialConnection ser(Serial);
- *			SerialConnection ser(Serial1,"9600,8N1");
- * 
- *		Connections must be opened in the constructor or with the open() method.
- *		The method takes connection parameters in the form of a comma separated 
- *		string list ("param1,param2,...,paramN").
- * 
- *		SerialConnection.open(baud,frame[,timeout]); where:
- * 
- *			baud = any valid baud rate, 
- *			frame = any valid frame, 
- *			timeout = (optional) any valid timeout in milliseconds. 
- * 
- *		UdpConnection.open("ssid,pw,ipa,port"); where:
- * 
- *			ssid = the network ssid, 
- *			pw = the network password,
- *			ipa = the broadcast address, 
- *			port = the port to listen on.
- * 
- *		For example:
- * 
- *			ser.open("9600,8N1,1000");
- *			udp.open("MyNetworkSSID,MyPassword,192.168.128.1,5000");
- * 
- *		Messages are sent to and received from remote hosts as character 
- *		strings using the send() and receive() methods. The receive() method 
- *		returns a std::nullptr_t if no packets were received.
- * 
- *	Notes:
- * 
- *		UdpConnection only supports unicast send and receive, as it's intended 
- *		to communicate with a specific host at a specific ip on a specific 
- *		port.
- *
  *	**************************************************************************/
 
 #if !defined __PG_CONNECTION_H
-#define __PG_CONNECTION_H 20220401
+# define __PG_CONNECTION_H 20220401
 
-#include <cstdlib>
-#include <cstring>
-#include <algorithm>
-#include <utilities/ValueWrappers.h>
-#include <SPI.h>
-#include <WiFi.h>
-#include <WiFiUdp.h>
+# include "cstring"
+# include "system/boards.h"
+# include "utilities/ValueWrappers.h"
+# include "system/wifi.h"
 
 namespace pg
 {
-	namespace detail
-	{
-
-	} // namespace detail
-
 	// Connection abstract interface class.
 	struct Connection
 	{
-		using string_type = const char*;
-
 		enum class ConnectionType
 		{
 			None = 0,
@@ -118,8 +48,7 @@ namespace pg
 			Udp = 2
 		};
 
-		static constexpr const char* const ParamArgsDelimiter = ",";
-		static constexpr const char* const IpAddressDelimiter = ".";
+		static constexpr const char ArgsDelimiterChar = ',';
 
 		virtual ~Connection() = default;
 
@@ -136,7 +65,9 @@ namespace pg
 	class SerialConnection : public Connection
 	{
 	public:
-		using string_type = Connection::string_type;
+		static constexpr const char EndOfMessageChar = '\n';
+
+	public:
 		using baud_type = unsigned long;
 		using frame_type = uint8_t;
 		using timeout_type = unsigned long;
@@ -198,9 +129,6 @@ namespace pg
 	// Connects a remote host using UDP/IP (WiFi).
 	class UdpConnection : public Connection
 	{
-	public:
-		using string_type = Connection::string_type;
-
 	public: 
 		static constexpr const std::size_t UdpMaxPacketSize = 255;
 		static constexpr const uint32_t WifiWaitConnect = 2000;
@@ -219,18 +147,22 @@ namespace pg
 		std::size_t send(const char* message) override;
 		const char* receive() override;
 		WiFiClass& hardware();
+		const char* ssid() const;
 		unsigned int port() const;
-		IPAddress ip() const;
+		IPAddress remoteIP() const;
+		void remoteIP(IPAddress);
+		IPAddress localIP() const;
 
 	private:
 		void parseParams(const char* params);
 
 	private:
-		char*			ssid_;		// Network ssid.
-		const char*		pw_;		// Network passphrase.
+		String			ssid_;		// Network ssid.
+		String			pw_;		// Network passphrase.
 		int				status_;	// Network connection status.
 		WiFiUDP			udp_;		// Arduino UDP api.
-		IPAddress		ipa_;		// The current broadcast address.
+		IPAddress		local_ip_;	// The current remote address.
+		IPAddress		remote_ip_;	// The current remote address.
 		unsigned int	port_;		// The current UDP port.
 		char			buf_[UdpMaxPacketSize];	// Receive buffer.
 	};
@@ -295,7 +227,7 @@ std::size_t SerialConnection::send(const char* message)
 
 const char* SerialConnection::receive()
 {
-	std::size_t eot = hardware_.readBytesUntil('\n', buf_, sizeof(buf_));
+	std::size_t eot = hardware_.readBytesUntil(EndOfMessageChar, buf_, sizeof(buf_));
 
 	buf_[eot] = '\0';
 
@@ -304,24 +236,30 @@ const char* SerialConnection::receive()
 
 void SerialConnection::parseParams(const char* params)
 {
-	char* baud = std::strtok(const_cast<char*>(params), Connection::ParamArgsDelimiter);
-	char* frame = nullptr, * timeout = nullptr;
+	String str = params;
+	auto n = str.indexOf(ArgsDelimiterChar);
 
-	if (baud)
-		baud_ = std::atol(baud);
-	if ((frame = std::strtok(nullptr, Connection::ParamArgsDelimiter)))
+	if (n > 0)
 	{
+		baud_ = str.substring(0, n).toInt();
+		str = str.substring(n + 1);
+	}
+	if ((n = str.indexOf(ArgsDelimiterChar)) > 0)
+	{
+		String frame = str.substring(0, n);
+
 		for (auto i : SupportedFrames)
 		{
-			if (!std::strncmp(frame, i.string(), std::strlen(frame)))
+			if (frame == i.string())
 			{
 				frame_ = i.value();
 				break;
 			}
 		}
+		str = str.substring(n + 1);
+		if (str.length() > 0)
+			timeout_ = str.toInt();
 	}
-	if ((timeout = std::strtok(nullptr, Connection::ParamArgsDelimiter)))
-		timeout_ = std::atol(timeout);
 }
 
 HardwareSerial& SerialConnection::hardware()
@@ -348,7 +286,7 @@ SerialConnection::timeout_type SerialConnection::timeout() const
 #pragma region UdpConnection
 
 UdpConnection::UdpConnection(const char* params) : 
-	ssid_(), pw_(), status_(WL_IDLE_STATUS), udp_(), ipa_(), port_(), buf_() 
+	ssid_(), pw_(), status_(WL_IDLE_STATUS), udp_(), remote_ip_(), local_ip_(), port_(), buf_()
 {
 	
 }
@@ -373,7 +311,7 @@ void UdpConnection::open(const char* params)
 		parseParams(params);
 		while (status_ != WL_CONNECTED && waited < WifiMaxWaitTime)
 		{
-			status_ = WiFi.begin(ssid_, pw_);
+			status_ = WiFi.begin(const_cast<ssid_t>(ssid_.c_str()), pw_.c_str());
 			delay(WifiWaitConnect);
 			waited += WifiWaitConnect;
 		}
@@ -400,7 +338,7 @@ std::size_t UdpConnection::send(const char* message)
 {
 	if (open())
 	{
-		udp_.beginPacket(ipa_, port_);
+		udp_.beginPacket(remote_ip_, port_);
 		udp_.write(message);
 		udp_.endPacket();
 	}
@@ -412,9 +350,10 @@ const char* UdpConnection::receive()
 
 	if (open())
 	{
-		if (udp_.parsePacket() && udp_.remoteIP() == ipa_)
+		if (udp_.parsePacket())
 		{
 			n = udp_.read(buf_, sizeof(buf_));
+			remote_ip_ = udp_.remoteIP();
 			udp_.endPacket();
 		}
 	}
@@ -425,14 +364,20 @@ const char* UdpConnection::receive()
 
 void UdpConnection::parseParams(const char* params)
 {
-	char* port = nullptr, * ip = nullptr;
+	String str = params;
+	auto n = str.indexOf(',');
 
-	ssid_ = std::strtok(const_cast<char*>(params), Connection::ParamArgsDelimiter);
-	pw_ = std::strtok(nullptr, Connection::ParamArgsDelimiter);
-	if ((ip = std::strtok(nullptr, Connection::ParamArgsDelimiter)))
-		ipa_.fromString(const_cast<const char*>(ip));
-	if ((port = std::strtok(nullptr, Connection::ParamArgsDelimiter)))
-		port_ = std::atoi(port);
+	if (n > 0)
+	{
+		ssid_ = str.substring(0, n);
+		str = str.substring(n+1);
+	}
+	if ((n = str.indexOf(ArgsDelimiterChar)) > 0)
+	{
+		pw_ = str.substring(0, n);
+		str = str.substring(n+1);
+		port_ = str.toInt();
+	}
 }
 
 WiFiClass& UdpConnection::hardware()
@@ -440,14 +385,29 @@ WiFiClass& UdpConnection::hardware()
 	return WiFi;
 }
 
+const char* UdpConnection::ssid() const
+{
+	return ssid_.c_str();
+}
+
 unsigned int UdpConnection::port() const
 {
 	return port_;
 }
 
-IPAddress UdpConnection::ip() const
+IPAddress UdpConnection::remoteIP() const
 {
-	return ipa_;
+	return remote_ip_;
+}
+
+void UdpConnection::remoteIP(IPAddress ip)
+{
+	remote_ip_ = ip;
+}
+
+IPAddress UdpConnection::localIP() const
+{
+	return local_ip_;
 }
 
 #pragma endregion

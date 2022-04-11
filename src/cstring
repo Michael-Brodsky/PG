@@ -50,8 +50,11 @@
 # define __PG_CSTRING_ 20210908L
 
 # include "pg.h"
-# include <string.h>
-
+# if defined ARDUINO_AVR_UNO_WIFI_REV2 
+#  include "lib/string.h"	// No avr-libc for megaavr boards, so use our own.
+# else
+#  include <string.h>
+# endif
 # if defined __PG_HAS_NAMESPACES
 
  // Get rid of any conflicting macros defined in <string.h>.
@@ -81,6 +84,7 @@
 
 namespace std 
 {
+#  if !defined ARDUINO_AVR_UNO_WIFI_REV2 
 	using ::memchr;
 	using ::memcmp;
 	using ::memcpy;
@@ -93,19 +97,19 @@ namespace std
 	using ::strcpy;
 	using ::strcspn;
 	using ::strerror;
-	using ::strlen;
 	using ::strncat;
-	using ::strncmp;
-	using ::strncpy;
 	using ::strpbrk;
 	using ::strrchr;
 	using ::strspn;
 	using ::strstr;
-	using ::strtok;
 	using ::strxfrm;
+#  endif
+	using ::strlen;
+	using ::strncmp;
+	using ::strncpy;
+	using ::strtok;
 
-#if !defined __CORRECT_ISO_CPP_STRING_H_PROTO
-
+#  if !(defined __CORRECT_ISO_CPP_STRING_H_PROTO || defined ARDUINO_AVR_UNO_WIFI_REV2)
 	inline void* memchr(void* s, int c, size_t n) {
 		return memchr(const_cast<const void*>(s), c, n);
 	}

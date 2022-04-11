@@ -30,15 +30,16 @@
 #if !defined __PG_JACK_H
 # define __PG_JACK_H 20220331L
 
-# include <Arduino.h>
-# include <cstdio>
-# include <valarray>
-# include <system/boards.h>
-# include <system/utils.h>
-# include <interfaces/iserializable.h>
-# include <utilities/EEStream.h>
-# include <utilities/Timer.h>
-# include <components/RemoteControl.h>
+//# include <Arduino.h>
+# include "cstdio"
+# include "cstring"
+# include "valarray"
+# include "system/boards.h"
+# include "system/utils.h"
+# include "interfaces/iserializable.h"
+# include "utilities/EEStream.h"
+# include "utilities/Timer.h"
+# include "components/RemoteControl.h"
 
 # if defined __PG_HAS_NAMESPACES  
 
@@ -50,6 +51,11 @@ namespace pg
 	class Jack : public iclockable, public icomponent
 	{
 	public:
+#  if defined analogInputToDigitalPin
+#   define getAnalogPins analogInputToDigitalPin
+#  elif defined digitalPinToAnalogInput
+#   define getAnalogPins digitalPinToAnalogInput
+#  endif
 		static const uint8_t GpioCount = NUM_DIGITAL_PINS;					// Total number of gpio pins of any type.
 		static const uint8_t AnalogInCount = NUM_ANALOG_INPUTS;				// Total number of gpio pins with analog input capability.
 		static const uint8_t LedPinNumber = LED_BUILTIN;					// Built-in LED pin number.
@@ -64,7 +70,7 @@ namespace pg
 		using ilist_type = std::initializer_list<command_type*>;			// Commands initializer list type.
 		using callback_type = typename callback<void>::type;				// Client callback signature type.
 		using timer_type = Timer<milliseconds>;								// Event timer type.
-		using address_t = EEStream::address_type;							// EEPROM addressing tpe.
+		using address_t = EEStream::address_type;							// EEPROM addressing type.
 		using Commands = typename std::valarray<command_type*, CommandsMaxCount>;	// Commands collection type (valarray has resize()).
 		using Timers = typename std::array<timer_type, TimersCount>;		// Event timers collection type.
 		using Pins = std::array<GpioPin, GpioCount>;						// GpioPins collection type.
@@ -118,7 +124,7 @@ namespace pg
 #pragma region command reply print format strings
 
 		static constexpr const char* FmtGetPinMode = "%s=%u,%u,%u";				// pin=p#,type,mode
-		static constexpr const char* FmtDevInfo = "%s=%lu,%s,%s,%.1f,%u,%u";	// inf=id,type,mcu,clkspd,#pins,#timers
+		static constexpr const char* FmtDevInfo = "%s=%lu,%s,%s,%u,%u,%u";	// inf=id,type,mcu,clkspd,#pins,#timers
 		static constexpr const char* FmtSendPin = "%u=%u";						// p#=value
 		static constexpr const char* FmtAcknowledge = "%s=%u";					// ack=0/1
 		static constexpr const char* FmtTimerStatus = "%s=%u,%lu";				// tmr=t#,intvl,[p0],...,[pn]    
@@ -321,7 +327,8 @@ namespace pg
 
 		reply(buf, FmtDevInfo, cmd_devinfo_.key(), DeviceId(),
 			board_traits<board_type>::board, board_traits<board_type>::mcu,
-			board_traits<board_type>::clock_frequency / 1000000, (unsigned)pins_.size(), (unsigned)timers_.size());
+			static_cast<unsigned>(board_traits<board_type>::clock_frequency / 1000000), 
+			(unsigned)pins_.size(), (unsigned)timers_.size());
 	}
 
 	void Jack::gpioMode(pin_t pin, uint8_t mode)
@@ -552,15 +559,12 @@ namespace pg
 			// Analog pins are in [GpioCount - AnalogInCount, GpioCount), 
 			// digitalPinHasPWM(i) expands to non-zero value if pin i supports PWM output.
 
-			pin.type_ = digitalPinHasPWM(i)
-				? gpio_type::Pwm
-				: i < GpioCount - AnalogInCount
-				? gpio_type::Digital
-				: analogInputToDigitalPin(GpioCount - i - 1) == -1
-				? gpio_type::Digital
-				: gpio_type::Analog;
+			if (digitalPinHasPWM(i))
+				pin.type_ = gpio_type::Pwm;
+			else if (i >= (GpioCount - AnalogInCount) && getAnalogPins(GpioCount - i - 1) != -1)
+				pin.type_ = gpio_type::Analog;
 			pin.mode_ = i == LedPinNumber ? gpio_mode::Output : gpio_mode::Input;
-			setPin(i, pin.mode_);
+			//pinMode(i, pin.mode_);
 			pin.timer_ = nullptr;
 		}
 	}
@@ -600,8 +604,8 @@ namespace pg
 		if (mode == gpio_mode::Disabled)
 			mode = gpio_mode::Input;
 		pinMode(pin, mode);
-		if (pins_[pin].type_ == gpio_type::Analog)
-			(void)analogRead(pin);
+		//if (pins_[pin].type_ == gpio_type::Analog)
+		//	(void)analogRead(pin);
 	}
 
 	void Jack::storeConfig(EEStream& eeprom, const address_t addr)
