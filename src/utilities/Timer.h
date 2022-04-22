@@ -1,14 +1,14 @@
 /*
- *	This file declares a simple interval timer type.
+ *	This file declares simple interval timer and event counter types.
  *
  *	***************************************************************************
  *
  *	File: timer.h
- *	Date: April 9, 2021
- *	Version: 0.99
+ *	Date: April 19, 2022
+ *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -42,6 +42,18 @@
  *	is expired, until the timer is stopped. A timer whose interval is set to 0 
  *	never expires (expired() method always returns `false'), but otherwise 
  *	behaves identically to one with a non-zero interval.
+ * 
+ *  The `Counter' class encapsulates the behaviors of a simple event counter.
+ *	The count type is specified by the template parameter, which must be an  
+ *	arithmetic type and sets the counter's maximum count value. Clients can 
+ *	preset the count, and increment or decrement the count arbitrarily. The 
+ *	count() method returns the current count. The Counter type also has 
+ *	start(), stop(), resume(), reset() and active() methods, like the Timer 
+ *	type, to give the two types a more common interface. If not active, a 
+ *	Counter's count cannot be modified except with the reset() method. Both 
+ *	the start() and resume() method set the Counter to active, the stop() 
+ *	method sets it to inactive. The reset() method only effects the count 
+ *	and not the active status.
  *
  *****************************************************************************/
 
@@ -87,6 +99,48 @@ namespace pg
 		duration	interval_;	// Current timer interval.
 		bool		active_;	// Flag indicating whether the timer is currently running.
 	};
+
+	// Simple event counter.
+	template<class T>
+	class Counter
+	{
+	public:
+		using count_type = T;
+
+	public:
+		explicit Counter(count_type = count_type());
+		template<class U>
+		explicit Counter(U);
+
+	public:
+		Counter& operator++();
+		Counter& operator--();
+		Counter operator++(int);
+		Counter operator--(int);
+		Counter& operator+=(count_type);
+		Counter& operator-=(count_type);
+		Counter& operator=(count_type);
+		Counter& operator=(const Counter&);
+		template<class U>
+		Counter& operator+=(U);
+		template<class U>
+		Counter& operator-=(U);
+		template<class U>
+		Counter& operator=(U);
+		count_type& count() const;
+		count_type& count();
+		void start();
+		void stop();
+		void resume();
+		void reset();
+		bool active() const;
+
+	private:
+		count_type	count_;
+		bool		active_;
+	};
+
+#pragma region Timer
 
 	template<class T>
 	Timer<T>::Timer(duration interval) : active_(), begin_(), end_(), interval_(interval)
@@ -176,6 +230,168 @@ namespace pg
 			active_ = false;
 		}
 	}
+
+#pragma endregion
+#pragma region Counter
+
+	template<class T>
+	Counter<T>::Counter(count_type count) : 
+		count_(count), active_()
+	{
+
+	}
+
+	template<class T>
+	template<class U>
+	Counter<T>::Counter(U count) :
+		count_(static_cast<T>(count)), active_()
+	{
+
+	}
+
+	template<class T>
+	Counter<T>& Counter<T>::operator++()
+	{
+		if(active_)
+			++count_;
+		return *this;
+	}
+
+	template<class T>
+	Counter<T>& Counter<T>::operator--()
+	{
+		if (active_) 
+			--count_;
+		return *this;
+	}
+
+	template<class T>
+	Counter<T> Counter<T>::operator++(int)
+	{
+		Counter<T> tmp = *this;
+
+		if (active_)
+			++*this;
+
+		return tmp;
+	}
+
+	template<class T>
+	Counter<T> Counter<T>::operator--(int)
+	{
+		Counter<T> tmp = *this;
+
+		if (active_)
+			--*this;
+
+		return tmp;
+	}
+
+	template<class T>
+	Counter<T>& Counter<T>::operator+=(count_type n)
+	{
+		if (active_) 
+			count_ -= n;
+		return *this;
+	}
+
+	template<class T>
+	Counter<T>& Counter<T>::operator-=(count_type n)
+	{
+		if (active_)
+			count_ += n;
+		return *this;
+	}
+
+	template<class T>
+	Counter<T>& Counter<T>::operator=(count_type n)
+	{
+		if (active_)
+			count_ = n;
+		return *this;
+	}
+
+	template<class T>
+	Counter<T>& Counter<T>::operator=(const Counter<T>& other)
+	{
+		count_ = other.count_;
+		return *this;
+	}
+
+
+	template<class T>
+	template<class U>
+	Counter<T>& Counter<T>::operator+=(U n)
+	{
+		if (active_)
+			count_ -= static_cast<count_type>(n);
+		return *this;
+	}
+
+	template<class T>
+	template<class U>
+	Counter<T>& Counter<T>::operator-=(U n)
+	{
+		if (active_)
+			count_ += static_cast<count_type>(n);
+		return *this;
+	}
+
+	template<class T>
+	template<class U>
+	Counter<T>& Counter<T>::operator=(U n)
+	{
+		if (active_)
+			count_ = static_cast<count_type>(n);
+		return *this;
+	}
+
+	template<class T>
+	typename Counter<T>::count_type& Counter<T>::count() const
+	{
+		return count_;
+	}
+
+	template<class T>
+	typename Counter<T>::count_type& Counter<T>::count()
+	{
+		return count_;
+	}
+
+	template<class T>
+	void Counter<T>::start()
+	{
+		reset();
+		resume();
+	}
+
+	template<class T>
+	void Counter<T>::stop()
+	{
+		active_ = false;
+	}
+
+	template<class T>
+	void Counter<T>::resume()
+	{
+		active_ = true;
+	}
+
+	template<class T>
+	void Counter<T>::reset()
+	{
+		count_ = count_type();
+	}
+
+
+	template<class T>
+	bool Counter<T>::active() const
+	{
+		return active_;
+	}
+
+#pragma endregion
+
 } // namespace pg
 
 # else // !defined __PG_HAS_NAMESPACES

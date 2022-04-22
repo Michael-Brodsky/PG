@@ -67,6 +67,17 @@
 
 # include "system/types.h"
 
+# if defined ARDUINO_ARCH_AVR
+	using PinStatus = int;
+# elif defined ARDUINO_ARCH_MEGAAVR
+# elif defined ARDUINO_ARCH_SAM
+	using PinStatus = int;
+# elif defined ARDUINO_ARCH_SAMD
+	using PinStatus = int;
+# else
+	using PinStatus = int;
+# endif
+
 # if defined __PG_HAS_NAMESPACES
 
 namespace pg
