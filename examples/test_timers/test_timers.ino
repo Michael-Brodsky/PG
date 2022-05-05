@@ -9,7 +9,7 @@ Timer<milliseconds> timer(seconds(2)); // millisecond timer set to 2s, which = 2
 // Command timer.
 void foobar42() { Serial.println("foobar42() called by cmd_timer"); }
 Command<void> command(&foobar42); // Command object to execute, calls foobar42().
-CommandTimer<microseconds> cmd_timer(seconds(3), &command); // microsecond command timer set to 3s, which = 3000000us;
+CommandTimer<microseconds> cmd_timer(seconds(3), &command); // microsecond command timer set to 2s, which = 3000000us;
 
 void setup() 
 {
