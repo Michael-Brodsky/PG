@@ -50,7 +50,7 @@
 # define __PG_CSTRING_ 20210908L
 
 # include "pg.h"
-# if defined ARDUINO_AVR_UNO_WIFI_REV2 
+# if defined ARDUINO_ARCH_MEGAAVR
 #  include "lib/string.h"	// No avr-libc for megaavr boards, so use our own.
 # else
 #  include <string.h>
@@ -84,7 +84,7 @@
 
 namespace std 
 {
-#  if !defined ARDUINO_AVR_UNO_WIFI_REV2 
+#  if !defined ARDUINO_ARCH_MEGAAVR
 	using ::memchr;
 	using ::memcmp;
 	using ::memcpy;
@@ -97,19 +97,38 @@ namespace std
 	using ::strcpy;
 	using ::strcspn;
 	using ::strerror;
+	using ::strlen;
 	using ::strncat;
+	using ::strncmp;
+	using ::strncpy;
 	using ::strpbrk;
 	using ::strrchr;
 	using ::strspn;
 	using ::strstr;
+	using ::strtok;
 	using ::strxfrm;
-#  endif
+#  else
+	/* Megaavr architecture lacks an ANSI/ISO <string.h> */
+	/* These are defined by pg in <lib/string.h> */
+	using ::memchr;
+	using ::memcmp;
+	using ::strcat;
+	using ::strchr;
 	using ::strlen;
+	using ::strncat;
 	using ::strncmp;
 	using ::strncpy;
+	using ::strpbrk;
+	using ::strrchr;
+	using ::strspn;
+	using ::strstr;
 	using ::strtok;
+#  endif
 
-#  if !(defined __CORRECT_ISO_CPP_STRING_H_PROTO || defined ARDUINO_AVR_UNO_WIFI_REV2)
+#  if !(defined __CORRECT_ISO_CPP_STRING_H_PROTO || defined ARDUINO_ARCH_MEGAAVR) 
+	/* The megaavr arcitecture string.h prototypes are not ISO compliant. */
+	/* (see e.g. 7.3.0-atmel3.6.1-arduino7\avr\include\string.h) */
+
 	inline void* memchr(void* s, int c, size_t n) {
 		return memchr(const_cast<const void*>(s), c, n);
 	}
