@@ -78,6 +78,19 @@
 	using PinStatus = int;
 # endif
 
+# if defined analogInputToDigitalPin
+#  define getAnalogPins analogInputToDigitalPin
+# elif defined digitalPinToAnalogInput
+#  define getAnalogPins digitalPinToAnalogInput
+# else
+#  define getAnalogPins ((void)0)
+# endif
+# if defined digitalPinToInterrupt
+#  define getInterruptPins digitalPinToInterrupt
+# else
+#  define getInterruptPins(p) (p)
+# endif
+
 # if defined __PG_HAS_NAMESPACES
 
 namespace pg

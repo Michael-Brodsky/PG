@@ -208,6 +208,12 @@ namespace pg
 	public:
 		constexpr value_type value() const { return value_; }
 		constexpr string_type string() const { return string_; }
+		//bool operator==(const char* const str) { return !std::strncmp(str, string_, std::strlen(string_)); }
+		bool operator==(const string_type& str) { return !std::strncmp(str, string_, std::strlen(string_)); }
+		//bool operator==(string_type& str) { return !std::strncmp(str, string_, std::strlen(string_)); }
+		bool operator==(const StringValue& other) { return !std::strncmp(other.string_, string_, std::strlen(string_)); }
+		//bool operator==(StringValue& other) { return !std::strncmp(other.string_, string_, std::strlen(string_)); }
+		//bool operator==(const char* const str) { return !std::strncmp(str, string_, std::strlen(string_)); }
 
 	private:
 		value_type	value_;

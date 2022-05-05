@@ -174,14 +174,25 @@ namespace pg
 		// Writes an object of type T to the EEPROM.
 		template<class T>
 		std::size_t write(address_type, const T&);
+		// Writes an object of type T to the EEPROM.
+		template<class T>
+		std::size_t write(address_type, T&);
 		// Writes a NULL-terminated string to the EEPROM.
 		std::size_t write(address_type, const char*);
 		// Writes a NULL-terminated string to the EEPROM.
 		std::size_t write(address_type, const unsigned char*);
 		// Writes a NULL-terminated string to the EEPROM.
 		std::size_t write(address_type, const signed char*);
+		// Writes a NULL-terminated string to the EEPROM.
+		std::size_t write(address_type, char*);
+		// Writes a NULL-terminated string to the EEPROM.
+		std::size_t write(address_type, unsigned char*);
+		// Writes a NULL-terminated string to the EEPROM.
+		std::size_t write(address_type, signed char*);
 		// Writes an object of type String to the EEPROM.
 		std::size_t write(address_type, const String&);
+		// Writes an object of type String to the EEPROM.
+		std::size_t write(address_type, String&);
 		// I/O manipulator "update" handler.
 		std::size_t write(address_type, update);
 		//I/O manipulator "noupdate" handler.
@@ -311,6 +322,12 @@ namespace pg
 		return sizeof(value);
 	}
 
+	template<class T>
+	std::size_t EEStream::write(address_type address, T& value)
+	{
+		return write(address, const_cast<const T&>(value));
+	}
+
 	std::size_t EEStream::write(address_type address, const char* value)
 	{
 		// C-strings are written as individual chars including the trailing NULL.
@@ -324,10 +341,19 @@ namespace pg
 		return address - first;
 	}
 
+	std::size_t EEStream::write(address_type address, char* value)
+	{
+		return write(address, const_cast<const char*>(value));
+	}
 
 	std::size_t EEStream::write(address_type address, const unsigned char* value)
 	{
 		return write(address, reinterpret_cast<const char*>(value));
+	}
+
+	std::size_t EEStream::write(address_type address, unsigned char* value)
+	{
+		return write(address, const_cast<const unsigned char*>(value));
 	}
 
 	std::size_t EEStream::write(address_type address, const signed char* value)
@@ -335,11 +361,21 @@ namespace pg
 		return write(address, reinterpret_cast<const char*>(value));
 	}
 
+	std::size_t EEStream::write(address_type address, signed char* value)
+	{
+		return write(address, const_cast<const signed char*>(value));
+	}
+
 	std::size_t EEStream::write(address_type address, const String& value)
 	{
 		// String objects are written as C-strings.
 
 		return write(address, value.c_str());
+	}
+
+	std::size_t EEStream::write(address_type address, String& value)
+	{
+		return write(address, const_cast<const String&>(value));
 	}
 
 	std::size_t EEStream::write(address_type address, update)

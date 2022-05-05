@@ -1,11 +1,11 @@
 /*
- *	This files defines a class that asynchronously executes client code in
- *	response to commands received via the serial port.
+ *	This files defines a class that operates like a remote procedure call, 
+ *	executing code in response to commands received over a network connection.
  *
  *	***************************************************************************
  *
  *	File: RemoteControl.h
- *	Date: January 15, 2022
+ *	Date: May 4, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -29,7 +29,7 @@
  *	**************************************************************************/
 
 #if !defined __PG_REMOTECONTROL_H 
-# define __PG_REMOTECONTROL_H 20220115L
+# define __PG_REMOTECONTROL_H 20220504L
 
 # include "cstdlib"					// atoi(), atol(), atof().
 # include "cstring"					// libstdc string functions.
@@ -133,19 +133,22 @@ namespace pg
 		}
 
 		template<std::size_t I = 0, class...Ts>
-		inline typename std::enable_if < I < sizeof...(Ts), std::size_t>::type
+		inline typename std::enable_if<I < sizeof...(Ts), std::size_t>::type
 			getCmdArgs(const char* delim, std::tuple<Ts...>& t)
 		{
 			char* tok = nullptr;
 			std::size_t i = 0;
 
+			/* Needs support for quoted strings, that may enclose delimiters. 
+			 * strtok won't work for this. 
+			 */
 			if ((tok = std::strtok(nullptr, delim)))
 			{
 				detail::getArg(tok, std::get<I>(t));
 				i = getCmdArgs<I + 1, Ts...>(delim, t);
 			}
 
-			return i; // Returns sizeof...(Ts) if no. of parsed tokens matches, else returns 0.
+			return i; // Returns sizeof...(Ts) if no. of parsed tokens matches tuple size, else returns 0.
 		}
 	} // namespace detail
 
@@ -299,7 +302,7 @@ namespace pg
 		void commands(command_type**, command_type**);
 		const container_type& commands() const;
 		void connection(Connection*);
-		const Connection* connection() const;
+		Connection* connection() const;
 		void eot(char);
 		char eot() const;
 		void echo(bool);
@@ -348,7 +351,7 @@ namespace pg
 		connection_ = cn;
 	}
 
-	const Connection* RemoteControl::connection() const 
+	Connection* RemoteControl::connection() const 
 	{
 		return connection_;
 	}
@@ -387,7 +390,7 @@ namespace pg
 	{
 		if (connection_)
 		{
-			char buf[64] = { '\0' }; // Command buffer.
+			//char buf[64] = { '\0' }; // Command buffer.
 			char* message = const_cast<char*>(connection_->receive());
 
 			if (*message)
@@ -416,11 +419,14 @@ namespace pg
 	template<class...Ts>
 	std::size_t RemoteControl::parseCommand(char* cmd, std::tuple<Ts...>& args, const char* cmd_delim, const char* args_delim)
 	{
-		char tmp[64];
+		char tmp[Connection::size()];
 		char* tok = nullptr;
 		std::size_t n = 0;
-
-		std::strncpy(tmp, cmd, sizeof(tmp)); // Need a copy of cmd to work on because strtok mangles it.
+		// Need a copy of cmd to work on because strtok mangles it.
+		std::strncpy(tmp, cmd, sizeof(tmp)); 
+		/* Needs support for quoted strings, that may enclose delimiters.
+		 * strtok won't work for this.
+		 */
 		if ((tok = std::strtok(tmp, cmd_delim)))
 			n = detail::getCmdArgs(args_delim, args);
 

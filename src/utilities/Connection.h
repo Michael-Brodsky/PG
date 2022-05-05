@@ -1,11 +1,11 @@
 /*
- *	This files defines several types for managing connections to remote hosts 
- *	using a common interface.
+ *	This files defines several types for managing network connections using a 
+ *	common interface.
  *
  *	***************************************************************************
  *
  *	File: Connection.h
- *	Date: April 1, 2022
+ *	Date: May 4, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -24,13 +24,14 @@
  *	GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ *	along with this file. If not, see <http://www.gnu.org/licenses/>. 
  *
  *	**************************************************************************/
 
 #if !defined __PG_CONNECTION_H
-# define __PG_CONNECTION_H 20220401
+# define __PG_CONNECTION_H 20220504L
 
+# include "cstdio"
 # include "cstring"
 # include "system/boards.h"
 # include "utilities/ValueWrappers.h"
@@ -38,117 +39,117 @@
 
 namespace pg
 {
-	// Connection abstract interface class.
+	// Network connection abstract interface class.
 	struct Connection
 	{
-		enum class ConnectionType
+		// Enumerates valid connection types.
+		enum class Type
 		{
-			None = 0,
-			Serial = 1,
-			Udp = 2
+			 Serial = 0,
+			 Ethernet = 1,
+			 WiFi = 2,
+			 Invalid = 3
 		};
 
-		static constexpr const char ArgsDelimiterChar = ',';
+		static constexpr char DelimiterChar = ',';
+		static constexpr std::size_t size() 
+		{ 
+			return SERIAL_RX_BUFFER_SIZE < SERIAL_TX_BUFFER_SIZE 
+				? SERIAL_RX_BUFFER_SIZE 
+				: SERIAL_TX_BUFFER_SIZE; 
+		}
 
 		virtual ~Connection() = default;
 
-		virtual void open(const char* params) = 0;
+		virtual Type type() const = 0;
+		virtual void open(const char*) = 0;
 		virtual bool open() = 0;
 		virtual void close() = 0;
 		virtual void flush() = 0;
-		virtual std::size_t send(const char* message) = 0;
+		virtual std::size_t send(const char*) = 0;
 		virtual const char* receive() = 0;
-		virtual ConnectionType type() const = 0;
+		virtual const char* params(char*) = 0;
 	};
 
-	// Connects a remote host using a serial port (usart).
+	// Creates a serial network connection.
 	class SerialConnection : public Connection
 	{
-	public:
-		static constexpr const char EndOfMessageChar = '\n';
-
 	public:
 		using baud_type = unsigned long;
 		using frame_type = uint8_t;
 		using timeout_type = unsigned long;
 		using frame_map_type = StringValue<frame_type>;
+		using frames_type = std::ArrayWrapper<frame_map_type>;
 
-	public:
-		static constexpr const std::size_t TxBufferSize = SERIAL_TX_BUFFER_SIZE;
-		static constexpr const std::size_t RxBufferSize = SERIAL_RX_BUFFER_SIZE;
-		static constexpr const baud_type DefaultBaudRate = 9600;
-		static constexpr const frame_type DefaultFrame = SERIAL_8N1;
-		static constexpr const timeout_type DefaultTimeout = 1000;
-		static const std::ArrayWrapper<const baud_type> SupportedBaudRates;
-		static const std::ArrayWrapper<const frame_map_type> SupportedFrames;
+		static const frames_type SupportedFrames;
+		static constexpr frame_map_type DefaultFrame = frame_map_type{ SERIAL_8N1, "8N1" };
+		static constexpr timeout_type DefaultTimeout = 1000;
+		static constexpr const char EndOfMessageChar = '\n';
 
 	public:
 		SerialConnection(HardwareSerial&, const char* = nullptr);
 		~SerialConnection() override;
-
+	
 	public:
-		ConnectionType type() const;
-		void open(const char* params) override;
+		Type type() const override;
+		void open(const char*) override;
 		bool open() override;
 		void close() override;
 		void flush() override;
-		std::size_t send(const char* message) override;
+		std::size_t send(const char*) override;
 		const char* receive() override;
+		const char* params(char*) override;
 		HardwareSerial& hardware();
 		baud_type baud() const;
 		frame_type frame() const;
 		timeout_type timeout() const;
+
 	private:
 		void parseParams(const char* params);
 
 	private:
-		HardwareSerial&		hardware_;				// References the port hardware layer.
-		baud_type			baud_;					// The current baud rate.
-		frame_type			frame_;					// The current frame.
-		timeout_type		timeout_;				// The current write timeout in milliseconds.
-		bool				is_open_;				// Flag indicating whether the connection is currently open.
-		char				buf_[RxBufferSize];		// Receive buffer. 
+		HardwareSerial&		hardware_;		// References the port hardware layer.
+		baud_type			baud_;			// The current baud rate.
+		frame_map_type		frame_;			// The current frame.
+		timeout_type		timeout_;		// The current write timeout in milliseconds.
+		bool				is_open_;		// Flag indicating whether the connection is currently open.
+		char				buf_[size()];	// Receive buffer. 
 	};
 
 	namespace detail
 	{
-		const SerialConnection::frame_map_type supported_frames[] =
+		SerialConnection::frame_map_type supported_frames[] =
 		{
 			{SERIAL_8N1, "8N1"}, 
 			{SERIAL_7E1, "7E1"}
 		};
-		const SerialConnection::baud_type supported_baud_rates[] = 
-		{
-			300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 28800, 38400, 56000, 57600, 74880, 115200
-		};
-
 	}
-	const std::ArrayWrapper<const SerialConnection::frame_map_type> SerialConnection::SupportedFrames(detail::supported_frames);
-	const std::ArrayWrapper<const SerialConnection::baud_type> SerialConnection::SupportedBaudRates(detail::supported_baud_rates);
 
-	// Connects a remote host using UDP/IP (WiFi).
-	class UdpConnection : public Connection
+	const std::ArrayWrapper<SerialConnection::frame_map_type> SerialConnection::SupportedFrames(detail::supported_frames);
+
+	// Creates a WiFi network connection.
+	class WiFiConnection : public Connection
 	{
-	public: 
-		static constexpr const std::size_t UdpMaxPacketSize = 255;
-		static constexpr const uint32_t WifiWaitConnect = 2000;
-		static constexpr const uint32_t WifiMaxWaitTime = 10000;
+	public:
+		static constexpr uint32_t WaitConnect = 2000; 
+		static constexpr uint32_t MaxWaitTime = 10000;
 
 	public:
-		UdpConnection(const char* params = nullptr);
-		~UdpConnection() override;
+		WiFiConnection(const char* = nullptr);
+		~WiFiConnection() override;
 
 	public:
-		ConnectionType type() const;
-		void open(const char* params) override;
+		Type type() const;
+		void open(const char*) override;
 		bool open() override;
 		void close() override;
 		void flush() override;
-		std::size_t send(const char* message) override;
+		std::size_t send(const char*) override;
 		const char* receive() override;
+		const char* params(char*) override;
 		WiFiClass& hardware();
 		const char* ssid() const;
-		unsigned int port() const;
+		uint16_t port() const;
 		IPAddress remoteIP() const;
 		void remoteIP(IPAddress);
 		IPAddress localIP() const;
@@ -157,258 +158,257 @@ namespace pg
 		void parseParams(const char* params);
 
 	private:
-		String			ssid_;		// Network ssid.
-		String			pw_;		// Network passphrase.
-		int				status_;	// Network connection status.
-		WiFiUDP			udp_;		// Arduino UDP api.
-		IPAddress		local_ip_;	// The current remote address.
-		IPAddress		remote_ip_;	// The current remote address.
-		unsigned int	port_;		// The current UDP port.
-		char			buf_[UdpMaxPacketSize];	// Receive buffer.
-	};
+		char*			ssid_;			// Network ssid.
+		char*			pw_;			// Network passphrase.
+		unsigned int	port_;			// The current UDP port.
+		int				status_;		// Network connection status.
+		WiFiUDP			udp_;			// Arduino UDP api.
+		IPAddress		remote_ip_;		// The current remote address.
+		char			buf_[size()];	// Receive buffer.
 
+	};
 
 #pragma region SerialConnection
 
-SerialConnection::SerialConnection(HardwareSerial& hs, const char* params) : 
-	hardware_(hs), baud_(DefaultBaudRate), frame_(DefaultFrame), 
-	timeout_(DefaultTimeout), is_open_(), buf_() 
-{
-	if (params)
-		open(params);
-}
-
-SerialConnection::~SerialConnection()
-{
-	close();
-}
-
-Connection::ConnectionType SerialConnection::type() const
-{
-	return ConnectionType::Serial;
-}
-
-void SerialConnection::open(const char* params)
-{
-	parseParams(params);
-	hardware_.begin(baud_, frame_);
-	hardware_.setTimeout(timeout_);
-	while (!hardware_);
-	is_open_ = true;
-}
-
-bool SerialConnection::open()
-{
-	return is_open_;
-}
-
-void SerialConnection::close()
-{
-	hardware_.end();
-	is_open_ = false;
-}
-
-void SerialConnection::flush()
-{
-	hardware_.flush();
-	while (hardware_.available())
-		(void)hardware_.read();
-}
-
-std::size_t SerialConnection::send(const char* message)
-{
-	std::size_t n = 0;
-
-	if (*message)
-		n = hardware_.println(message);
-
-	return n;
-}
-
-const char* SerialConnection::receive()
-{
-	std::size_t eot = hardware_.readBytesUntil(EndOfMessageChar, buf_, sizeof(buf_));
-
-	buf_[eot] = '\0';
-
-	return buf_;
-}
-
-void SerialConnection::parseParams(const char* params)
-{
-	String str = params;
-	auto n = str.indexOf(ArgsDelimiterChar);
-
-	if (n > 0)
+	SerialConnection::SerialConnection(HardwareSerial& hs, const char* params) : 
+		hardware_(hs), baud_(), frame_(DefaultFrame), 
+		timeout_(DefaultTimeout), is_open_(), buf_() 
 	{
-		baud_ = str.substring(0, n).toInt();
-		str = str.substring(n + 1);
+		if (params)
+			open(params);
 	}
-	if ((n = str.indexOf(ArgsDelimiterChar)) > 0)
-	{
-		String frame = str.substring(0, n);
 
-		for (auto i : SupportedFrames)
+	SerialConnection::~SerialConnection()
+	{
+		close();
+	}
+
+	Connection::Type SerialConnection::type() const
+	{
+		return Type::Serial;
+	}
+
+	void SerialConnection::open(const char* params)
+	{
+		parseParams(params);
+		hardware_.begin(baud_, frame_.value());
+		hardware_.setTimeout(timeout_);
+		while (!hardware_);
+		is_open_ = true;
+	}
+
+	bool SerialConnection::open()
+	{
+		return is_open_;
+	}
+
+	void SerialConnection::close()
+	{
+		hardware_.end();
+		is_open_ = false;
+	}
+
+	void SerialConnection::flush()
+	{
+		hardware_.flush();
+		while (hardware_.available())
+			(void)hardware_.read();
+	}
+
+	std::size_t SerialConnection::send(const char* message)
+	{
+		return hardware_.println(message);
+	}
+
+	const char* SerialConnection::receive()
+	{
+		std::size_t len = hardware_.readBytesUntil(EndOfMessageChar, buf_, sizeof(buf_));
+
+		buf_[len] = '\0';
+
+		return buf_;
+	}
+
+	const char* SerialConnection::params(char* buf)
+	{
+		(void)std::sprintf(buf, "%lu,%3s,%lu", baud_, frame_.string(), timeout_);
+
+		return buf;
+	}
+
+	void SerialConnection::parseParams(const char* params)
+	{
+		char buf[size()] = { '\0' };
+		char* tok = nullptr;
+
+		std::strncpy(buf, params, sizeof(buf));
+		tok = std::strtok(buf, ",");
+		if (tok)
 		{
-			if (frame == i.string())
+			baud_ = std::atol(tok);
+			if ((tok = std::strtok(nullptr, ",")))
 			{
-				frame_ = i.value();
-				break;
+				auto it = std::find(static_cast<frames_type>(SupportedFrames).begin(), 
+					static_cast<frames_type>(SupportedFrames).end(), (tok));
+
+				if (it)
+					frame_ = *it;
+				if((tok = std::strtok(nullptr, ",")))
+					timeout_ = std::atol(tok);
 			}
 		}
-		str = str.substring(n + 1);
-		if (str.length() > 0)
-			timeout_ = str.toInt();
 	}
-}
 
-HardwareSerial& SerialConnection::hardware()
-{
-	return hardware_;
-}
+	HardwareSerial& SerialConnection::hardware()
+	{
+		return hardware_;
+	}
 
-SerialConnection::baud_type SerialConnection::baud() const
-{ 
-	return baud_; 
-}
+	SerialConnection::baud_type SerialConnection::baud() const
+	{ 
+		return baud_; 
+	}
 
-SerialConnection::frame_type SerialConnection::frame() const
-{
-	return frame_;
-}
+	SerialConnection::frame_type SerialConnection::frame() const
+	{
+		return frame_.value();
+	}
 
-SerialConnection::timeout_type SerialConnection::timeout() const 
-{ 
-	return timeout_; 
-}
+	SerialConnection::timeout_type SerialConnection::timeout() const 
+	{ 
+		return timeout_; 
+	}
 
 #pragma endregion
-#pragma region UdpConnection
+#pragma region WiFiConnection
 
-UdpConnection::UdpConnection(const char* params) : 
-	ssid_(), pw_(), status_(WL_IDLE_STATUS), udp_(), remote_ip_(), local_ip_(), port_(), buf_()
-{
-	
-}
-
-UdpConnection::~UdpConnection()
-{
-	close();
-}
-
-
-Connection::ConnectionType UdpConnection::type() const
-{
-	return ConnectionType::Serial;
-}
-
-void UdpConnection::open(const char* params)
-{
-	if (WiFi.status() != WL_NO_SHIELD)
+	WiFiConnection::WiFiConnection(const char* params) : 
+		ssid_(), pw_(), status_(WL_IDLE_STATUS), udp_(), remote_ip_(), port_(), buf_()
 	{
-		uint32_t waited = 0;
+		if (params)
+			open(params);
+	}
 
-		parseParams(params);
-		while (status_ != WL_CONNECTED && waited < WifiMaxWaitTime)
+	WiFiConnection::~WiFiConnection()
+	{
+		close();
+	}
+
+	Connection::Type WiFiConnection::type() const
+	{
+		return Type::WiFi;
+	}
+
+	void WiFiConnection::open(const char* params)
+	{
+		if (WiFi.status() != WL_NO_SHIELD)
 		{
-			status_ = WiFi.begin(const_cast<ssid_t>(ssid_.c_str()), pw_.c_str());
-			delay(WifiWaitConnect);
-			waited += WifiWaitConnect;
+			uint32_t waited = 0;
+
+			parseParams(params);
+			while (status_ != WL_CONNECTED && waited < MaxWaitTime)
+			{
+				status_ = WiFi.begin(const_cast<ssid_t>(ssid_), pw_);
+				delay(WaitConnect);
+				waited += WaitConnect;
+			}
+			udp_.begin(port_);
 		}
-		udp_.begin(port_);
 	}
-}
 
-bool UdpConnection::open()
-{
-	return status_ == WL_CONNECTED;
-}
-
-void UdpConnection::close()
-{
-	WiFi.disconnect();
-}
-
-void UdpConnection::flush()
-{
-	udp_.flush();
-}
-
-std::size_t UdpConnection::send(const char* message)
-{
-	if (open())
+	bool WiFiConnection::open()
 	{
-		udp_.beginPacket(remote_ip_, port_);
-		udp_.write(message);
-		udp_.endPacket();
+		return status_ == WL_CONNECTED;
 	}
-}
 
-const char* UdpConnection::receive()
-{
-	std::size_t n = 0;
-
-	if (open())
+	void WiFiConnection::close()
 	{
-		if (udp_.parsePacket())
+		WiFi.disconnect();
+	}
+
+	void WiFiConnection::flush()
+	{
+		udp_.flush();
+	}
+
+	std::size_t WiFiConnection::send(const char* message)
+	{
+		if (open()) 
 		{
-			n = udp_.read(buf_, sizeof(buf_));
-			remote_ip_ = udp_.remoteIP();
+			udp_.beginPacket(remote_ip_, port_);
+			udp_.write(message);
 			udp_.endPacket();
 		}
 	}
-	buf_[n] = '\0';
 
-	return buf_;
-}
-
-void UdpConnection::parseParams(const char* params)
-{
-	String str = params;
-	auto n = str.indexOf(',');
-
-	if (n > 0)
+	const char* WiFiConnection::receive()
 	{
-		ssid_ = str.substring(0, n);
-		str = str.substring(n+1);
+		std::size_t n = 0;
+
+		if (open())
+		{
+			if (udp_.parsePacket())
+			{
+				n = udp_.read(buf_, sizeof(buf_));
+				remote_ip_ = udp_.remoteIP();
+				udp_.endPacket();
+			}
+		}
+		buf_[n] = '\0';
+
+		return buf_;
 	}
-	if ((n = str.indexOf(ArgsDelimiterChar)) > 0)
+
+	const char* WiFiConnection::params(char* buf)
 	{
-		pw_ = str.substring(0, n);
-		str = str.substring(n+1);
-		port_ = str.toInt();
+		IPAddress ip = localIP();
+
+		(void)std::sprintf(buf, "%s,%d.%d.%d.%d:%u", WiFi.SSID(), ip[0],ip[1],ip[2],ip[3], port_);
+
+		return buf;
 	}
-}
 
-WiFiClass& UdpConnection::hardware()
-{
-	return WiFi;
-}
+	WiFiClass& WiFiConnection::hardware()
+	{
+		return WiFi;
+	}
 
-const char* UdpConnection::ssid() const
-{
-	return ssid_.c_str();
-}
+	const char* WiFiConnection::ssid() const
+	{
+		return WiFi.SSID();
+	}
 
-unsigned int UdpConnection::port() const
-{
-	return port_;
-}
+	uint16_t WiFiConnection::port() const
+	{
+		return port_;
+	}
 
-IPAddress UdpConnection::remoteIP() const
-{
-	return remote_ip_;
-}
+	IPAddress WiFiConnection::remoteIP() const
+	{
+		return remote_ip_;
+	}
 
-void UdpConnection::remoteIP(IPAddress ip)
-{
-	remote_ip_ = ip;
-}
+	void WiFiConnection::remoteIP(IPAddress ip)
+	{
+		remote_ip_ = ip;
+	}
 
-IPAddress UdpConnection::localIP() const
-{
-	return local_ip_;
-}
+	IPAddress WiFiConnection::localIP() const
+	{
+		return WiFi.localIP();
+	}
+
+	void WiFiConnection::parseParams(const char* params)
+	{
+		char buf[size()] = { '\0' };
+		char* port = nullptr;
+
+		std::strncpy(buf, params, sizeof(buf));
+		if (ssid_ = std::strtok(buf, ","))
+			if (pw_ = std::strtok(nullptr, ","))
+				if ((port = std::strtok(nullptr, ",")))
+					port_ = std::atoi(port);
+	}
 
 #pragma endregion
 
