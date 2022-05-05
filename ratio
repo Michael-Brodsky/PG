@@ -1,0 +1,164 @@
+/*
+ *	This file defines the objects from the C++ Standard Library compile-time 
+ *  rational arithmetic library.
+ *
+ *	***************************************************************************
+ *
+ *	File: ratio
+ *	Date: August 14, 2021
+ *	Version: 1.0
+ *	Author: Michael Brodsky
+ *	Email: mbrodskiis@gmail.com
+ *	Copyright (c) 2012-2021 Michael Brodsky
+ *
+ *	***************************************************************************
+ *
+ *  This file is part of "Pretty Good" (Pg). "Pg" is free software:
+ *	you can redistribute it and/or modify it under the terms of the
+ *	GNU General Public License as published by the Free Software Foundation,
+ *	either version 3 of the License, or (at your option) any later version.
+ *
+ *  This file is distributed in the hope that it will be useful, but
+ *	WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	***************************************************************************
+ *
+ *	Description:
+ *
+ *		This file defines objects in the <ratio> header of a C++ Standard
+ *		Library - to the extent they are supported by the Arduino
+ *		implementation. The objects behave according to the C++ ISO/IEC 14882
+ *		Standards, except as noted.
+ *
+ *  Notes:
+ * 
+ *      ISO C++11 Standard states that std::ratio numerators and denominators 
+ *      be represented by intmax_t, which is usually a 64-bit signed 
+ *      integral type. Because of the Arduino's memory limitations, this 
+ *      implementation allows for intmax_t to be defined as either a 32 
+ *      or 64-bit type using the `__MEMORY_MODEL' macros defined in <pg.h>. 
+ *      Selecting a 32-bit intmax_t will limit the numerators and 
+ *      denominators to those that can be represented by a 32-bit signed 
+ *      integral type and out-of-range values will cause undefined behavior.
+ *
+ *	**************************************************************************/
+
+#if !defined RATIO_H__
+# define RATIO_H__ 20210814L
+
+# include "limits"    // Needed by SI ratio `enable' conditionals.
+# include "numeric"   // constexpr funcs: abs, sgn, gcd, lcm
+
+# if defined __PG_HAS_NAMESPACES 
+
+namespace std
+{
+    // The class template std::ratio represents an exact rational fraction.
+	template<intmax_t Num, intmax_t Denom = 1>
+	class ratio
+	{
+        static_assert(Denom != 0, "denominator cannot be zero");
+        static_assert(Num >= std::numeric_limits<intmax_t>::min() && 
+            Denom >= std::numeric_limits<intmax_t>::min(), "out of range");
+	public:
+		static constexpr intmax_t num = std::sgn(Num) * std::sgn(Denom) * std::abs(Num) / std::gcd(Num, Denom);
+		static constexpr intmax_t den = std::abs(Denom) / std::gcd(Num, Denom);
+
+	public:
+		using type = ratio<num, den>;
+	};
+
+    // Convenience SI ratio typedefs provided by ISO C++11 Standard.
+    typedef ratio<1, 1000000000000000000> atto;
+    typedef ratio<1, 1000000000000000   > femto;
+    typedef ratio<1, 1000000000000      > pico;
+    typedef ratio<1, 1000000000         > nano;
+    typedef ratio<1, 1000000            > micro;
+    typedef ratio<1, 1000               > milli;
+    typedef ratio<1, 100                > centi;
+    typedef ratio<1, 10                 > deci;
+    typedef ratio<                 10, 1> deca;
+    typedef ratio<                100, 1> hecto;
+    typedef ratio<               1000, 1> kilo;
+    typedef ratio<            1000000, 1> mega;
+    typedef ratio<         1000000000, 1> giga;
+    typedef ratio<      1000000000000, 1> tera;
+    typedef ratio<   1000000000000000, 1> peta;
+    typedef ratio<1000000000000000000, 1> exa;
+
+#pragma region ratio_arithmetic
+
+    // std::ratio_add adds two ratio objects at compile-time.
+    template<class R1, class R2>
+    using ratio_add = std::ratio<R1::num * R2::den + R2::num * R1::den, R1::den * R2::den>;
+
+    // std::ratio_subtract subtracts two ratio objects at compile-time.
+    template<class R1, class R2>
+    using ratio_subtract = std::ratio<R1::num * R2::den - R2::num * R1::den, R1::den * R2::den>;
+
+    // std::ratio_multiply multiplies two ratio objects at compile-time.
+    template<class R1, class R2>
+    using ratio_multiply = std::ratio<R1::num* R2::num, R1::den * R2::den>;
+
+    // std::ratio_divide divides two ratio objects at compile-time.
+    template<class R1, class R2>
+    using ratio_divide = std::ratio<R1::num* R2::den, R1::den* R2::num>;
+
+#pragma endregion
+#pragma region ratio_compare
+
+    // std::ratio_equal compares two ratio objects for equality at compile-time.
+    template<class R1, class R2>
+    struct ratio_equal : std::integral_constant<bool, R1::num == R2::num && R1::den == R2::den>{};
+
+    // std::ratio_not_equal compares two ratio objects for inequality at compile-time.
+    template<class R1, class R2>
+    struct ratio_not_equal : std::integral_constant<bool, R1::num != R2::num || R1::den != R2::den> {};
+
+    // std::ratio_less compares two ratio objects for less-than at compile-time.
+    template<class R1, class R2>
+    struct ratio_less : std::integral_constant<bool, R1::num* R2::den < R2::num* R1::den> {};
+
+    // std::ratio_less_equal compares two ratio objects for less-than-or-equal at compile-time.
+    template<class R1, class R2>
+    struct ratio_less_equal : std::integral_constant<bool, R1::num* R2::den <= R2::num * R1::den> {};
+
+    // std::ratio_greater compares two ratio objects for greater-than at compile-time.
+    template<class R1, class R2>
+    struct ratio_greater : std::integral_constant<bool, (R1::num* R2::den > R2::num* R1::den)> {};
+
+    // std::ratio_greater_equal compares two ratio objects for greater-than-or-equal at compile-time.
+    template<class R1, class R2>
+    struct ratio_greater_equal : std::integral_constant<bool, R1::num* R2::den >= R2::num * R1::den> {};
+
+#pragma endregion
+#pragma region ratio_helper_functions
+
+    /* C++17 helper functions, */
+#  if defined __PG_HAS_CPP17
+    template<class R1, class R2>
+    inline constexpr bool ratio_equal_v = ratio_equal<R1, R2>::value;
+    template<class R1, class R2>
+    inline constexpr bool ratio_not_equal_v = ratio_not_equal<R1, R2>::value;
+    template<class R1, class R2>
+    inline constexpr bool ratio_less_v = ratio_less<R1, R2>::value;
+    template<class R1, class R2>
+    inline constexpr bool ratio_less_equal_v = ratio_less_equal<R1, R2>::value;
+    template<class R1, class R2>
+    inline constexpr bool ratio_greater_v = ratio_greater<R1, R2>::value;
+    template<class R1, class R2>
+    inline constexpr bool ratio_greater_equal_v = ratio_greater_equal<R1, R2>::value;
+#endif // defined __PG_HAS_CPP17
+#pragma endregion
+}
+
+# else // !defined __PG_HAS_NAMESPACES
+#  error Requires C++11 and namespace support.
+# endif // defined __PG_HAS_NAMESPACES 
+
+#endif // !defined NUMERIC_H__

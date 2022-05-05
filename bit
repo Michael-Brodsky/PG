@@ -1,0 +1,76 @@
+/*
+ *	This file defines objects from the C++ Standard Library numeric library.
+ *
+ *	***************************************************************************
+ *
+ *	File: bit
+ *	Date: September 13, 2021
+ *	Version: 1.0
+ *	Author: Michael Brodsky
+ *	Email: mbrodskiis@gmail.com
+ *	Copyright (c) 2012-2021 Michael Brodsky
+ *
+ *	***************************************************************************
+ *
+ *  This file is part of "Pretty Good" (Pg). "Pg" is free software:
+ *	you can redistribute it and/or modify it under the terms of the
+ *	GNU General Public License as published by the Free Software Foundation,
+ *	either version 3 of the License, or (at your option) any later version.
+ *
+ *  This file is distributed in the hope that it will be useful, but
+ *	WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	***************************************************************************
+ *
+ *	Description:
+ *
+ *		This file defines objects in the <bit> header of the C++ Standard
+ *		Library - to the extent they are supported by the Arduino
+ *		implementation. The objects behave according to the C++ ISO/IEC 14882
+ *		Standards, except as noted. 
+ * 
+ *  Notes:
+ * 
+ *      The <bit> header is part of the C++20 Standard Library and this file 
+ *      contains only a minimal implementation. The <lib/imath.h> header has 
+ *      equivalent versions of the functions defined in <bit>.
+ *
+ *	**************************************************************************/
+
+#if !defined __PG_BIT_
+# define __PG_BIT_ 20210913L
+
+#include "cstring"
+#include "type_traits"
+
+# if defined __PG_HAS_NAMESPACES
+
+namespace std
+{
+    // Obtain a value of type To by reinterpreting the object representation of From.
+    template <class To, class From>
+    typename std::enable_if<
+        sizeof(To) == sizeof(From) &&
+        std::is_trivially_copyable<From>::value &&
+        std::is_trivially_copyable<To>::value,
+        To>::type
+        bit_cast(const From& src) noexcept
+    {
+        To dst;
+
+        std::memcpy(&dst, &src, sizeof(To));
+
+        return dst;
+    }
+}
+
+# else // !defined __PG_HAS_NAMESPACES
+#  error Requires C++11 and namespace support.
+# endif // defined __PG_HAS_NAMESPACES
+
+#endif // !defined __PG_BIT_

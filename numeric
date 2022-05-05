@@ -1,0 +1,225 @@
+/*
+ *	This file defines objects from the C++ Standard Library numeric library.
+ *
+ *	***************************************************************************
+ *
+ *	File: numeric
+ *	Date: August 17, 2021
+ *	Version: 1.0
+ *	Author: Michael Brodsky
+ *	Email: mbrodskiis@gmail.com
+ *	Copyright (c) 2012-2021 Michael Brodsky
+ *
+ *	***************************************************************************
+ *
+ *  This file is part of "Pretty Good" (Pg). "Pg" is free software:
+ *	you can redistribute it and/or modify it under the terms of the
+ *	GNU General Public License as published by the Free Software Foundation,
+ *	either version 3 of the License, or (at your option) any later version.
+ *
+ *  This file is distributed in the hope that it will be useful, but
+ *	WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	***************************************************************************
+ *
+ *	Description:
+ *
+ *		This file defines objects in the <numeric> header of the C++ Standard 
+ *		Library - to the extent they are supported by the Arduino
+ *		implementation. The objects behave according to the C++ ISO/IEC 14882
+ *		Standards, except as noted.
+ *
+ *  Notes:
+ * 
+ *      This file also defines the C++17 constexpr specified version of abs(), 
+ *      sgn(), gcd() and lcm().
+ *
+ *	**************************************************************************/
+
+#if !defined __PG_NUMERIC_
+# define __PG_NUMERIC_ 20210817L
+
+# include "algorithm"     // std::max
+
+# if defined __PG_HAS_NAMESPACES 
+
+# undef abs        // Arduino `abs' macro define conflicts with std::abs.
+# undef sgn        // If defined conflicts with std::sgn.
+
+namespace std
+{
+    // Returns the absolute value of a number at compile time.
+    template <class T>
+    constexpr T abs(T val) 
+    {
+        return (val < 0) ? -val : val;
+    }
+
+    // Returns the sign of a number at compile time.
+    template <class T> 
+    constexpr int sgn(T val) 
+    {
+        return (T(0) < val) - (val < T(0));
+    }
+
+    // Returns the greatest common divisor of two numbers at compile time.
+    template<class M, class N>
+    constexpr typename std::common_type<M, N>::type gcd(M m, N n)
+    {
+        return (n == 0) ? std::max(m, -m) : std::gcd(n, m % n);
+    }
+
+    // Returns the lowest common multiple of two numbers at compile time.
+    template<class M, class N>
+    constexpr typename std::common_type<M, N>::type lcm(M m, N n)
+    {
+        return static_cast<typename std::common_type<M, N>::type>(std::abs(m * n) / std::gcd(m, n));
+    }
+
+    // Computes the sum of a given initial value and the elements in a range using operator+.
+    template<class InputIt, class T>
+    T accumulate(InputIt first, InputIt last, T init)
+    {
+        for (; first != last; ++first)
+            init = init + *first;
+
+        return init;
+    }
+
+    // Computes the sum of a given initial value and the elements in a range using a binary operator.
+    template<class InputIt, class T, class BinaryOperation>
+    T accumulate(InputIt first, InputIt last, T init, BinaryOperation op)
+    {
+        for (; first != last; ++first)
+            init = op(init, *first);
+
+        return init;
+    }
+
+    // Fills a range with sequentially increasing values, starting with an initial value.
+    template<class ForwardIt, class T>
+    void iota(ForwardIt first, ForwardIt last, T value)
+    {
+        while (first != last)
+        {
+            *first++ = value;
+            ++value;
+        }
+    }
+
+    // Computes the inner product of a range starting with an initial value.
+    template<class InputIt1, class InputIt2, class T>
+    T inner_product(InputIt1 first1, InputIt1 last1, InputIt2 first2, T init)
+    {
+        while (first1 != last1)
+        {
+            init = init + *first1 * *first2;
+            ++first1;
+            ++first2;
+        }
+
+        return init;
+    }
+
+    // Performs an ordered map/reduce operation on a range starting with an initial value.
+    template<class InputIt1, class InputIt2, class T, class BinaryOperation1, class BinaryOperation2>
+    T inner_product(InputIt1 first1, InputIt1 last1, InputIt2 first2, T init,
+        BinaryOperation1 op1, BinaryOperation2 op2)
+    {
+        while (first1 != last1)
+        {
+            init = op1(init, op2(*first1, *first2));
+            ++first1;
+            ++first2;
+        }
+
+        return init;
+    }
+
+    // Computes differences between the second and first of each adjacent pair of elements 
+    // in a range using operator-.
+    template<class InputIt, class OutputIt >
+    OutputIt adjacent_difference(InputIt first, InputIt last, OutputIt d_first)
+    {
+        if (first == last) return d_first;
+
+        typedef typename iterator_traits<InputIt>::value_type value_t;
+        value_t acc = *first;
+        *d_first = acc;
+        while (++first != last)
+        {
+            value_t val = *first;
+            *++d_first = val - acc;
+            acc = val;
+        }
+
+        return ++d_first;
+    }
+
+    // Computes differences between the second and first of each adjacent pair of elements 
+    // in a range using a binary operator.
+    template<class InputIt, class OutputIt, class BinaryOperation >
+    OutputIt adjacent_difference(InputIt first, InputIt last, OutputIt d_first, BinaryOperation op)
+    {
+        if (first == last) return d_first;
+
+        typedef typename iterator_traits<InputIt>::value_type value_t;
+        value_t acc = *first;
+        *d_first = acc;
+        while (++first != last)
+        {
+            value_t val = *first;
+            *++d_first = op(val, acc);
+            acc = val;
+        }
+
+        return ++d_first;
+    }
+
+    // Computes the partial sums of the elements in the subranges of a range using operator+.
+    template<class InputIt, class OutputIt>
+    OutputIt partial_sum(InputIt first, InputIt last, OutputIt d_first)
+    {
+        if (first == last) return d_first;
+
+        typename iterator_traits<InputIt>::value_type sum = *first;
+        *d_first = sum;
+
+        while (++first != last)
+        {
+            sum += *first;
+            *++d_first = sum;
+        }
+
+        return ++d_first;
+    }
+
+    // Computes the partial sums of the elements in the subranges of a range using a binary operator.
+    template<class InputIt, class OutputIt, class BinaryOperation>
+    OutputIt partial_sum(InputIt first, InputIt last, OutputIt d_first, BinaryOperation op)
+    {
+        if (first == last) return d_first;
+
+        typename iterator_traits<InputIt>::value_type sum = *first;
+        *d_first = sum;
+
+        while (++first != last)
+        {
+            sum = op(sum, *first);
+            *++d_first = sum;
+        }
+
+        return ++d_first;
+    }
+}
+
+# else // !defined __PG_HAS_NAMESPACES
+#  error Requires C++11 and namespace support.
+# endif // defined __PG_HAS_NAMESPACES 
+
+#endif // !defined __PG_NUMERIC_

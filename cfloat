@@ -1,0 +1,183 @@
+/*
+ *	This file is part of the C++ Standard Library type support library.
+ *
+ *  ***************************************************************************
+ *
+ *	File: cfloat
+ *	Date: September 8, 2021
+ *	Version: 1.0
+ *	Author: Michael Brodsky
+ *	Email: mbrodskiis@gmail.com
+ *	Copyright (c) 2012-2021 Michael Brodsky
+ *
+ *	***************************************************************************
+ *
+ *  This file is part of "Pretty Good" (Pg). "Pg" is free software:
+ *	you can redistribute it and/or modify it under the terms of the
+ *	GNU General Public License as published by the Free Software Foundation,
+ *	either version 3 of the License, or (at your option) any later version.
+ *
+ *  This file is distributed in the hope that it will be useful, but
+ *	WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	**************************************************************************
+ *
+ *	Description:
+ *
+ *		This file defines objects in the <cfloat> header of the C++ Standard
+ *		Library, to the extent they are supported by the Arduino
+ *		implementation. The objects behave according to the C++ ISO/IEC 14882
+ *		Standards, except as noted.
+ *
+ *	Notes:
+ *
+ *		This header was originally in the C standard library as <float.h>.
+ *		It's part of the C numeric limits interface.
+ * 
+ *	Credits:
+ * 
+ *		This file is based in part on the GNU ISO C++ Library, Copyright (C) 
+ *		1997-2017 Free Software Foundation, Inc.
+ *
+ *	**************************************************************************/
+
+#if !defined __PG_CFLOAT_
+# define __PG_CFLOAT_ 20210908L
+
+# include "pg.h"
+
+# if defined ARDUINO
+ // If the Arduino environment does not define the following object-like  
+ // macros, which are required to compute certain values, we define them here.
+
+#  if !defined PG_LOG_10_2
+#   define PG_LOG_10_2			0.301029995663981195214	/* log10(2) from <constants.h> */
+#  endif
+#  if !defined __WCHAR_MIN__
+#   define __WCHAR_MIN__		INT16_MIN
+#  endif
+#  if !defined __WCHAR_MAX__
+#   define __WCHAR_MAX__		INT16_MAX
+#  endif
+#  if !defined __FLT_RADIX__
+#   define __FLT_RADIX__		2				/* b */
+#  endif
+#  if !defined FLT_ROUNDS
+#   define FLT_ROUNDS			1
+#  endif
+#  if !defined __FLT_EVAL_METHOD__
+#   define __FLT_EVAL_METHOD__	0
+#  endif
+#  if !defined __DECIMAL_DIG__
+#   define __DECIMAL_DIG__		17
+#  endif
+#  if !defined __FLT_MANT_DIG__
+#   define __FLT_MANT_DIG__		24				/* p */
+#  endif
+#  if !defined __FLT_EPSILON__
+#   define __FLT_EPSILON__		1.19209290E-07F /* b**(1-p) */
+#  endif
+#  if !defined __FLT_DIG__
+#   define __FLT_DIG__			6				/* floor((p-1)*log10(b))+(b == 10) */
+#  endif
+#  if !defined FLT_DECIMAL_DIG
+#   define FLT_DECIMAL_DIG		9				/* ceil(p*log10(2)+1) */
+#  endif
+#  if !defined __FLT_MIN_EXP__
+#   define __FLT_MIN_EXP__		(-125)			/* emin */
+#  endif
+#  if !defined __FLT_MIN__
+#   define __FLT_MIN__			1.17549435E-38F /* b**(emin-1) */
+#  endif
+#  if !defined __FLT_MIN_10_EXP__
+#   define __FLT_MIN_10_EXP__	(-37)			/* ceil(log10(b**(emin-1))) */
+#  endif
+#  if !defined __FLT_MAX_EXP__
+#   define __FLT_MAX_EXP__		128				/* emax */
+#  endif
+#  if !defined __FLT_MAX__
+#   define	__FLT_MAX__			3.40282347E+38F /* (1-b**(-p))*b**emax */
+#  endif
+#  if !defined __FLT_MAX_10_EXP__
+#   define __FLT_MAX_10_EXP__	38				/* floor(log10((1-b**(-p))*b**emax)) */
+#  endif
+
+/* According to the literature, the Arduino may have either a four or eight byte 
+ * wide <double> type depending on the board, but there is currently no way to 
+ * determine this at compile time that I'm aware of. So the following definitions 
+ * assume you have a true 64-bit <double> type, otherwise they need to be defined 
+ * the same as <float>. */
+
+#  if !defined __DBL_MANT_DIG__
+#   define __DBL_MANT_DIG__		53
+#  endif
+#  if !defined __DBL_EPSILON__
+#   define __DBL_EPSILON__		2.2204460492503131E-16
+#  endif
+#  if !defined __DBL_DIG__
+#   define __DBL_DIG__			15
+#  endif
+#  if !defined DBL_DECIMAL_DIG
+#   define DBL_DECIMAL_DIG		__DECIMAL_DIG__				
+#  endif
+#  if !defined __DBL_MIN_EXP__
+#   define __DBL_MIN_EXP__		(-1021)
+#  endif
+#  if !defined __DBL_MIN__
+#   define __DBL_MIN__			2.2250738585072014E-308
+#  endif
+#  if !defined __DBL_MIN_10_EXP__
+#   define __DBL_MIN_10_EXP__	(-307)
+#  endif
+#  if !defined __DBL_MAX_EXP__
+#   define __DBL_MAX_EXP__		1024
+#  endif
+#  if !defined __DBL_MAX__
+#   define __DBL_MAX__			1.7976931348623157E+308
+#  endif
+#  if !defined __DBL_MAX_10_EXP__
+#   define __DBL_MAX_10_EXP__	308
+#  endif
+#  if !defined __LDBL_MANT_DIG__
+#   define __LDBL_MANT_DIG__ 	__DBL_MANT_DIG__
+#  endif
+#  if !defined __LDBL_EPSILON__
+#   define __LDBL_EPSILON__		__DBL_EPSILON__
+#  endif
+#  if !defined __LDBL_DIG__
+#   define __LDBL_DIG__ 		__DBL_DIG__
+#  endif
+#  if !defined LDBL_DECIMAL_DIG
+#   define LDBL_DECIMAL_DIG		DBL_DECIMAL_DIG				
+#  endif
+#  if !defined __LDBL_MIN_EXP__
+#   define __LDBL_MIN_EXP__		__DBL_MIN_EXP__
+#  endif
+#  if !defined __LDBL_MIN__
+#   define __LDBL_MIN__			__DBL_MIN__
+#  endif
+#  if !defined __LDBL_MIN_10_EXP__
+#   define __LDBL_MIN_10_EXP__	__DBL_MIN_10_EXP__
+#  endif
+#  if !defined __LDBL_MAX_EXP__
+#   define __LDBL_MAX_EXP__		__DBL_MAX_EXP__
+#  endif
+#  if !defined __LDBL_MAX__
+#   define __LDBL_MAX__			__DBL_MAX__
+#  endif
+#  if !defined __LDBL_MAX_10_EXP__
+#   define __LDBL_MAX_10_EXP__	__DBL_MAX_10_EXP__
+#  endif
+
+// Then by including the Arduino <float.h> after we've defined the 
+// required values, it works properly.
+# include <float.h>
+
+# endif // defined ARDUINO
+
+#endif // !defined __PG_CFLOAT_
