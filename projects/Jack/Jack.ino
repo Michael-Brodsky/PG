@@ -1,107 +1,237 @@
-// This program demonstrates the use of the pg::Jack class to turn an Arduino into a 
-// remote data acquisition (DAQ) platform.
+/*
+ *	This program demonstrates the use of the pg::Jack class to turn an Arduino 
+ *	into a remote control and data acquisition (DAQ) platform. Remote hosts 
+ *	can establish a network connection and send the commands to control the 
+ *	board's pins, or read and write values to/from the pins.
+ *
+ *	***************************************************************************
+ *
+ *	File: Jack.ino
+ *	Date: May 4, 2022
+ *	Version: 1.0
+ *	Author: Michael Brodsky
+ *	Email: mbrodskiis@gmail.com
+ *	Copyright (c) 2012-2022 Michael Brodsky
+ *
+ *	***************************************************************************
+ *
+ *  This file is part of "Pretty Good" (Pg). "Pg" is free software:
+ *	you can redistribute it and/or modify it under the terms of the
+ *	GNU General Public License as published by the Free Software Foundation,
+ *	either version 3 of the License, or (at your option) any later version.
+ *
+ *  This file is distributed in the hope that it will be useful, but
+ *	WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	**************************************************************************/
 
 #include <pg.h>
 #include <components/Jack.h>
 
 using pg::Connection;
-using pg::SerialConnection;
-using pg::UdpConnection;
-using pg::Jack;
 using pg::EEStream;
+using pg::Jack;
 using pg::RemoteControl;
+using address_type = EEStream::address_type;
+using devid_type = Jack::devid_type;
+using fmt_type = Jack::fmt_type;
+using gpio_mode = Jack::gpio_mode;
+using gpio_type = Jack::gpio_type;
+using key_type = Jack::key_type;
+using network_type = Connection::Type;	
 template<class... Ts>
-using RemoteCommand = RemoteControl::Command<void, void, Ts...>;
+using RemoteCommand = typename RemoteControl::Command<void, void, Ts...>;
+using size_type = Jack::size_type;
+using timer_mode = Jack::timer_mode;
 
-void jackCallback();			// Client callback function, prints the current connection settings.
-void sendConnection(SerialConnection*, char*);
-void sendConnection(UdpConnection*, char*);
-void jackCommand(int);			// Remotely callable, user-defined function.
-void jackCommand(int, long);	// Remotely callable, user-defined function.
-void jackCommand(float);		// Remotely callable, user-defined function.
+void cmdConnection();
+void cmdConnection(uint8_t, const char*);
+void cmdLoadConfig();
+void cmdStoreConfig();
+bool eepromValid(EEStream&, const devid_type);
+void closeConnection(Connection*&);
+void intializeEeprom(EEStream&, const devid_type, network_type, const char*, const Jack::Pins&, const Jack::Timers&);
+void loadConfig(EEStream&, Jack::Pins&, Jack::Timers&);
+Connection* loadConnection(EEStream&, char*);
+Connection* openConnection(const network_type, const char*);
+void storeConfig(EEStream&, const Jack::Pins&, const Jack::Timers&);
+void storeConnection(EEStream&, network_type, const char*);
 
-Connection* connect = nullptr;
-EEStream eeprom;				// EEPROM streaming object.
-RemoteCommand<int> cmd1("cmd1", &jackCommand);			// User-defined remote command calls jackCommand<int>.
-RemoteCommand<int, long> cmd2("cmd2", &jackCommand);	// User-defined remote command calls jackCommand<int, long>.
-RemoteCommand<float> cmd3("cmd3", &jackCommand);		// User-defined remote command calls jackCommand<float>.
-Jack jack(eeprom, & jackCallback, { &cmd1,&cmd2,&cmd3 });
+network_type DefaultConnectionType = network_type::Serial;
+const char* DefaultConnectionParams = "9600,8N1";
+const address_type ConfigurationEepromAddress = sizeof(devid_type);
+const address_type ConnectionEepromAddress = 
+	ConfigurationEepromAddress +
+	(Jack::GpioCount * sizeof(decltype(Jack::GpioPin::mode_))) + 
+	Jack::TimersCount * (sizeof(decltype(Jack::CounterTimer::pin_)) + 
+		sizeof(decltype(Jack::CounterTimer::mode_)) + 
+		sizeof(decltype(Jack::CounterTimer::trigger_)));
+
+key_type KeyConnection = "net";	
+key_type KeyLoadConfig = "lda";	
+key_type KeyStoreConfig = "sto";
+
+fmt_type FmtConnection = "%s=%u,%s"; 
+
+RemoteCommand<void> _cmd_getconnection{ KeyConnection, &cmdConnection };
+RemoteCommand<uint8_t, const char*> _cmd_setconnection{ KeyConnection, &cmdConnection };
+RemoteCommand<void> _cmd_ldaconfig{ KeyLoadConfig, &cmdLoadConfig };
+RemoteCommand<void> _cmd_stoconfig{ KeyStoreConfig, &cmdStoreConfig };
+
+Connection* _connection = nullptr; 
+EEStream _eeprom; 
+Jack _jack(_connection, { &_cmd_setconnection,&_cmd_getconnection,&_cmd_ldaconfig,&_cmd_stoconfig }); 
 
 void setup() 
 {
-	//connect = new SerialConnection(Serial);
-	//connect->open("56000,8N1");
-	connect = new UdpConnection();
-	connect->open("Drowning_Ophelia,Chinab13!!,5002");
-	if (connect->open())
+	char params_buf[Connection::size()] = { '\0' };
+
+	_eeprom << EEStream::update();
+	//_eeprom << 42UL; // Uncomment this and upload to reinitialize eeprom. Then comment out and upload for normal ops.
+	if (!eepromValid(_eeprom, Jack::DeviceId))
 	{
-		connect->flush();
-		jack.connection(connect);
-		jack.initialize();	// This must be called any time the connection or command list changes.
-		digitalWrite(LED_BUILTIN, true);
+		_connection = openConnection(DefaultConnectionType, DefaultConnectionParams);
+		intializeEeprom(_eeprom, Jack::DeviceId, DefaultConnectionType, DefaultConnectionParams, 
+			_jack.pins(), _jack.timers());
+	}
+	else
+		_connection = loadConnection(_eeprom, params_buf);
+	_jack.connection(_connection);
+	digitalWrite(Jack::LedPinNumber, _connection->open());
+}
+
+void loop() 
+{
+	_jack.clock();
+}
+
+void cmdConnection()
+{
+	char params[Connection::size()] = { '\0' };
+
+	_jack.sendMessage(FmtConnection, KeyConnection, _connection->type(), _connection->params(params));
+}
+
+void cmdConnection(uint8_t type, const char* params)
+{
+	closeConnection(_connection);
+	_connection = openConnection(static_cast<network_type>(type), params);
+	storeConnection(_eeprom, static_cast<network_type>(type), params);
+	_jack.connection(_connection);
+}
+
+void cmdLoadConfig()
+{
+	loadConfig(_eeprom, _jack.pins(), _jack.timers());
+}
+
+void cmdStoreConfig()
+{
+	storeConfig(_eeprom, _jack.pins(), _jack.timers());
+}
+
+void closeConnection(Connection*& connection)
+{
+	if (connection)
+	{
+		connection->close();
+		delete connection;
+		connection = nullptr;
 	}
 }
 
-void loop()
+bool eepromValid(EEStream& eeprom, const devid_type device_id)
 {
-	jack.poll();		// Execute any new commands received.
+	devid_type eeprom_id = 0;
+
+	eeprom.reset();
+	eeprom >> eeprom_id;
+
+	return eeprom_id == device_id;
 }
 
-void jackCallback()
+void intializeEeprom(EEStream& eeprom, const devid_type eeprom_id, network_type type, const char* params,
+	const Jack::Pins& pins, const Jack::Timers& timers)
 {
-	char buf[32];
+	eeprom.reset();
+	eeprom << eeprom_id;
+	storeConfig(eeprom, pins, timers);
+	storeConnection(eeprom, type, params);
+}
 
-	switch (jack.connection()->type())
+void loadConfig(EEStream& eeprom, Jack::Pins& pins, Jack::Timers& timers)
+{
+	eeprom.address() = ConfigurationEepromAddress;
+	for (auto& pin : pins)
 	{
-	case Connection::ConnectionType::Serial:
-		sendConnection(reinterpret_cast<SerialConnection*>(const_cast<Connection*>(jack.connection())), buf);
+		uint8_t tmp = 0;
+
+		eeprom >> tmp;
+		pin.mode_ = static_cast<gpio_mode>(tmp);
+	}
+	for (auto& timer : timers)
+	{
+		uint8_t tmp = 0;
+
+		eeprom >> timer.pin_;
+		eeprom >> tmp;
+		timer.mode_ = static_cast<timer_mode>(tmp);
+		eeprom >> tmp;
+		timer.trigger_ = static_cast<PinStatus>(tmp);
+	}
+}
+
+Connection* loadConnection(EEStream& eeprom, char* params)
+{
+	uint8_t tmp = 0;
+
+	eeprom.address() = ConnectionEepromAddress;
+	eeprom >> tmp;
+	eeprom >> params;
+
+	return openConnection(static_cast<network_type>(tmp), params);
+}
+
+Connection* openConnection(const network_type type, const char* params)
+{
+	Connection* connection = nullptr;
+
+	switch (type)
+	{
+	case network_type::Serial:
+		connection = new pg::SerialConnection(Serial, params);
 		break;
-	case Connection::ConnectionType::Udp:
-		sendConnection(reinterpret_cast<UdpConnection*>(const_cast<Connection*>(jack.connection())), buf);
+	case network_type::WiFi:
+		connection = new pg::WiFiConnection(params);
 		break;
 	default:
 		break;
 	}
+
+	return connection;
 }
- 
-void sendConnection(SerialConnection* connection, char* buf)
+
+void storeConfig(EEStream& eeprom, const Jack::Pins& pins, const Jack::Timers& timers)
 {
-	std::sprintf(buf, "serial=%lu,%3s,%lu", connection->baud(), "8N1", connection->timeout());
-	connection->send(buf);
+	eeprom.address() = ConfigurationEepromAddress;
+	for (auto& pin : pins)
+		eeprom << static_cast<uint8_t>(pin.mode_);
+	for (auto& timer : timers)
+	{
+		eeprom << timer.pin_;
+		eeprom << static_cast<uint8_t>(timer.mode_);
+		eeprom << static_cast<uint8_t>(timer.trigger_);
+	}
 }
 
-void sendConnection(UdpConnection* connection, char* buf)
+void storeConnection(EEStream& eeprom, network_type type, const char* params)
 {
-	IPAddress ipa = connection->localIP();
-	std::sprintf(buf, "udp=%u.%u.%u.%u,%u", ipa[0],ipa[1],ipa[2],ipa[3], connection->port());
-	connection->send(buf);
+	eeprom.address() = ConnectionEepromAddress;
+	eeprom << static_cast<uint8_t>(type);
+	eeprom << params; 
 }
-
-void jackCommand(int i)
-{
-	char buf[64];
-
-	std::sprintf(buf, "jackCommand(%d)", i);
-	connect->send(buf);
-}
-
-void jackCommand(int i, long l)
-{
-	char buf[64];
-
-	std::sprintf(buf, "jackCommand(%d, %ld)", i, l);
-	connect->send(buf);
-}
-
-void jackCommand(float f)
-{
-	// Requires floating point support for sprintf() function.
-	// Edit platform.txt file and add/change this line to:
-	// compiler.c.elf.extra_flags=-Wl,-u,vfprintf -lprintf_flt -lm
-
-	char buf[64];
-
-	std::sprintf(buf, "jackCommand(%.2f)", f);
-	connect->send(buf);
-}
-
