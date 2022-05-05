@@ -1,12 +1,12 @@
 /*
  *	This file defines several functions in the C Standard Library header 
  *	<string.h> and can be used with implementations that lack one, such as the 
- *	`megaavr' framework.
+ *	`megaavr' architecture.
  *
  *  ***************************************************************************
  *
  *	File: string.h
- *	Date: April 16, 2022 8, 2021
+ *	Date: May 4, 2022 8, 2021
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -29,32 +29,31 @@
  *
  *	**************************************************************************/
 
-#if !defined __PG_LIBC_H
-# define __PG_LIBC_H 20220404L
+#if !defined __PG_LIBC_STRING_H
+# define __PG_LIBC_STRING_H 20220504L
 
-# include "lib/fmath.h"
-# include <String.h>
+# include "lib/fmath.h" // pg::sign();
+
+# if defined __cplusplus
+extern "C" {
+# endif
 
 void* memchr(const void* str, int ch, size_t n)
 {
 	unsigned char* p = (unsigned char*)str;
-	unsigned char* result = nullptr;
 
-	while (str && n--)
+	while (n--)
 	{
 		if (*p != (unsigned char)ch)
 			p++;
 		else
-		{
-			result = p;
-			break;
-		}
+			return p;
 	}
 
-	return result;
+	return NULL;
 }
 
-int memcmp(const void* lhs, const void* rhs, std::size_t count)
+int memcmp(const void* lhs, const void* rhs, size_t count)
 {
 	unsigned char* p = (unsigned char*)lhs;
 	unsigned char* q = (unsigned char*)rhs;
@@ -89,26 +88,16 @@ char* strcat(char* dest, const char* src)
 	return dest;
 }
 
-//
-// Defined in megaavr implementation.
-//
-//const char* strchr(const char* str, int ch) 
-//{
-//	for (; *str != '\0' && *str != (const char)ch; ++str);
-//	
-//	return *str == (const char)ch ? (const char*)str : nullptr;
-//}
-
-char* strchr(char* str, int ch)
+char* strchr(const char* str, int ch)
 {
 	for (; *str != '\0' && *str != (char)ch; ++str);
 
-	return *str == (char)ch ? (char*)str : nullptr;
+	return *str == (char)ch ? (char*)str : NULL;
 }
 
 size_t strlen(const char* s)
 {
-	std::size_t len = 0;
+	size_t len = 0;
 
 	while (*s++)
 		++len;
@@ -127,7 +116,7 @@ char* strncat(char* dest, const char* src, size_t count)
 	return dest;
 }
 
-int strncmp(const char* lhs, const char* rhs, std::size_t count)
+int strncmp(const char* lhs, const char* rhs, size_t count)
 {
 	int result = 0;
 
@@ -140,7 +129,7 @@ int strncmp(const char* lhs, const char* rhs, std::size_t count)
 	return pg::sign(result);
 }
 
-char* strncpy(char* dest, const char* src, std::size_t count)
+char* strncpy(char* dest, const char* src, size_t count)
 {
 	char* cpy = dest;
 
@@ -154,25 +143,26 @@ char* strncpy(char* dest, const char* src, std::size_t count)
 	return cpy;
 }
 
-//
-// Defined in megaavr implementation.
-//
-//const char* strrchr(const char* str, int ch)
-//{
-//	const char* result = nullptr;
-//
-//	do 
-//	{
-//		if (*str == (const char)ch)
-//			result = (const char*)str;
-//	} while (*str++);
-//
-//	return result;
-//}
-
-char* strrchr(char* str, int ch)
+char* strpbrk(const char* str, const char* accept)
 {
-	char* result = nullptr;
+	while (*str != '\0')
+	{
+		const char* a = accept;
+
+		while (*a != '\0')
+		{
+			if (*a++ == *str)
+				return (char*)str;
+		}
+		++str;
+	}
+
+	return NULL;
+}
+
+char* strrchr(const char* str, int ch)
+{
+	char* result = NULL;
 
 	do
 	{
@@ -183,38 +173,82 @@ char* strrchr(char* str, int ch)
 	return result;
 }
 
-char* strtok(char* s1, const char* s2)
+size_t strspn(const char* str, const char* accept)
 {
-	static String input;
-	static String result;
+	const char* p;
+	const char* a;
+	size_t count = 0;
 
-	if (s1)
-		input = s1;
-	if (!input.length())
-		return nullptr;
-	String d = s2;
-	std::size_t len = d.length();
-	for (std::size_t i = 0; i < len; ++i)
+	for (p = str; *p != '\0'; ++p)
 	{
-		auto n = input.indexOf(d[i]);
-
-		if (n)
-		{
-			if (n > 0)
-			{
-				result = input.substring(0, n++);
-				input = input.substring(n);
-			}
-			else
-			{
-				result = input;
-				input = "";
-			}
-			break;
-		}
+		for (a = accept; *a != '\0'; ++a)
+			if (*p == *a)
+				break;
+		if (*a == '\0')
+			return count;
+		else
+			++count;
 	}
 
-	return const_cast<char*>(result.c_str());
+	return count;
 }
 
-#endif
+char* strstr(const char* string, const char* substring)
+{
+	const char* a;
+	const char* b;
+
+	b = substring;
+	if (*b == 0) {
+		return (char*)string;
+	}
+	for (; *string != 0; string += 1) {
+		if (*string != *b) {
+			continue;
+		}
+		a = string;
+		while (1) {
+			if (*b == 0) {
+				return (char*)string;
+			}
+			if (*a++ != *b++) {
+				break;
+			}
+		}
+		b = substring;
+	}
+
+	return NULL;
+}
+
+char* strtok(char* str, const char* delim)
+{
+	static char* olds;
+	char* token;
+
+	if (str == NULL)
+		str = olds;
+	str += strspn(str, delim);
+	if (*str == '\0')
+	{
+		olds = str;
+		return NULL;
+	}
+	token = str;
+	str = strpbrk(token, delim);
+	if (str == NULL)
+		olds = (char*)memchr(token, '\0', strlen(token));
+	else
+	{
+		**((char**)&str) = '\0';
+		olds = str + 1;
+	}
+
+	return token;
+}
+
+# if defined __cplusplus
+}
+# endif
+
+#endif // !defined __PG_LIBC_STRING_H
