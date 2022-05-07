@@ -45,7 +45,7 @@
  *	commands, passing any parameters encoded in the message as method 
  *	arguments. `Jack' also supports user-defined commands that can be appended 
  *	to the built-in collection. This allows developers to expand an 
- *	application’s capabilities with custom function/method calls.
+ *	application’s capabilities with custom remote function/method calls.
  *
  *	Messages are plain text strings that have the general form: 
  *
@@ -113,9 +113,9 @@ namespace pg
 		struct CounterTimer;													// Forward decl (see below).
 		using command_type = RemoteControl::command_type;						// Remote command type.
 		using cmdlist_type = std::initializer_list<command_type*>;				// Remote command initializer list type.
-		using devid_type = unsigned long;
+		using devid_type = unsigned long;										// Device id storage class type.
 		using fmt_type = const char*;											// Reply message formatting type.
-		using isr_type = pg::callback<void>::type;
+		using isr_type = pg::callback<void>::type;								// Isr function call type.
 		template<class... Ts>													// Jack remote command template.
 		using JackCommand = typename RemoteControl::Command<void, Jack, Ts...>; 
 		using key_type = typename command_type::key_type;						// Remote command key storage type.
@@ -123,7 +123,7 @@ namespace pg
 		using timer_type = Timer<milliseconds>;									// Event timer type.
 		using value_type = uint16_t;											// Type that can hold any pin input/output value.
 		using counter_type = Counter<value_type>;								// Event counter type.
-		using timer_t = uint8_t;
+		using timer_t = uint8_t;												// Timer index type alias.
 
 		static const devid_type DeviceId = 20220430UL;
 		static const size_type GpioCount = NUM_DIGITAL_PINS;		// Total number of gpio pins of any type.
@@ -136,7 +136,8 @@ namespace pg
 		using Timers = typename std::array<CounterTimer, TimersCount>;				// Event counters/timers collection type.
 		using Pins = std::array<GpioPin, GpioCount>;								// GpioPins collection type.
 
-		// Aggregates counters and timers into a single object.
+		// Aggregates counters and timers into a single object. CounterTimers
+		// can be attached to a gpio pin and triggered by hardware interrupts.
 		struct CounterTimer
 		{
 			// Enumerates valid CounterTimer operating modes.
@@ -155,18 +156,18 @@ namespace pg
 				Reset = 3		// Resets the current count/elapsed time.
 			};
 
+			// Enumerates CounterTimer timing modes. 
 			enum Timing : uint8_t
 			{
-				Immediate = 0,
-				OneShot = 1,
-				Continuous = 2
+				Immediate = 0,	// Timer starts when attached, stops when triggered.
+				OneShot = 1,	// Timer starts then stops when triggered once.
+				Continuous = 2	// Timer is toggled on each trigger event.
 			};
 
-			//size_type		id_;
 			pin_t			pin_;		// The currently attached pin, if any.
 			Mode			mode_;		// The current operating mode.
 			PinStatus		trigger_;	// The current event trigger.
-			Timing			timing_;
+			Timing			timing_;	// The current timing mode.
 			timer_type		timer_;		// Timer object.
 			counter_type	counter_;	// Counter object.
 		};
@@ -175,7 +176,7 @@ namespace pg
 		using timer_mode = CounterTimer::Mode;
 		using timing_mode = CounterTimer::Timing;
 
-		// Aggregates gpio pin info.
+		// Aggregates information about a gpio pin.
 		struct GpioPin
 		{
 			// Enumerates valid gpio pin types.
@@ -215,14 +216,18 @@ namespace pg
 
 #pragma region strings
 
-		static constexpr key_type KeyDevReset = "rst";		// Device reset
-		static constexpr key_type KeyDevInfo = "inf";		// Device info
-		static constexpr key_type KeyAcknowledge = "ack";	// Write acknowledge
-		static constexpr key_type KeyPinInfo = "pin";		// Pin info (all).
-		static constexpr key_type KeyPinMode = "pmd";		// Pin mode info only.
+		/*
+		 *  Command key and reply string format specifiers.
+		 */
+
+		static constexpr key_type KeyDevReset = "rst";		// Device reset.
+		static constexpr key_type KeyDevInfo = "inf";		// Device info.
+		static constexpr key_type KeyAcknowledge = "ack";	// Write acknowledge.
+		static constexpr key_type KeyPinInfo = "pin";		// Get pin info.
+		static constexpr key_type KeyPinMode = "pmd";		// Get/set pin mode.
 		static constexpr key_type KeyReadPin = "rdp";		// Read pin (type dependent).
 		static constexpr key_type KeyWritePin = "wrp";		// Write pin (type dependent).
-		static constexpr key_type KeyTimerStatus = "tcs";	// Get timer state.
+		static constexpr key_type KeyTimerStatus = "tcs";	// Get/set timer state.
 		static constexpr key_type KeyTcAttach = "atc";		// Attach/detach timer.
 
 		static constexpr fmt_type FmtDevInfo = "%s=%lu,%s,%s,%u,%u,%u";	// inf=id,type,mcutype,mcuspd,#pins,#timers
@@ -295,6 +300,8 @@ namespace pg
 		void writePin(pin_t, value_type);
 
 	private:
+		/* Built-in remote commands*/
+
 		JackCommand<void> cmd_devinfo_{ KeyDevInfo, *this, &Jack::cmdDevInfo };
 		JackCommand<void> cmd_devreset_{ KeyDevReset, *this, &Jack::cmdDevReset };
 		JackCommand<void> cmd_getack_{ KeyAcknowledge, *this, &Jack::cmdAcknowledge };
@@ -314,6 +321,8 @@ namespace pg
 		JackCommand<void> cmd_timersinfo_{ KeyTcAttach, *this, &Jack::cmdTimerInfo };
 		JackCommand<pin_t, value_type> cmd_writepin_{ KeyWritePin, *this, &Jack::cmdWritePin };
 
+		/* Private class members */
+
 		Connection*		connection_;	// Current network connection.
 		RemoteControl	remote_;		// Remote command processor.
 		Pins			pins_;			// Gpio pins collection.
@@ -323,7 +332,7 @@ namespace pg
 	};
 } // namespace pg
 
-extern pg::Jack _jack;
+extern pg::Jack _jack;	// Needed by static isr methods.
 
 namespace pg
 {
@@ -415,7 +424,7 @@ namespace pg
 	void Jack::cmdTimerAttach(timer_t t, pin_t p, uint8_t mode, uint8_t trigger, uint8_t timing = timing_mode::Immediate)
 	{
 
-		if (t < timers_.size() && (p < GpioCount || p == InvalidPin))
+		if (t < TimersCount && (p < GpioCount || p == InvalidPin))
 		{
 			pin_t attached_pin = timers_[t].pin_;
 
@@ -441,7 +450,7 @@ namespace pg
 
 	void Jack::cmdTimerInfo(timer_t n)
 	{
-		if (n < timers_.size())
+		if (n < TimersCount)
 			sendTimerInfo(n);
 	}
 
@@ -547,13 +556,9 @@ namespace pg
 			{
 			case timing_mode::OneShot:
 				if (!timer.timer_.active())
-				{
 					timer.timer_.start();
-				}
 				else
-				{
 					endTimer(n);
-				}
 				break;
 			case timing_mode::Immediate:
 				endTimer(n);
@@ -686,6 +691,7 @@ namespace pg
 
 		return isr;
 	}
+
 	void Jack::initialize(cmdlist_type& user_cmds)
 	{
 		if (user_cmds.size())
@@ -721,13 +727,13 @@ namespace pg
 		}
 
 	}
+
 	void Jack::initialize(Timers& timers)
 	{
 		for (size_type i = 0; i < timers.size(); ++i)
 		{
 			CounterTimer& timer = timers[i];
 
-			//timer.id_ = i;
 			timer.pin_ = InvalidPin;
 			timer.mode_ = timer_mode::Counter;
 			timer.trigger_ = FALLING;
@@ -851,7 +857,9 @@ namespace pg
 	void Jack::isrTimer3() { _jack.isrHandler(3); }
 
 #pragma endregion
+
 } // namespace pg
+
 # else // !defined __PG_HAS_NAMESPACES
 #  error Requires C++11 and namespace support.
 # endif // defined __PG_HAS_NAMESPACES 

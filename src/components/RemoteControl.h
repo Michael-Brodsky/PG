@@ -1,11 +1,11 @@
 /*
- *	This files defines a class that operates like a remote procedure call, 
- *	executing code in response to commands received over a network connection.
+ *	This file defines a class that operates like a remote procedure call, 
+ *	converting remote messages into locally executable command objects.
  *
  *	***************************************************************************
  *
  *	File: RemoteControl.h
- *	Date: May 4, 2022
+ *	Date: May 6, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -29,7 +29,7 @@
  *	**************************************************************************/
 
 #if !defined __PG_REMOTECONTROL_H 
-# define __PG_REMOTECONTROL_H 20220504L
+# define __PG_REMOTECONTROL_H 20220506L
 
 # include "cstdlib"					// atoi(), atol(), atof().
 # include "cstring"					// libstdc string functions.
@@ -45,6 +45,11 @@ namespace pg
 {
 	namespace detail
 	{
+		void getArg(const char* str, char*& arg)
+		{
+			arg = const_cast<char*>(str);
+		}
+
 		void getArg(const char* str, const char*& arg)
 		{
 			arg = str;
@@ -125,6 +130,8 @@ namespace pg
 			arg = static_cast<long double>(std::atof(str));
 		}
 
+		// Terminating template for parsing message strings into command 
+		// arguments. Called after last tuple element.
 		template<std::size_t I = 0, class...Ts>
 		inline typename std::enable_if<I == sizeof...(Ts), std::size_t>::type
 			getCmdArgs(const char* delim, std::tuple<Ts...>& t)
@@ -132,6 +139,8 @@ namespace pg
 			return I;
 		}
 
+		// Primary template for parsing message strings into command 
+		// arguments. Called recursively for each tuple element.
 		template<std::size_t I = 0, class...Ts>
 		inline typename std::enable_if<I < sizeof...(Ts), std::size_t>::type
 			getCmdArgs(const char* delim, std::tuple<Ts...>& t)
@@ -191,8 +200,11 @@ namespace pg
 		public:
 			bool execute(char* str) override 
 			{
-				// To support "variadic" commands, command strings must have the 
-				// same number of arguments as the tuple size: args_.size().
+				// Parameter `str' is the command string from which the tuple 
+				// elements (command args) are initialized. The tuple is unrolled
+				// and passed to the delegate function/method as arguments. 
+				// To support "variadic" commands, command strings must encode 
+				// the same number of arguments as the tuple size: args_.size().
 
 				bool result = false;
 
@@ -390,7 +402,6 @@ namespace pg
 	{
 		if (connection_)
 		{
-			//char buf[64] = { '\0' }; // Command buffer.
 			char* message = const_cast<char*>(connection_->receive());
 
 			if (*message)
@@ -422,8 +433,9 @@ namespace pg
 		char tmp[Connection::size()];
 		char* tok = nullptr;
 		std::size_t n = 0;
-		// Need a copy of cmd to work on because strtok mangles it.
-		std::strncpy(tmp, cmd, sizeof(tmp)); 
+		// Only need a copy of cmd string if echo_ is on otherwise strtok() will mangle it. 
+		// So maybe change this to a non-static member or get rid of echo.
+		(void)std::strncpy(tmp, cmd, sizeof(tmp)); 
 		/* Needs support for quoted strings, that may enclose delimiters.
 		 * strtok won't work for this.
 		 */
