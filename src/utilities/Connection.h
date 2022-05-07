@@ -35,6 +35,7 @@
 # include "cstring"
 # include "system/boards.h"
 # include "utilities/ValueWrappers.h"
+# include "system/ethernet.h"
 # include "system/wifi.h"
 
 namespace pg
@@ -126,6 +127,44 @@ namespace pg
 	}
 
 	const std::ArrayWrapper<SerialConnection::frame_map_type> SerialConnection::SupportedFrames(detail::supported_frames);
+
+	class EthernetConnection : public Connection
+	{
+	public:
+		static constexpr uint32_t WaitConnect = 2000;
+		static constexpr uint32_t MaxWaitTime = 10000;
+
+	public:
+		EthernetConnection(const char* = nullptr);
+		~EthernetConnection() override;
+
+	public:
+		Type type() const;
+		void open(const char*) override;
+		bool open() override;
+		void close() override;
+		void flush() override;
+		std::size_t send(const char*) override;
+		const char* receive() override;
+		const char* params(char*) override;
+		EthernetClass& hardware();
+		mac_type mac() const;
+		uint16_t port() const;
+		IPAddress remoteIP() const;
+		IPAddress localIP() const;
+
+	private:
+		void parseParams(const char* params);
+
+	private:
+		char			buf_[size()];	// Receive buffer.
+		EthernetUDP		udp_;			// Arduino UDP api.
+		bool			is_open_;		// Flag indicating whether the connection is open.
+		IPAddress		local_ip_;		// The current local IP address.
+		mac_type		mac_;			// The MAC address.
+		unsigned int	port_;			// The current UDP port.
+		IPAddress		remote_ip_;		// The current remote address.
+	};
 
 	// Creates a WiFi network connection.
 	class WiFiConnection : public Connection
@@ -280,6 +319,135 @@ namespace pg
 	}
 
 #pragma endregion
+#pragma region EthernetConnection
+
+	EthernetConnection::EthernetConnection(const char* params) : 
+		buf_(), is_open_(), local_ip_(), mac_(), port_()
+	{
+		if (params)
+			open(params);
+	}
+
+	EthernetConnection::~EthernetConnection()
+	{
+		close();
+	}
+
+	Connection::Type EthernetConnection::type() const
+	{
+		return Type::Ethernet;
+	}
+
+	void EthernetConnection::open(const char* params) 
+	{
+		parseParams(params);
+		if (!(Ethernet.hardwareStatus() == EthernetNoHardware) || Ethernet.linkStatus() == LinkOFF)
+		{
+			Ethernet.begin(mac_.data(), local_ip_);
+			is_open_ = udp_.begin(port_);
+		}
+	}
+
+	bool EthernetConnection::open()
+	{
+		return is_open_;
+	}
+
+	void EthernetConnection::close()
+	{
+		udp_.stop();
+		is_open_ = false;
+	}
+
+	void EthernetConnection::flush()
+	{
+		udp_.flush();
+	}
+
+	std::size_t EthernetConnection::send(const char* message)
+	{
+		if (open())
+		{
+			udp_.beginPacket(remote_ip_, port_);
+			udp_.write(message);
+			udp_.endPacket();
+		}
+	}
+
+	const char* EthernetConnection::receive()
+	{
+		std::size_t n = 0;
+
+		if (open())
+		{
+			if (udp_.parsePacket())
+			{
+				n = udp_.read(buf_, sizeof(buf_));
+				remote_ip_ = udp_.remoteIP();
+				udp_.endPacket();
+			}
+		}
+		buf_[n] = '\0';
+
+		return buf_;
+	}
+
+	const char* EthernetConnection::params(char* buf)
+	{
+		if (buf)
+		{
+			IPAddress ip = localIP();
+
+			(void)std::sprintf(buf, "%d %d %d %d %d %d,%d.%d.%d.%d:%u", 
+				mac_[0], mac_[1], mac_[2], mac_[3], mac_[4], mac_[5], ip[0], ip[1], ip[2], ip[3], port_);
+		}
+
+		return buf;
+	}
+
+	EthernetClass& EthernetConnection::hardware()
+	{
+		return Ethernet;
+	}
+
+	uint16_t EthernetConnection::port() const
+	{
+		return port_;
+	}
+
+	IPAddress EthernetConnection::remoteIP() const
+	{
+		return remote_ip_;
+	}
+
+	IPAddress EthernetConnection::localIP() const
+	{
+		return Ethernet.localIP();
+	}
+
+	void EthernetConnection::parseParams(const char* params)
+	{
+		char buf[size()] = { '\0' };
+		char* ip = nullptr;
+		char* mac = nullptr;
+		char* port = nullptr;
+
+		if (mac = std::strtok(buf, " "))
+		{
+			std::size_t i = 0;
+
+			do
+			{
+				mac_[i++] = static_cast<typename mac_type::value_type>(std::strtol(mac, nullptr, 16));
+			} while ((mac = std::strtok(nullptr, " ")));
+		}
+		if (ip = std::strtok(nullptr, " "))
+			local_ip_.fromString(ip);
+		if ((port = std::strtok(nullptr, ",")))
+			port_ = std::atoi(port);
+	}
+
+#pragma endregion
 #pragma region WiFiConnection
 
 	WiFiConnection::WiFiConnection(const char* params) : 
@@ -361,9 +529,12 @@ namespace pg
 
 	const char* WiFiConnection::params(char* buf)
 	{
-		IPAddress ip = localIP();
+		if (buf)
+		{
+			IPAddress ip = localIP();
 
-		(void)std::sprintf(buf, "%s,%d.%d.%d.%d:%u", WiFi.SSID(), ip[0],ip[1],ip[2],ip[3], port_);
+			(void)std::sprintf(buf, "%s,%d.%d.%d.%d:%u", WiFi.SSID(), ip[0], ip[1], ip[2], ip[3], port_);
+		}
 
 		return buf;
 	}
