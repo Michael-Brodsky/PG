@@ -4,11 +4,11 @@
  *	***************************************************************************
  *
  *	File: boards.h
- *	Date: December 25, 2021
+ *	Date: May 15, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -63,7 +63,7 @@
  *	***************************************************************************/
 
 #if !defined __PG_BOARDS_H
-# define __PG_BOARDS_H 20211225L
+# define __PG_BOARDS_H 20220515L
 
 # include "system/types.h"
 
@@ -96,6 +96,25 @@
 namespace pg
 {
 #pragma region boards
+
+	static const uint8_t GpioCount = NUM_DIGITAL_PINS;		// Total number of gpio pins of any type.
+	static const uint8_t AnalogInCount = NUM_ANALOG_INPUTS;	// Total number of gpio pins with analog input capability.
+	static const uint8_t LedPinNumber = LED_BUILTIN;		// Built-in LED pin number.
+
+	// Returns the number of attachable hardware interrupts, parameter N is the total number of gpio pins.
+	template<std::size_t N, std::size_t I = 0>
+	constexpr typename std::enable_if<I == N, std::size_t>::type
+		countInterrupts(std::size_t n)
+	{
+		return n;
+	}
+	// Returns the number of attachable hardware interrupts, parameter N is the total number of gpio pins.
+	template<std::size_t N, std::size_t I = 0>
+	constexpr typename std::enable_if < I < N, std::size_t>::type
+		countInterrupts(std::size_t n = 0)
+	{
+		return countInterrupts<N, I + 1>(n + (digitalPinToInterrupt(I) != NOT_AN_INTERRUPT));
+	}
 
 	//
 	//		Tag types that identify known boards:
@@ -174,7 +193,7 @@ namespace pg
 	//
 	// 	   Board hardware traits types. 
 	// 
-		    
+	
 	// Primary template for board hardware traits.
 	template<class T>
 	struct board_traits
@@ -414,7 +433,7 @@ namespace pg
 	template<>
 	struct board_traits<Arduino_Uno_Wifi_Rev2>
 	{
-		static constexpr uint8_t adc_digits = 12;
+		static constexpr uint8_t adc_digits = 10;
 		static constexpr frequency_t pwm_frequency(pin_t pin)
 		{
 			return pin == 3 || pin == 5 || pin == 6 || pin == 9 || pin == 10
