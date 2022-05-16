@@ -1,30 +1,30 @@
 /*
- *	This program demonstrates use of the pg::Jack class to turn an Arduino 
- *	into a remote control and data acquisition (DAQ) platform. Remote hosts 
- *	can establish a network connection and send commands to control the 
- *	board's pins, read and write values to/from the pins and time/count 
+ *	This program demonstrates use of the pg::Jack class to turn an Arduino
+ *	into a remote control and data acquisition (DAQ) platform. Remote hosts
+ *	can establish a network connection and send commands to control the
+ *	board's pins, read and write values to/from the pins and time/count
  *	pin state changes (see <Jack.h>).
  *
- *	This main program file defines functions that handle network connections 
- *	and the eeprom memory; device control and data acquisition functions are 
- *	handled by Jack. This file also defines a function that allows users to 
- *	force the device to use the default connection at power-up. It checks a 
- *	user-defined digital input pin and, if the pin is in the LOW state, opens 
+ *	This main program file defines functions that handle network connections
+ *	and the eeprom memory; device control and data acquisition functions are
+ *	handled by Jack. This file also defines a function that allows users to
+ *	force the device to use the default connection at power-up. It checks a
+ *	user-defined digital input pin and, if the pin is in the LOW state, opens
  *	the default connection regardless (see <config.h>).
- * 
- *	The eeprom memory needs to be intitialized the first time the program is 
- *	run, otherwise the program may crash, reboot the device or exhibit  
- *	erratic behavior. This is done by uncommenting the line  
- *	`invalidateEeprom()' in the setup() function, and compiling and running 
- *	the program. Once intitialized, the program should be recompiled and 
- *	uploaded with the `invalidateEeprom()' line commented out. If not, 
- *	the eeprom memory will be overwritten each time the device is reset or 
+ *
+ *	The eeprom memory needs to be intitialized the first time the program is
+ *	run, otherwise the program may crash, reboot the device or exhibit
+ *	erratic behavior. This is done by uncommenting the line
+ *	`invalidateEeprom()' in the setup() function, and compiling and running
+ *	the program. Once intitialized, the program should be recompiled and
+ *	uploaded with the `invalidateEeprom()' line commented out. If not,
+ *	the eeprom memory will be overwritten each time the device is reset or
  *	power-cycled and you will lose any saved information.
  *
  *	***************************************************************************
  *
  *	File: Jack.ino
- *	Date: May 6, 2022
+ *	Date: May 15, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -50,9 +50,9 @@
 #include <pg.h>
 #include "config.h"	// Dependencies, typedefs and constants.
 
-/*
- * Function Declarations
- */
+ /*
+  * Function Declarations
+  */
 
 void cmdConnection();
 void cmdConnection(uint8_t, const char*, const char*, const char*);
@@ -79,11 +79,11 @@ RemoteCommand<void> _cmd_getconnection{ KeyConnection, &cmdConnection };
 RemoteCommand<void> _cmd_ldaconfig{ KeyLoadConfig, &cmdLoadConfig };
 RemoteCommand<void> _cmd_stoconfig{ KeyStoreConfig, &cmdStoreConfig };
 
-Connection* _connection = nullptr; 
-EEStream _eeprom; 
-Jack _jack(_connection, { &_cmd_setconnection,&_cmd_getconnection,&_cmd_ldaconfig,&_cmd_stoconfig }); 
+Connection* _connection = nullptr;
+EEStream _eeprom;
+Jack _jack(_connection, { &_cmd_setconnection,&_cmd_getconnection,&_cmd_ldaconfig,&_cmd_stoconfig });
 
-void setup() 
+void setup()
 {
 	char params_buf[Connection::size()] = { '\0' };
 	bool use_dflt = useDefaultConnection(DefaultConnectionPin);
@@ -93,8 +93,8 @@ void setup()
 	if (use_dflt || !eepromValid(_eeprom, Jack::DeviceId))
 	{
 		_connection = openConnection(DefaultConnectionType, DefaultConnectionParams);
-		if(!use_dflt)
-			intializeEeprom(_eeprom, Jack::DeviceId, DefaultConnectionType, DefaultConnectionParams, 
+		if (!use_dflt)
+			intializeEeprom(_eeprom, Jack::DeviceId, DefaultConnectionType, DefaultConnectionParams,
 				_jack.pins(), _jack.timers());
 	}
 	else
@@ -102,7 +102,7 @@ void setup()
 	setConnection(_connection);
 }
 
-void loop() 
+void loop()
 {
 	_jack.clock();
 }
@@ -110,21 +110,7 @@ void loop()
 void cmdConnection()
 {
 	char params[Connection::size()] = { '\0' };
-	const char* fmt = nullptr;
-
-	switch (_connection->type())
-	{
-	case network_type::Serial:
-		fmt = FmtSerialConnection;
-		break;
-	case network_type::WiFi:
-		fmt = FmtWifiConnection;
-		break;
-	case network_type::Ethernet:
-		break;
-	default: 
-		break;
-	}
+	const char* fmt = "%s=%u,%s";
 
 	_jack.sendMessage(fmt, KeyConnection, _connection->type(), _connection->params(params));
 }
@@ -137,7 +123,6 @@ void cmdConnection(uint8_t type, const char* arg0, const char* arg1, const char*
 	Connection* connection = nullptr;
 
 	(void)std::sprintf(params, fmt, arg0, arg1, arg2);
-	digitalWrite(Jack::LedPinNumber, false);
 	closeConnection(_connection);
 	storeConnection(_eeprom, net_type, params);
 	_connection = openConnection(net_type, params);
@@ -161,6 +146,7 @@ void closeConnection(Connection*& connection)
 		connection->close();
 		delete connection;
 		connection = nullptr;
+		digitalWrite(pg::LedPinNumber, false);
 	}
 }
 
@@ -207,6 +193,8 @@ void loadConfig(EEStream& eeprom, Jack::Pins& pins, Jack::Timers& timers)
 		timer.mode_ = static_cast<timer_mode>(tmp);
 		eeprom >> tmp;
 		timer.trigger_ = static_cast<PinStatus>(tmp);
+		eeprom >> tmp;
+		timer.timing_ = static_cast<timing_mode>(tmp);
 	}
 }
 
@@ -233,6 +221,8 @@ Connection* openConnection(network_type type, const char* params)
 	case network_type::WiFi:
 		connection = new pg::WiFiConnection(params);
 		break;
+	case network_type::Ethernet:
+		connection = new pg::EthernetConnection(params);
 	default:
 		break;
 	}
@@ -243,7 +233,7 @@ Connection* openConnection(network_type type, const char* params)
 void setConnection(Connection* connection)
 {
 	_jack.connection(connection);
-	digitalWrite(Jack::LedPinNumber, connection->open());
+	digitalWrite(pg::LedPinNumber, connection->open());
 }
 
 void storeConfig(EEStream& eeprom, const Jack::Pins& pins, const Jack::Timers& timers)
@@ -256,6 +246,7 @@ void storeConfig(EEStream& eeprom, const Jack::Pins& pins, const Jack::Timers& t
 		eeprom << timer.pin_;
 		eeprom << static_cast<uint8_t>(timer.mode_);
 		eeprom << static_cast<uint8_t>(timer.trigger_);
+		eeprom << static_cast<uint8_t>(timer.timing_);
 	}
 }
 
@@ -263,7 +254,7 @@ void storeConnection(EEStream& eeprom, network_type type, const char* params)
 {
 	eeprom.address() = ConnectionEepromAddress;
 	eeprom << static_cast<uint8_t>(type);
-	eeprom << params; 
+	eeprom << params;
 }
 
 bool useDefaultConnection(pin_t pin)

@@ -5,7 +5,7 @@
  *	***************************************************************************
  *
  *	File: config.h
- *	Date: May 6, 2022
+ *	Date: May 15, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -29,7 +29,7 @@
  *	**************************************************************************/
 
 #if !defined __PG_JACK_CONFIG_H
-# define __PG_JACK_CONFIG_H 20220506L
+# define __PG_JACK_CONFIG_H 20220515L
 
 # include <components/Jack.h>
 
@@ -53,6 +53,7 @@ template<class... Ts>
 using RemoteCommand = typename RemoteControl::Command<void, void, Ts...>;
 using size_type = Jack::size_type;
 using timer_mode = Jack::timer_mode;
+using timing_mode = Jack::timing_mode;
 
 /*
  * Constants 
@@ -60,34 +61,32 @@ using timer_mode = Jack::timer_mode;
 
 network_type DefaultConnectionType = network_type::Serial;
 const char* DefaultConnectionParams = "9600,8N1";
-const pin_t DefaultConnectionPin = 2;
+const pin_t DefaultConnectionPin = 2;	// If pin is grounded (low) at boot, board will use default connection.
 
 // Eeprom memory map:
 //
-// | Device_ID | Pins Config | Timers Config | Connection |
+// | Device_ID | Pins | Timers | Connection |
 //
 // Contents:
 //
 // Device_ID: application-specific magic number of type unsigned long, 
-// Connection: type, params,
 // Pins: mode, 
-// Timers: pin,mode,trigger.
+// Timers: pin,mode,trigger,timing,
+// Connection: type, params.
 
 const address_type ConfigurationEepromAddress = sizeof(devid_type);
 const address_type ConnectionEepromAddress =
-ConfigurationEepromAddress +
-(Jack::GpioCount * sizeof(decltype(Jack::GpioPin::mode_))) +
-Jack::TimersCount * (sizeof(decltype(Jack::CounterTimer::pin_)) +
-	sizeof(decltype(Jack::CounterTimer::mode_)) +
-	sizeof(decltype(Jack::CounterTimer::trigger_)));
+	ConfigurationEepromAddress +
+	(pg::GpioCount * sizeof(decltype(Jack::GpioPin::mode_))) +
+	Jack::TimersCount * (sizeof(decltype(Jack::CounterTimer::pin_)) +
+		sizeof(decltype(Jack::CounterTimer::mode_)) +
+		sizeof(decltype(Jack::CounterTimer::trigger_)) + 
+		sizeof(decltype(Jack::CounterTimer::timing_)));
 
 // Remote command strings:
 
 key_type KeyConnection = "net";			// Get/set network connection.
 key_type KeyLoadConfig = "lda";			// Load device config from eeprom.
 key_type KeyStoreConfig = "sto";		// Store device config to eeprom.
-
-fmt_type FmtSerialConnection = "%s=%u,%s";	// Serial connection reply format specifier.
-fmt_type FmtWifiConnection = "%s=%u,%s";	// WiFi connection reply format specifier.
 
 #endif // !defined __PG_JACK_CONFIG_H
