@@ -5,7 +5,7 @@
  *	***************************************************************************
  *
  *	File: RemoteControl.h
- *	Date: May 6, 2022
+ *	Date: May 18, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -29,7 +29,7 @@
  *	**************************************************************************/
 
 #if !defined __PG_REMOTECONTROL_H 
-# define __PG_REMOTECONTROL_H 20220506L
+# define __PG_REMOTECONTROL_H 20220518L
 
 # include "cstdlib"					// atoi(), atol(), atof().
 # include "cstring"					// libstdc string functions.
@@ -148,7 +148,7 @@ namespace pg
 			char* tok = nullptr;
 			std::size_t i = 0;
 
-			/* Needs support for quoted strings, that may enclose delimiters. 
+			/* Needs support for block quotes that may enclose delimiters. 
 			 * strtok won't work for this. 
 			 */
 			if ((tok = std::strtok(nullptr, delim)))
@@ -200,10 +200,10 @@ namespace pg
 		public:
 			bool execute(char* str) override 
 			{
-				// Parameter `str' is the command string from which the tuple 
-				// elements (command args) are initialized. The tuple is unrolled
-				// and passed to the delegate function/method as arguments. 
-				// To support "variadic" commands, command strings must encode 
+				// Parameter `str' is the string from which the tuple elements 
+				// (command args) are initialized. The tuple is unrolled and 
+				// passed to the delegate function/method as arguments. To 
+				// support "variadic" commands, command strings must encode 
 				// the same number of arguments as the tuple size: args_.size().
 
 				bool result = false;
@@ -319,6 +319,7 @@ namespace pg
 		char eot() const;
 		void echo(bool);
 		bool echo() const;
+		bool exec(char*);
 		void poll();
 		template<class...Ts>
 		static std::size_t parseCommand(char*, std::tuple<Ts...>&, const char* = DfltCmdDelimStr, const char* = DfltArgDelimStr);
@@ -398,27 +399,28 @@ namespace pg
 		return echo_;
 	}
 
+	bool RemoteControl::exec(char* message)
+	{
+		bool result = false;
+
+		if (*message)
+			for (auto cmd : commands_)
+				if (*cmd == message)
+					if ((result = cmd->execute(message)))
+						break;
+
+		return result;
+	}
+
 	void RemoteControl::poll()
 	{
 		if (connection_)
 		{
 			char* message = const_cast<char*>(connection_->receive());
 
-			if (*message)
-			{
-				for (auto i : commands_)
-				{
-					if (*i == message)
-					{
-						if (i->execute(message))
-						{
-							if (echo_)
-								connection_->send(message);
-							break;
-						}
-					}
-				}
-			}
+			if (exec(message))
+				if (echo_)
+					connection_->send(message);
 		}
 	}
 
@@ -436,7 +438,7 @@ namespace pg
 		// Only need a copy of cmd string if echo_ is on otherwise strtok() will mangle it. 
 		// So maybe change this to a non-static member or get rid of echo.
 		(void)std::strncpy(tmp, cmd, sizeof(tmp)); 
-		/* Needs support for quoted strings, that may enclose delimiters.
+		/* Needs support for block quotes that may enclose delimiters.
 		 * strtok won't work for this.
 		 */
 		if ((tok = std::strtok(tmp, cmd_delim)))
