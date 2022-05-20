@@ -67,9 +67,13 @@
 
 # include "system/types.h"
 
+	//
+	// These declare the type of the attacInterrupt() mode parameter.
+	//
 # if defined ARDUINO_ARCH_AVR
 	using PinStatus = int;
 # elif defined ARDUINO_ARCH_MEGAAVR
+	// megaavr defines PinStatus as enumerated type.
 # elif defined ARDUINO_ARCH_SAM
 	using PinStatus = int;
 # elif defined ARDUINO_ARCH_SAMD
@@ -78,29 +82,80 @@
 	using PinStatus = int;
 # endif
 
+	//
+	// These specify an architecture-independent definition.
+	//
 # if defined analogInputToDigitalPin
 #  define getAnalogPins analogInputToDigitalPin
 # elif defined digitalPinToAnalogInput
 #  define getAnalogPins digitalPinToAnalogInput
 # else
-#  define getAnalogPins ((void)0)
+#  error getAnalogPins undefined
 # endif
-# if defined digitalPinToInterrupt
-#  define getInterruptPins digitalPinToInterrupt
-# else
-#  define getInterruptPins(p) (p)
+
+	//
+	// These verify required definitions.
+	//
+# if !defined digitalPinToInterrupt
+#  error digitalPinToInterrupt undefined
+# endif
+
+# if !defined digitalPinHasPWM
+#  error digitalPinHasPWM undefined
+# endif
+
+# if !defined NUM_DIGITAL_PINS
+#  error NUM_DIGITAL_PINS undefined
+# endif
+
+# if !defined NUM_ANALOG_INPUTS
+#  error NUM_ANALOG_INPUTS undefined
+# endif
+
+# if !defined LED_BUILTIN
+#  error LED_BUILTIN undefined
 # endif
 
 # if defined __PG_HAS_NAMESPACES
 
 namespace pg
 {
-#pragma region boards
 
-	static const uint8_t GpioCount = NUM_DIGITAL_PINS;		// Total number of gpio pins of any type.
-	static const uint8_t AnalogInCount = NUM_ANALOG_INPUTS;	// Total number of gpio pins with analog input capability.
-	static const uint8_t LedPinNumber = LED_BUILTIN;		// Built-in LED pin number.
+#pragma region global board traits
 
+	constexpr uint8_t GpioCount = NUM_DIGITAL_PINS;			// Total number of gpio pins of any type.
+	constexpr uint8_t AnalogInCount = NUM_ANALOG_INPUTS;	// Total number of gpio pins with analog input capability.
+	constexpr pin_t LedPinNumber = LED_BUILTIN;				// Built-in LED pin number.
+
+	constexpr bool isAnalogPin(pin_t n)
+	{
+		//
+		// Arduino function-like macros analogInputToDigitalPin and digitalPinToAnalogInput 
+		// may return erroneous results or have undefined behavior because they are typeless  
+		// and perform no bounds checking. Testing suggests that analog inputs are in 
+		// [GpioCount - AnalogInCount, GpioCount), however until a cross-architecture 
+		// solution is found, we are stuck with this.
+		// 
+		// Macros are EVIL mmmkay. Don't use macros children, mmmkay.
+		//
+		static_assert (GpioCount > AnalogInCount, "Invalid values");
+
+		return n >= (GpioCount - AnalogInCount) && n < GpioCount;
+	}
+
+	// Checks if pin n is hardware interrupt capable.
+	constexpr bool isInterruptPin(pin_t n)
+	{
+		return digitalPinToInterrupt(n) != NOT_AN_INTERRUPT;
+	}
+
+	// Checks if pin n is pwm output capable.
+	constexpr bool isPwmPin(pin_t n)
+	{
+		return digitalPinHasPWM(n);
+	}
+
+	// Terminating template - 
 	// Returns the number of attachable hardware interrupts, parameter N is the total number of gpio pins.
 	template<std::size_t N, std::size_t I = 0>
 	constexpr typename std::enable_if<I == N, std::size_t>::type
@@ -108,13 +163,18 @@ namespace pg
 	{
 		return n;
 	}
+
+	// Primary template - 
 	// Returns the number of attachable hardware interrupts, parameter N is the total number of gpio pins.
 	template<std::size_t N, std::size_t I = 0>
-	constexpr typename std::enable_if < I < N, std::size_t>::type
+	constexpr typename std::enable_if <I < N, std::size_t>::type
 		countInterrupts(std::size_t n = 0)
 	{
-		return countInterrupts<N, I + 1>(n + (digitalPinToInterrupt(I) != NOT_AN_INTERRUPT));
+		return countInterrupts<N, I + 1>(n + isInterruptPin(I));
 	}
+
+#pragma endregion
+#pragma region board tags
 
 	//
 	//		Tag types that identify known boards:
@@ -188,7 +248,7 @@ namespace pg
 	struct Teensy_4_1 {};
 
 #pragma endregion
-#pragma region board_traits
+#pragma region board-specific traits
 
 	//
 	// 	   Board hardware traits types. 
@@ -198,11 +258,17 @@ namespace pg
 	template<class T>
 	struct board_traits
 	{
+		// Internal ADC resolution in bits.
 		static constexpr uint8_t adc_digits = T::adc_digits;
+		// PWM frquency for given pin in Hz.
 		static constexpr frequency_t pwm_frequency(pin_t pin) { return T::pwm_frequency(pin); }
+		// Internal timer for given PWM output capable pin.
 		static constexpr uint8_t pwm_timer(pin_t pin) { return T::pwm_timer(pin); }
+		// MCU clock frequency in Hz.
 		static constexpr frequency_t clock_frequency = T::clock_frequency;
+		// Human-readable board type.
 		static constexpr const char* board = T::board;
+		// Human-readable MCU type.
 		static constexpr const char* mcu = T::mcu;
 	};
 
@@ -782,7 +848,7 @@ namespace pg
 	};
 
 #pragma endregion
-#pragma region board_ident 
+#pragma region board identifiers
 
 #  if defined ARDUINO
 #   if defined(TEENSYDUINO)	// --- Teensy ---
@@ -923,7 +989,7 @@ namespace pg
 #  endif // defined ARDUINO
 
 #pragma endregion
-#pragma region misc_funcs
+#pragma region miscellaneous
 
 	// Returns the maximum value returned by `analogRead()' for a given board at compile-time.
 	template<class T>
