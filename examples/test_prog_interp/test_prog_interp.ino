@@ -1,12 +1,9 @@
-//#include <system/types.h>
 #include <pg.h>
 #include <system/utils.h>
-//#include <iterator>
 #include <utilities/Connection.h>
 #include <utilities/EEStream.h>
 #include <utilities/Interpreter.h>
 #include <utilities/Program.h>
-//#include "ICommand.h"
 
 using namespace pg;
 using namespace pg::utils;
@@ -22,7 +19,6 @@ void wrp(pin_t, uint16_t);
 void stopgm();
 void ldapgm();
 void eefree();
-//const char* cmds[] = { "rdp=54","rdp=55","rdp=56","rdp=57" };
 
 Program _pgm;
 Interpreter _interp;
@@ -40,45 +36,9 @@ ICmd* _commands[] = { &rdp1,&rdp2,&wrp1,&pgm1,&jmp1,&dly1,&eep1 };
 
 void setup() 
 {
-	//sbegin(115200);
-	_connection->open("9600,8N1,10");
-	//_connection->send("ppp");
-	if (_connection->open())
-		sprintln(1);
-	else
-		sprintln(0);
-	//sprintln(_connection->open());
-	//int i = 0;
+	_connection->open("9600,8N1,5");
+	sprintln(_connection->open());
 	_interp.commands(std::begin(_commands), std::end(_commands));
-	//sprintln(_pgm.size());
-	//for (uint8_t k = 0; k < x.args().size(); ++k)
-	//	sprintln(std::get<0>(x.args()));
-	//_pgm.begin();
-	//_pgm.add("rdp=54");
-	//_pgm.add("rdp=55");
-	//_pgm.add("rdp=56");
-	//_pgm.add("rdp=57");
-	//_pgm.end();
-	//exes = new icommand* [_pgm.size()];
-	//for (auto cmd : cmds)
-	//{
-	//	(_interp.execute(cmd));
-	//}
-	//for (uint8_t j = 0; j < i; ++j)
-	//	exes[j]->execute();
-	//sprint("size="); sprintln(_pgm.size());
-	//_pgm.run();
-	//const char* cmd;
-	//while((cmd = _pgm.exec()))
-	//	sprintln(cmd);
-	//sprint("cmds="); sprintln(_interp.commands().size());
-	//sprintln(std::strcmp("cmdf", "c"));
-	//sprintln(std::strcmp("cmdf", "cmdf"));
-	//sprintln(std::strcmp("cmdf", "cmdfff"));
-	//std::strncpy(buf, "cmdf", 64);
-	//_interp.execute(buf);
-	//std::strncpy(buf, "cmdg=42", 64);
-	//_interp.execute(buf);
 }
 
 void loop() 
