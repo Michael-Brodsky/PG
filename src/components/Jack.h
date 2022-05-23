@@ -125,12 +125,18 @@ namespace pg
 		using counter_type = Counter<value_type>;								// Event counter type.
 		using timer_t = uint8_t;												// Timer index type alias.
 
-		static const devid_type DeviceId = 20220430UL;
-		static const size_type GpioCount = NUM_DIGITAL_PINS;		// Total number of gpio pins of any type.
-		static const size_type AnalogInCount = NUM_ANALOG_INPUTS;	// Total number of gpio pins with analog input capability.
-		static const size_type LedPinNumber = LED_BUILTIN;			// Built-in LED pin number.
+		static const devid_type DeviceId = 20220430UL;				// Identifier used to verify eeprom contents.
+		//static const size_type GpioCount = NUM_DIGITAL_PINS;		// Total number of gpio pins of any type.
+		//static const size_type AnalogInCount = NUM_ANALOG_INPUTS;	// Total number of gpio pins with analog input capability.
+		//static const size_type LedPinNumber = LED_BUILTIN;			// Built-in LED pin number.
 		static const size_type CommandsMaxCount = 32;				// Maximum number of storable remote commands.
-		static const size_type TimersCount = 4;						// Number of event counters/timers.
+		static const size_type TimersMaxCount = 16;					// Maximum number of event counters/timers.
+		static const size_type InterruptsCount =					// Number of available hardware interrupts.
+			countInterrupts<GpioCount>();
+		static const size_type TimersCount =						// Number of event counters/timers.
+			InterruptsCount < TimersMaxCount 
+			? InterruptsCount 
+			: TimersMaxCount;
 
 		using Commands = typename std::valarray<command_type*, CommandsMaxCount>;	// Remote commands collection type.
 		using Timers = typename std::array<CounterTimer, TimersCount>;				// Event counters/timers collection type.
@@ -228,15 +234,15 @@ namespace pg
 		static constexpr key_type KeyReadPin = "rdp";		// Read pin (type dependent).
 		static constexpr key_type KeyWritePin = "wrp";		// Write pin (type dependent).
 		static constexpr key_type KeyTimerStatus = "tcs";	// Get/set timer state.
-		static constexpr key_type KeyTcAttach = "atc";		// Attach/detach timer.
+		static constexpr key_type KeyTimerAttach = "atc";	// Attach/detach timer, get timer info.
 
 		static constexpr fmt_type FmtDevInfo = "%s=%lu,%s,%s,%u,%u,%u";	// inf=id,type,mcutype,mcuspd,#pins,#timers
 		static constexpr fmt_type FmtPinInfo = "%s=%u,%u,%u,%u";		// pin=p#,type,int,mode
 		static constexpr fmt_type FmtPinMode = "%s=%u,%u";				// pmd=p#,mode
 		static constexpr fmt_type FmtReadPin = "%u=%u";					// p#=value
 		static constexpr fmt_type FmtAcknowledge = "%s=%u";				// ack=0||1
-		static constexpr fmt_type FmtTimerInfo = "%s=%u,%u,%u,%u,%u";	// tmr=t#,p#,mode,trigger,timing
-		static constexpr fmt_type FmtTimerStatus = "%s=%u,%u,%u";		// tmr=t#,active,value
+		static constexpr fmt_type FmtTimerAttach = "%s=%u,%u,%u,%u,%u";	// tmr=t#,p#,mode,trigger,timing
+		static constexpr fmt_type FmtTimerStatus = "%s=%u,%u,%lu";		// tmr=t#,active,value
 
 #pragma endregion
 #pragma region interrupt service routines
@@ -264,9 +270,9 @@ namespace pg
 		void cmdReadPin(pin_t);
 		void cmdReadPin();
 		void cmdTimerAttach(timer_t, pin_t, uint8_t, uint8_t, uint8_t);
-		void cmdTimerDetach(timer_t, pin_t);
-		void cmdTimerInfo(timer_t);
-		void cmdTimerInfo();
+		void cmdTimerDetach(timer_t, pin_t); // Rename cmdTimerAttach
+		void cmdTimerInfo(timer_t); // Rename cmdTimerAttach
+		void cmdTimerInfo(); // Rename cmdTimerAttach
 		void cmdTimerStatus(timer_t, uint8_t);
 		void cmdTimerStatus(timer_t);
 		void cmdTimerStatus();
@@ -315,10 +321,10 @@ namespace pg
 		JackCommand<void> cmd_readpins_{ KeyReadPin, *this, &Jack::cmdReadPin };
 		JackCommand<bool> cmd_setack_{ KeyAcknowledge, *this, &Jack::cmdAcknowledge };
 		JackCommand<pin_t, uint8_t> cmd_setpinmode_{ KeyPinMode, *this, &Jack::cmdPinMode };
-		JackCommand<timer_t, pin_t, uint8_t, uint8_t, uint8_t> cmd_timerattach_{ KeyTcAttach, *this, &Jack::cmdTimerAttach };
-		JackCommand<timer_t, pin_t> cmd_timerdetach_{ KeyTcAttach, *this, &Jack::cmdTimerDetach };
-		JackCommand<timer_t> cmd_timerinfo_{ KeyTcAttach, *this, &Jack::cmdTimerInfo };
-		JackCommand<void> cmd_timersinfo_{ KeyTcAttach, *this, &Jack::cmdTimerInfo };
+		JackCommand<timer_t, pin_t, uint8_t, uint8_t, uint8_t> cmd_timerattach_{ KeyTimerAttach, *this, &Jack::cmdTimerAttach };
+		JackCommand<timer_t, pin_t> cmd_timerdetach_{ KeyTimerAttach, *this, &Jack::cmdTimerDetach };
+		JackCommand<timer_t> cmd_timerinfo_{ KeyTimerAttach, *this, &Jack::cmdTimerInfo };
+		JackCommand<void> cmd_timersinfo_{ KeyTimerAttach, *this, &Jack::cmdTimerInfo };
 		JackCommand<pin_t, value_type> cmd_writepin_{ KeyWritePin, *this, &Jack::cmdWritePin };
 
 		/* Private class members */
@@ -795,7 +801,7 @@ namespace pg
 	{
 		const CounterTimer& timer = timers_[n];
 
-		sendMessage(FmtTimerInfo, KeyTcAttach, n, timer.pin_, timer.mode_, timer.trigger_, timer.timing_);
+		sendMessage(FmtTimerAttach, KeyTimerAttach, n, timer.pin_, timer.mode_, timer.trigger_, timer.timing_);
 	}
 
 	void Jack::sendTimerStatus(timer_t n)

@@ -95,6 +95,19 @@ char* strchr(const char* str, int ch)
 	return *str == (char)ch ? (char*)str : NULL;
 }
 
+int strcmp(const char* lhs, const char* rhs)
+{
+	int result = 0;
+
+	while (*lhs && *rhs)
+	{
+		if ((result = *lhs++ - *rhs++))
+			break;
+	}
+
+	return pg::sign(result);
+}
+
 size_t strlen(const char* s)
 {
 	size_t len = 0;

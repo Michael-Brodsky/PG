@@ -65,10 +65,19 @@
  *					// terminating NULL, e.g.
  *		char buf[13]; 
  *		e >> buf;	// OK to hold "Hello World!"
+ *		### IMPORTANT NOTE###
+ *		Since char buf[13] is an array e >> buf will call the array extraction
+ *		operator, which always tries to fill the array (i.e. it will read 13 
+ *		chars regardless of the actual length of the string in eeprom). To 
+ *		extract only the string up to the NULL terminator into a char array, 
+ *		use: 
+ * 
+ *		char buf[13], *ptr = buf;
+ *		e >> ptr;
  * 
  *	The address() function either gets or sets the current read/write address: 
  * 
- *		std::size_t addr = e.address();
+ *		address_type addr = e.address();
  *		e.address() = ++addr;
  * 
  *	The nested i/o manipulator types `update' and `noupdate' are used to turn 

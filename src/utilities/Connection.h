@@ -32,6 +32,7 @@
 # define __PG_CONNECTION_H 20220504L
 
 # include "cstdio"
+# include "cstdlib"
 # include "cstring"
 # include "system/boards.h"
 # include "utilities/ValueWrappers.h"

@@ -48,8 +48,28 @@
 # define NoTimer0Int TIMSK0 &= ~_BV(OCIE0A);					// Disable Timer0 cmp interrupt.
 # define Timer0Int(val) OCR0A = (val); TIMSK0 |= _BV(OCIE0A);	// Sets Timer0 cmp interrupt to trigger on `val'.
 
-# if defined ARDUINO_AVR_UNO_WIFI_REV2
-void resetFunc()
+namespace pg
+{
+	namespace utils
+	{
+		void sbegin(unsigned long baud, uint8_t frame = SERIAL_8N1) { Serial.begin(baud, frame); }
+
+		void send() { Serial.end(); }
+
+		void sflush() { Serial.flush(); }
+
+		template<class T>
+		unsigned sprint(const T& t) { return Serial.print(t); }
+
+		unsigned sprintln() { return Serial.println(); }
+
+		template<class T>
+		unsigned sprintln(const T& t) { return Serial.println(t); }
+	} // namespace serial
+} // namespace pg
+
+# if defined ARDUINO_ARCH_MEGAAVR
+void resetFunc()			// Reboots the Arduino device.
 {
 	CPU_CCP = 0xD8;
 	WDT.CTRLA = 0x4;

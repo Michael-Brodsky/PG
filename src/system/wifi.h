@@ -36,7 +36,7 @@
 #  include <WiFiNINA.h>
 #  include <WiFiUdp.h>
 using ssid_t = const char*;			//	WiFiNINA ssid param is type const char*.
-# else								// everything else uses whatever these are, 
+# else								//	everything else uses whatever these are, 
 #  include <WiFi.h>					//	and they must be included in this order:
 #  include <WiFiClient.h>
 #  include <WiFiServer.h>

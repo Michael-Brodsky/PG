@@ -114,6 +114,7 @@ namespace std
 	using ::memcmp;
 	using ::strcat;
 	using ::strchr;
+	using ::strcmp;
 	using ::strlen;
 	using ::strncat;
 	using ::strncmp;

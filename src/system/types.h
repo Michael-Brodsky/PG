@@ -46,8 +46,8 @@
 #if !defined __PG_TYPES_H
 # define __PG_TYPES_H 20210923L
 
-//# include "cstdint"
-# include "pg.h"
+# include "cstddef"
+# include "type_traits"
 
 # if !(defined __PIN_T_DEFINED || defined pin_t)
 #  if !defined __PIN_T_TYPE
