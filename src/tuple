@@ -84,7 +84,7 @@ namespace std
         };
     }
 
-    // Extracts the Ith element from the tuple. I must be an integer value in[0, sizeof...(Types)).
+    // Extracts the Ith element from the tuple. I must be an integer value in[0, sizeof...(Ts)).
     template <std::size_t N, class... Ts>
     decltype(detail::get_nth_type<N, Ts...>::value)& get(tuple<Ts...>& t) 
     {
@@ -92,7 +92,7 @@ namespace std
     }
 
     // Type capable of holding a collection of heterogeneous elements.
-    template <class T, class... Ts>
+    template <class T = void, class... Ts>
     class tuple {
         template <std::size_t N>
         friend class detail::get_impl;
@@ -127,6 +127,16 @@ namespace std
         T value; // The 0th tuple element.
     };
 
+    // Empty tuple type.
+    template<>
+    class tuple<void>
+    {
+    public:
+        constexpr tuple() = default;
+    public:
+        constexpr std::size_t size() const { return 0; }
+    };
+
     // Returns the number of elements in a tuple as a compile-time constant expression.
     template<class... Types>
     struct tuple_size<std::tuple<Types...>>
@@ -145,6 +155,21 @@ namespace std
     {
         using type = Head;
     };
+
+    // for_each specialization for tuples - terminating case.
+    template<std::size_t I = 0, class Function, class... Ts>
+    inline typename std::enable_if<I == sizeof...(Ts), void>::type
+        for_each(std::tuple<Ts...>&, Function) 
+    {}
+
+    // for_each specialization for tuples.
+    template<std::size_t I = 0, class Function, class... Ts>
+    inline typename std::enable_if <I < sizeof...(Ts), void>::type
+        for_each(std::tuple<Ts...>& t, Function fn)
+    {
+        fn(std::get<I>(t));
+        for_each<I + 1, Function, Ts...>(t, fn);
+    }
 
     namespace experimental
     {
@@ -198,6 +223,7 @@ namespace std
             };
         } // namespace detail
 
+        // Forwards tuple elements as arguments to a free-standing function.
         template<typename F, typename T>
         inline auto apply(F&& f, T&& t)
             -> decltype(detail::Apply<std::tuple_size<
@@ -209,6 +235,7 @@ namespace std
             >::value>::apply(std::forward<F>(f), std::forward<T>(t));
         }
 
+        // Forwards tuple elements as arguments to a member method.
         template<typename C, typename F, typename T>
         inline auto apply(C&& c, F&& f, T&& t) ->
             decltype(detail::ApplyMember<std::tuple_size<typename std::decay<T>::type>::value>::apply(std::forward<C>(c), std::forward<F>(f), std::forward<T>(t)))
