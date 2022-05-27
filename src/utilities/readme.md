@@ -22,9 +22,6 @@ The Program class manages a set of human-readable instructions that can be execu
 ### PWMOutput.h
 The PwmOutput class provides a simple interface for managing pulse-width modulated (PWM) outputs and generating waveforms.
 
-### RemoteControl.h
-The RemoteControl class facilitates asynchronous control of peripheral hardware by a remote host using commands sent over a serial port. NOTE: The RemoteControl class is deprecated. Clients should use the Interpreter class instead (see Interpreter.h).
-
 ### TaskSheduler.h
 The TaskSheduler class is used to execute tasks at scheduled intervals concurrently, and to prioritize tasks or manage CPU loads.
 
