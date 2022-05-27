@@ -5,7 +5,7 @@
  *	***************************************************************************
  *
  *	File: Interpreter.h
- *	Date: May 22, 2022
+ *	Date: May 25, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -29,7 +29,7 @@
  *	**************************************************************************/
 
 #if !defined __PG_INTERPRETER_H
-# define __PG_INTERPRETER_H 20220522L
+# define __PG_INTERPRETER_H 20220525L
 
 # include "cstdlib"
 # include "cstring"
@@ -126,7 +126,6 @@ namespace pg
 			arg = static_cast<long double>(std::atof(tok));
 		}
 
-
 		template<std::size_t I = 0, class...Ts>
 		typename std::enable_if<I == sizeof...(Ts), uint8_t>::type
 			getArgs(const char* delim, std::tuple<Ts...>& args)
@@ -144,82 +143,67 @@ namespace pg
 			if (tok)
 			{
 				getArg(tok, std::get<I>(args));
-				i = getArgs<I + 1, Ts...>(delim, args);	// Recurse until all args found or no more args.
+				i = getArgs<I + 1, Ts...>(delim, args);	// Recurse until all args found or no more to parse.
 			}
 
 			return i;
 		}
 	} // namespace details
 
-	// Type that generates/executes command objects from string instructions.
+	// Type that generates/executes command objects from string messages.
 	class Interpreter
 	{
 	public:
-		class ICommand : public icommand
+		class CommandBase : public icommand
 		{
 		public:
 			using key_type = char const*;
 		public:
-			ICommand(const key_type& key) : key_(key) {}
+			CommandBase(const key_type& key) : key_(key) {}
 		public:
-			friend bool operator==(const ICommand& other, const key_type& key) { return !std::strcmp(other.key_, key); }
-			friend bool operator!=(const ICommand& other, const key_type& key) { return !(other == key); }
+			friend bool operator==(const CommandBase& other, const key_type& key) { return !std::strcmp(other.key_, key); }
+			friend bool operator!=(const CommandBase& other, const key_type& key) { return !(other == key); }
 		public:
 			virtual bool assemble(char*) = 0;
 			const key_type& key() { return key_; }
 		private:
 			key_type key_;
 		};
-		template<class Ret, class Obj = void, class...Args>
-		class Command : public ICommand
+
+		template <class Ret, class Obj = void, class...Args>
+		class Command : public CommandBase
 		{
 		public:
-			using key_type = typename ICommand::key_type;
-		public:
+			using key_type = typename CommandBase::key_type;
 			using object_type = Obj;
 			using delegate_type = typename callback<Ret, Obj, Args...>::type;
 			using args_type = std::tuple<Args...>;
+			using return_type = Ret;
 		public:
-			Command(const key_type& key, object_type& object, delegate_type del) :
-				ICommand(key), object_(object), del_(del) {}
+			Command(const key_type& key, object_type& obj, delegate_type del) :
+				CommandBase(key), obj_(obj), del_(del), args_() {}
 		public:
-			void execute() override { std::experimental::apply(&object_, del_, args_); }
+			void execute() override { std::experimental::apply(&obj_, del_, args_); }
 		private:
 			bool assemble(char* line) override { return parse(line, args_) == args_.size(); }
 		private:
-			object_type&	object_;
+			object_type&	obj_;
 			delegate_type	del_;
 			args_type		args_;
 		};
-		template<class Ret, class Obj>
-		class Command<Ret, Obj, void>
+
+		template <class Ret, class...Args>
+		class Command<Ret, void, Args...> : public CommandBase
 		{
 		public:
-			using key_type = typename ICommand::key_type;
-		public:
-			using object_type = Obj;
-			using delegate_type = typename callback<Ret, Obj>::type;
-		public:
-			Command(const key_type& key, object_type& object, delegate_type del) :
-				ICommand(key), del_(del), object_(object) {}
-		public:
-			void execute() override { (object_.*del_)(); }
-		private:
-			bool assemble(char* line) override { return true; }
-		private:
-			object_type&	object_;
-			delegate_type	del_;
-		};
-		template<class Ret, class...Args>
-		class Command<Ret, void, Args...> : public ICommand
-		{
-		public:
-			using key_type = typename ICommand::key_type;
-		public:
+			using key_type = typename CommandBase::key_type;
+			using object_type = void;
 			using delegate_type = typename callback<Ret, void, Args...>::type;
 			using args_type = std::tuple<Args...>;
+			using return_type = Ret;
 		public:
-			Command(const key_type& key, delegate_type del) : ICommand(key), del_(del) {}
+			Command(const key_type& key, delegate_type del) :
+				CommandBase(key), del_(del), args_() {}
 		public:
 			void execute() override { std::experimental::apply(del_, args_); }
 		private:
@@ -228,24 +212,50 @@ namespace pg
 			delegate_type	del_;
 			args_type		args_;
 		};
-		template<class Ret>
-		class Command<Ret, void, void> : public ICommand
+
+		template <class Ret, class Obj>
+		class Command<Ret, Obj, void> : public CommandBase
 		{
 		public:
-			using key_type = typename ICommand::key_type;
+			using key_type = typename CommandBase::key_type;
+			using object_type = Obj;
+			using delegate_type = typename callback<Ret, Obj>::type;
+			using args_type = void;
+			using return_type = Ret;
 		public:
+			Command(const key_type& key, object_type& obj, delegate_type del) :
+				CommandBase(key), obj_(obj), del_(del) {}
+		public:
+			void execute() override { (obj_.*del_)(); }
+		private:
+			bool assemble(char* line) override { return true; }
+		private:
+			object_type&	obj_;
+			delegate_type	del_;
+		};
+
+		template <class Ret>
+		class Command<Ret, void, void> : public CommandBase
+		{
+		public:
+			using key_type = typename CommandBase::key_type;
+			using object_type = void;
 			using delegate_type = typename callback<Ret>::type;
+			using args_type = void;
+			using return_type = Ret;
 		public:
-			Command(const key_type& key, delegate_type del) : ICommand(key), del_(del) {}
+			Command(const key_type& key, delegate_type del) :
+				CommandBase(key), del_(del) {}
 		public:
 			void execute() override { (*del_)(); }
 		private:
 			bool assemble(char* line) override { return true; }
 		private:
-			delegate_type del_;
+			delegate_type	del_;
 		};
+
 		using size_type = uint8_t;
-		using commands_type = std::ArrayWrapper<ICommand*>;
+		using commands_type = std::ArrayWrapper<CommandBase*>;
 
 		static constexpr size_type MaxLineSize = 64;
 		static constexpr const char* CmdDelimChars = "=";
@@ -253,14 +263,15 @@ namespace pg
 
 	public:
 		template<std::size_t N>
-		explicit Interpreter(ICommand* (&)[N]);
-		Interpreter(ICommand* [], std::size_t);
-		explicit Interpreter(ICommand** = nullptr, ICommand** = nullptr);
-		Interpreter(std::initializer_list<ICommand*>);
+		explicit Interpreter(CommandBase* (&)[N]);
+		Interpreter(CommandBase* [], std::size_t);
+		explicit Interpreter(CommandBase** = nullptr, CommandBase** = nullptr);
+		Interpreter(std::initializer_list<CommandBase*>);
 
 	public:
-		void commands(ICommand**, ICommand**);
+		void commands(CommandBase**, CommandBase**);
 		const commands_type& commands() const;
+		char* strtok(char*, const char*, const char*, std::size_t);
 		void execute(const char*);
 		icommand* interpret(const char*);
 		template<class...Ts>
@@ -271,31 +282,31 @@ namespace pg
 	};
 
 	template<std::size_t N>
-	Interpreter::Interpreter(ICommand* (&commands)[N]) :
+	Interpreter::Interpreter(CommandBase* (&commands)[N]) :
 		commands_(commands)  
 	{
 
 	}
 
-	Interpreter::Interpreter(ICommand* commands[], std::size_t n) :
+	Interpreter::Interpreter(CommandBase* commands[], std::size_t n) :
 		commands_(commands, n) 
 	{
 
 	}
 
-	Interpreter::Interpreter(ICommand** first, ICommand** last) :
+	Interpreter::Interpreter(CommandBase** first, CommandBase** last) :
 		commands_(first, last) 
 	{
 		assert((first == nullptr && last == first) || (first != last));
 	}
 
-	Interpreter::Interpreter(std::initializer_list<ICommand*> il) :
-		commands_(const_cast<ICommand**>(il.begin()), il.size()) 
+	Interpreter::Interpreter(std::initializer_list<CommandBase*> il) :
+		commands_(const_cast<CommandBase**>(il.begin()), il.size()) 
 	{
 
 	}
 
-	void Interpreter::commands(ICommand** first, ICommand** last)
+	void Interpreter::commands(CommandBase** first, CommandBase** last)
 	{
 		commands_ = commands_type(first, last);
 	}
@@ -305,28 +316,40 @@ namespace pg
 		return commands_; 
 	}
 
+	char* Interpreter::strtok(char* buf, const char* line, const char* delim, std::size_t len)
+	{
+		// Make a copy of line so strtok doesn't mangle it.
+		(void)std::strncpy(buf, line, len);
+
+		return  std::strtok(buf, delim);
+	}
+
 	icommand* Interpreter::interpret(const char* line)
 	{
 		icommand* result = nullptr;
-		char* tok = nullptr;
+		char* key = nullptr;
 		char buf[MaxLineSize] = { '\0' };
 
 		if (line)
 		{
-			(void)std::strncpy(buf, line, sizeof(buf));		// Make a copy of the instruction.
-			if ((tok = std::strtok(buf, CmdDelimChars)))	// Look for a command key.
+			// Make a copy of the instruction and look for a command key.
+			if ((key = strtok(buf, line, CmdDelimChars, sizeof(buf)))) 
 			{
-				// Variadic commands (commands with the same key that expect a different 
-				// number of arguments) must appear in the collection in decreasing 
-				// order of the number of expected arguments.
+				// Loop through our commands collection.
 				for (auto cmd : commands_)
 				{
-					// If the key matches one of the stored command keys and the 
-					// instruction contains the required command args, return that command.
-					if (*cmd == tok && cmd->assemble(buf + strlen(tok) + 1))
+					// If the instruction key matches one of the our command keys, ...
+					if (*cmd == key)
 					{
-						result = cmd;
-						break;
+						// ... make a copy of the instruction without the key.
+						(void)strtok(buf, line, CmdDelimChars, sizeof(buf));
+						// If the instruction contains the number of expected command arguments, ...
+						if (cmd->assemble(buf))
+						{
+							// ... return the matched command.
+							result = cmd;
+							break;
+						}
 					}
 				}
 			}
@@ -346,8 +369,7 @@ namespace pg
 	template<class...Ts>
 	Interpreter::size_type Interpreter::parse(char* line, std::tuple<Ts...>& args)
 	{
-		// Returns args.size() or 0 if not enough args found in line. 
-		return line ? details::getArgs(ArgDelimChars, args) : 0; 
+		return line ? details::getArgs(ArgDelimChars, args) : 0;
 	}
 } // namespace pg
 

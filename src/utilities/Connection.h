@@ -85,7 +85,7 @@ namespace pg
 
 		static const frames_type SupportedFrames;
 		static constexpr frame_map_type DefaultFrame = frame_map_type{ SERIAL_8N1, "8N1" };
-		static constexpr timeout_type DefaultTimeout = 1000;
+		static constexpr timeout_type DefaultTimeout = 0;
 		static constexpr const char EndOfMessageChar = '\n';
 
 	public:
@@ -232,7 +232,8 @@ namespace pg
 	{
 		parseParams(params);
 		hardware_.begin(baud_, frame_.value());
-		hardware_.setTimeout(timeout_);
+		if(timeout_ != DefaultTimeout)
+			hardware_.setTimeout(timeout_);
 		while (!hardware_);
 		is_open_ = true;
 	}

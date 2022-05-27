@@ -140,6 +140,387 @@ namespace pg
 		bool		active_;
 	};
 
+	// Simple event counter/interval timer.
+	template<class T, class U>
+	class CounterTimer
+	{
+	public:
+		using time_type = T;
+		using count_type = U;
+		using time_point = std::chrono::time_point<std::chrono::steady_clock, time_type>;
+		using clock_type = std::chrono::steady_clock;
+		struct counter_tag {};
+		struct timer_tag {};
+
+	public:
+		// Constructs an uninitialized counter/timer.
+		CounterTimer() = default;
+		// Constructs and initializes a timer with a given interval.
+		CounterTimer(time_type);
+		// Constructs and initializes a counter with a given limit.
+		CounterTimer(count_type);
+		// Constructs and initializes a counter/timer with a given limit and interval.
+		CounterTimer(count_type, time_type);
+
+	public:
+		CounterTimer& operator++();
+		CounterTimer& operator--();
+		CounterTimer		operator++(int);
+		CounterTimer		operator--(int);
+		CounterTimer& operator+=(count_type);
+		CounterTimer& operator-=(count_type);
+		CounterTimer& operator=(count_type);
+		CounterTimer& operator=(const CounterTimer&);
+		template<class V>
+		CounterTimer& operator+=(V);
+		template<class V>
+		CounterTimer& operator-=(V);
+		template<class V>
+		CounterTimer& operator=(V);
+		bool				active() const;			// Checks if a counter/timer is currently active.
+		bool				active(counter_tag) const;	// Checks if a counter is currently active.
+		bool				active(timer_tag) const;	// Checks if a timer is currently active.
+		count_type& count() const;			// Returns an immutable reference to the current count.
+		count_type& count();				// Returns a mutable reference to the current count.	
+		time_type			elapsed() const;		// Returns the currently elapsed time.
+		bool				reached() const;		// Checks if a counter has reached its limit.
+		bool				expired() const;		// Checks if a timer interval has expired.
+		void				interval(time_type);	// Resets a timer and assigns a new interval.
+		time_type			interval() const;		// Returns the timer interval. 
+		void				limit(count_type);		// Resets a counter and assigns a new limit.
+		count_type			limit() const;			// Returns the current count limit.
+		void				reset();				// Resets a counter/timer.
+		void				reset(counter_tag);				// Resets a counter/timer.
+		void				reset(timer_tag);				// Resets a counter/timer.
+		void				resume();				// Resumes a counter/timer.
+		void				resume(counter_tag);				// Resumes a counter/timer.
+		void				resume(timer_tag);				// Resumes a counter/timer.
+		void				start();				// Starts a counter/timer.
+		void				start(counter_tag);				// Starts a counter/timer.
+		void				start(timer_tag);				// Starts a counter/timer.
+		void				start(time_type);		// Restarts a timer with a new interval.
+		void				start(count_type);		// Restarts a counter with a new limit.
+		void				stop();					// Stops a counter/timer.
+		void				stop(counter_tag);					// Stops a counter/timer.
+		void				stop(timer_tag);					// Stops a counter/timer.
+
+	private:
+		time_point			begin_;			// Time point when timer started.
+		time_point			end_;			// Time point when timer stopped.
+		time_type			interval_;		// Current timer interval.
+		count_type			count_;			// The current count.
+		count_type			limit_;			// The current counter limit.
+		bool				count_active_;	// Flag indicating whether the timer is currently active.
+		bool				timer_active_;	// Flag indicating whether the timer is currently active.
+	};
+
+
+#pragma region CounterTimer
+
+	template<class T, class U>
+	CounterTimer<T, U>::CounterTimer(time_type interval) :
+		count_active_(), timer_active_(), begin_(), end_(), interval_(interval), count_(), limit_()
+	{
+
+	}
+
+	template<class T, class U>
+	CounterTimer<T, U>::CounterTimer(count_type limit) :
+		count_active_(), timer_active_(), begin_(), end_(), interval_(), count_(), limit_(limit)
+	{
+
+	}
+
+	template<class T, class U>
+	CounterTimer<T, U>::CounterTimer(count_type limit, time_type interval) :
+		count_active_(), timer_active_(), begin_(), end_(), interval_(interval), count_(), limit_(limit)
+	{
+
+	}
+
+	template<class T, class U>
+	bool CounterTimer<T, U>::active() const
+	{
+		return active(counter_tag{}) || active(timer_tag{});
+	}
+
+	template<class T, class U>
+	bool CounterTimer<T, U>::active(counter_tag) const
+	{
+		return count_active_;
+	}
+
+	template<class T, class U>
+	bool CounterTimer<T, U>::active(timer_tag) const
+	{
+		return timer_active_;
+	}
+
+	template<class T, class U>
+	typename CounterTimer<T, U>::count_type& CounterTimer<T, U>::count() const
+	{
+		return count_;
+	}
+
+	template<class T, class U>
+	typename CounterTimer<T, U>::count_type& CounterTimer<T, U>::count()
+	{
+		return count_;
+	}
+
+	template<class T, class U>
+	typename CounterTimer<T, U>::time_type CounterTimer<T, U>::elapsed() const
+	{
+		time_point now = timer_active_
+			? time_point(clock_type::now())
+			: end_;
+
+		return time_type(now - begin_);
+	}
+
+	template<class T, class U>
+	bool CounterTimer<T, U>::reached() const
+	{
+		return count_ >= limit_;
+	}
+
+	template<class T, class U>
+	bool CounterTimer<T, U>::expired() const
+	{
+		// Returns true only if initialized and expired.
+		return (interval_.count() != 0) && !(elapsed() < interval_);
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::interval(time_type intvl)
+	{
+		reset();
+		interval_ = intvl;
+	}
+
+	template<class T, class U>
+	typename CounterTimer<T, U>::time_type CounterTimer<T, U>::interval() const
+	{
+		return interval_;
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::limit(count_type lim)
+	{
+		reset();
+		limit_ = lim;
+	}
+
+	template<class T, class U>
+	typename CounterTimer<T, U>::count_type CounterTimer<T, U>::limit() const
+	{
+		return limit_;
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::reset()
+	{
+		// Resets the elapsed time/count only, not whether counter/timer is active.
+		reset(timer_tag{});
+		reset(counter_tag{});
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::reset(counter_tag)
+	{
+		// Resets the count only, not whether counter is active.
+		count_ = count_type();
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::reset(timer_tag)
+	{
+		// Resets the elapsed time only, not whether timer is active.
+		begin_ = end_ = clock_type::now();
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::resume()
+	{
+		resume(timer_tag{});
+		resume(counter_tag{});
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::resume(counter_tag)
+	{
+		count_active_ = true;
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::resume(timer_tag)
+	{
+		if (!timer_active_)
+			begin_ = clock_type::now() - elapsed();
+		timer_active_ = true;
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::start()
+	{
+		reset();
+		resume();
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::start(counter_tag)
+	{
+		reset(counter_tag{});
+		resume(counter_tag{});
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::start(timer_tag)
+	{
+		reset(timer_tag{});
+		resume(timer_tag{});
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::start(time_type intvl)
+	{
+		interval(intvl);
+		start(timer_tag{});
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::start(count_type lim)
+	{
+		limit(lim);
+		start(counter_tag{});
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::stop()
+	{
+		stop(timer_tag{});
+		stop(counter_tag{});
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::stop(timer_tag)
+	{
+		if (active(timer_tag{}))
+			end_ = clock_type::now();
+		timer_active_ = false;
+	}
+
+	template<class T, class U>
+	void CounterTimer<T, U>::stop(counter_tag)
+	{
+		count_active_ = false;
+	}
+
+	template<class T, class U>
+	CounterTimer<T, U>& CounterTimer<T, U>::operator++()
+	{
+		if (count_active_)
+			++count_;
+
+		return *this;
+	}
+
+	template<class T, class U>
+	CounterTimer<T, U>& CounterTimer<T, U>::operator--()
+	{
+		if (count_active_)
+			--count_;
+
+		return *this;
+	}
+
+	template<class T, class U>
+	CounterTimer<T, U> CounterTimer<T, U>::operator++(int)
+	{
+		CounterTimer<T, U> tmp = *this;
+
+		if (count_active_)
+			++* this;
+
+		return tmp;
+	}
+
+	template<class T, class U>
+	CounterTimer<T, U> CounterTimer<T, U>::operator--(int)
+	{
+		CounterTimer<T, U> tmp = *this;
+
+		if (count_active_)
+			--* this;
+
+		return tmp;
+	}
+
+	template<class T, class U>
+	CounterTimer<T, U>& CounterTimer<T, U>::operator+=(count_type n)
+	{
+		if (count_active_)
+			count_ -= n;
+
+		return *this;
+	}
+
+	template<class T, class U>
+	CounterTimer<T, U>& CounterTimer<T, U>::operator-=(count_type n)
+	{
+		if (count_active_)
+			count_ += n;
+
+		return *this;
+	}
+
+	template<class T, class U>
+	CounterTimer<T, U>& CounterTimer<T, U>::operator=(count_type n)
+	{
+		if (count_active_)
+			count_ = n;
+
+		return *this;
+	}
+
+	template<class T, class U>
+	CounterTimer<T, U>& CounterTimer<T, U>::operator=(const CounterTimer<T, U>& other)
+	{
+		count_ = other.count_;
+		return *this;
+	}
+
+	template<class T, class U>
+	template<class V>
+	CounterTimer<T, U>& CounterTimer<T, U>::operator+=(V n)
+	{
+		if (count_active_)
+			count_ += static_cast<count_type>(n);
+
+		return *this;
+	}
+
+	template<class T, class U>
+	template<class V>
+	CounterTimer<T, U>& CounterTimer<T, U>::operator-=(V n)
+	{
+		if (count_active_)
+			count_ -= static_cast<count_type>(n);
+
+		return *this;
+	}
+
+	template<class T, class U>
+	template<class V>
+	CounterTimer<T, U>& CounterTimer<T, U>::operator=(V n)
+	{
+		if (count_active_)
+			count_ = static_cast<count_type>(n);
+
+		return *this;
+	}
+
+#pragma endregion
 #pragma region Timer
 
 	template<class T>
@@ -291,7 +672,7 @@ namespace pg
 	Counter<T>& Counter<T>::operator+=(count_type n)
 	{
 		if (active_) 
-			count_ -= n;
+			count_ += n;
 		return *this;
 	}
 
@@ -299,7 +680,7 @@ namespace pg
 	Counter<T>& Counter<T>::operator-=(count_type n)
 	{
 		if (active_)
-			count_ += n;
+			count_ -= n;
 		return *this;
 	}
 
@@ -324,7 +705,7 @@ namespace pg
 	Counter<T>& Counter<T>::operator+=(U n)
 	{
 		if (active_)
-			count_ -= static_cast<count_type>(n);
+			count_ += static_cast<count_type>(n);
 		return *this;
 	}
 
@@ -333,7 +714,7 @@ namespace pg
 	Counter<T>& Counter<T>::operator-=(U n)
 	{
 		if (active_)
-			count_ += static_cast<count_type>(n);
+			count_ -= static_cast<count_type>(n);
 		return *this;
 	}
 

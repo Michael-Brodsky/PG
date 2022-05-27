@@ -1,5 +1,6 @@
 /*
- *	This file defines a class that manages and executes a set of instructions.
+ *	This file defines a class that manages a set of commands that can be 
+ *	executed in sequence.
  *
  *	***************************************************************************
  *
@@ -49,43 +50,42 @@ namespace pg
 			Halt = 3,	// Halt current program.
 			Reset = 4,	// Reset current program to first instruction.
 			Size = 5,	// Program size in characters.
-			Status = 6, // Current program status.
-			Store = 7,	// Store the current program to eeprom.
-			Load = 8	// Load the current program from eeprom.
+			Active = 6, // Current program status.
+			Verify = 7	// Verifies the current program.
 		};
-		using size_type = uint8_t;	// Type that can hold the size of any program object.
+		using size_type = uint16_t;	// Type that can hold the size of any program object.
 		using timer_type = Timer<std::chrono::milliseconds>; // Program sleep timer type.
 
-		static constexpr size_type CharsMax = 128;	// Maximum size of program text in characters.
+		static constexpr size_type CharsMax = 1023;	// Maximum size of program text in characters.
 
 	public:
 		Program();
 
 	public:
-		bool active() const;
-		void add(const char*);
-		void begin();
-		void sleep(std::time_t);
-		void end();
-		const char* command();
-		void halt();
-		void jump(uint8_t);
-		bool loading() const;
-		void reset();
-		void run();
-		size_type size() const;
-		const char* text() const;
+		bool active() const;		// Checks whether the program is currently running.
+		void begin();				// Begins loading a new program.
+		void command(const char*);	// Adds a command to a new program.
+		const char* command();		// Returns the current command in a running program and advances to the next one.
+		void end();					// Ends loading a new program.
+		void halt();				// Stops a running program.
+		void jump(uint8_t);			// Unconditionally jumps to another command in the program.
+		bool loading() const;		// Checks whether a new program is currently loading.
+		void reset();				// Resets the program to the first command.		
+		void run();					// Marks the current program as active.
+		size_type size() const;		// Returns the current program size in characters.
+		void sleep(std::time_t);	// Puts the program execution to sleep for a given interval.
+		const char* text() const;	// Returns a pointer to the beginning of the program text.
 
 	private:
-		size_type next() const;
-		bool sleeping();
+		size_type next() const;		// Returns the offset of the next command in the program.
+		bool sleeping();			// Checks whether the program is sleeping.
 
 	private:
-		bool		new_;				// Flag set when loading new program, else clear.
-		bool		active_;			// Flag indicating whether the program is currently running.
+		bool		new_;				// Flag indicating whether a new program is loading.
+		bool		active_;			// Flag indicating whether the current program is active.
 		char		text_[CharsMax];	// Program text buffer.
-		char*		ptr_;				// Pointer to the current program instruction.
-		char*		end_;				// Pointer to after the last program instruction.
+		char*		ptr_;				// Pointer to the current program command.
+		char*		end_;				// Pointer to one past the last program command.
 		timer_type	sleep_;				// Program sleep timer.
 	};
 
@@ -102,11 +102,11 @@ namespace pg
 		return active_;
 	}
 
-	void Program::add(const char* cmd)
+	void Program::command(const char* line)
 	{
 		if (new_)
 		{
-			std::strncpy(ptr_, cmd, CharsMax - size());
+			std::strncpy(ptr_, line, CharsMax - size());
 			end_ += std::strlen(++end_);
 			ptr_ = end_ + sizeof(char);
 		}
@@ -141,7 +141,7 @@ namespace pg
 		if (new_)
 		{
 			new_ = active_ = false;
-			*ptr_ = '\0';	// Mark after the last instruction.
+			*ptr_ = '\0';	// Mark one past the last instruction.
 			ptr_ = text_;
 		}
 	}
