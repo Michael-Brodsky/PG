@@ -19,8 +19,8 @@ Turns an Arduino into a remotely controllable data acquisition (DAQ) device.
 ### LCDDisplay.h 
 Facilitates configuration and asynchronous operation of an LCD display including formatted printing.
 
-### RemoteControl.h 
-Facilitates remote execution of client code over a network connection.
+### RemoteControl.h
+The RemoteControl class facilitates asynchronous control of peripheral hardware by a remote host using commands sent over a serial port. NOTE: The RemoteControl class is deprecated. Clients should use the Interpreter class instead (see utilities/Interpreter.h).
 
 ### SweepServo.h 
 Asynchronous servo controller that uses natural units, degrees of rotation and angular velocity, instead of pulse widths.
