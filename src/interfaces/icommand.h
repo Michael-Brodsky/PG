@@ -5,7 +5,7 @@
  *	***************************************************************************
  *
  *	File: icommand.h
- *	Date: May 22, 2022
+ *	Date: May 24, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -29,10 +29,10 @@
  *	**************************************************************************/
 
 #if !defined __PG_ICOMMAND_H
-# define __PG_ICOMMAND_H 20220522L
+# define __PG_ICOMMAND_H 20220524L
 
 # include "tuple"
-# include "lib/callback.h"	// `Callback' interfaces.
+# include "lib/callback.h"	// `Callback' templates.
 
 # if defined __PG_HAS_NAMESPACES
 
@@ -157,13 +157,21 @@ namespace pg
 	namespace experimental
 	{
 		// These experimental command types support variadic arguments and 
-		// should be usable with any function/method signature.
+		// should be able to call any function/method. Arguments are stored 
+		// as tuples and forwarded to the callee using std::apply.
 
-		struct icommand
+		template<class... Ts>
+		class ICommand : public icommand
 		{
-			virtual ~icommand() = default;
-
-			virtual void execute() = 0;
+		public:
+			using args_type = std::tuple<Ts...>;
+		public:
+			explicit ICommand(const args_type& args) : args_(args) {}
+			ICommand(Ts... args) : args_(args...) {}
+		public:
+			args_type& args() { return args_; }
+		protected:
+			args_type args_;
 		};
 
 		struct NullCommand : public icommand
@@ -176,50 +184,59 @@ namespace pg
 			void execute() override {}
 		};
 
-		template <class Ret, class Obj = void, class...Args>
-		class Command : public icommand
+		template <class Ret, class Obj = void, class... Args>
+		class Command : public experimental::ICommand<Args...>
 		{
 		public:
+			using base_type = experimental::ICommand<Args...>;
 			using object_type = Obj;
 			using delegate_type = typename callback<Ret, Obj, Args...>::type;
-			using args_type = std::tuple<Args...>;
+			using args_type = typename base_type::args_type;
 			using return_type = Ret;
 		public:
+			Command(object_type& obj, delegate_type del) : 
+				base_type(args_type()), obj_(obj), del_(del) {}
 			Command(object_type& obj, delegate_type del, Args...args) :
-				obj_(obj), del_(del), args_(args...) {}
+				base_type(args...), obj_(obj), del_(del) {}
+			Command(object_type& obj, delegate_type del, const args_type& args) :
+				base_type(args), obj_(obj), del_(del) {}
 		public:
-			void execute() override { std::experimental::apply(&obj_, del_, args_); }
+			void execute() override { std::experimental::apply(&obj_, del_, base_type::args_); }
 		private:
 			object_type&	obj_;
 			delegate_type	del_;
-			args_type		args_;
 		};
 
 		template <class Ret, class...Args>
-		class Command<Ret, void, Args...> : public icommand
+		class Command<Ret, void, Args...> : public experimental::ICommand<Args...>
 		{
 		public:
+			using base_type = experimental::ICommand<Args...>;
 			using object_type = void;
 			using delegate_type = typename callback<Ret, void, Args...>::type;
-			using args_type = std::tuple<Args...>;
+			using args_type = typename base_type::args_type;
 			using return_type = Ret;
 		public:
+			Command(delegate_type del) :
+				base_type(args_type()), del_(del) {}
 			Command(delegate_type del, Args...args) :
-				del_(del), args_(args...) {}
+				base_type(args...), del_(del) {}
+			Command(delegate_type del, const args_type& args) :
+				base_type(args), del_(del) {}
 		public:
-			void execute() override { std::experimental::apply(del_, args_); }
+			void execute() override { std::experimental::apply(del_, base_type::args_); }
 		private:
 			delegate_type	del_;
-			args_type		args_;
 		};
 
 		template <class Ret, class Obj>
-		class Command<Ret, Obj, void> : public icommand
+		class Command<Ret, Obj, void> : public experimental::ICommand<> 
 		{
 		public:
+			using base_type = experimental::ICommand<>;
 			using object_type = Obj;
 			using delegate_type = typename callback<Ret, Obj>::type;
-			using args_type = void;
+			using args_type = typename base_type::args_type;
 			using return_type = Ret;
 		public:
 			Command(object_type& obj, delegate_type del) :
@@ -232,12 +249,13 @@ namespace pg
 		};
 
 		template <class Ret>
-		class Command<Ret, void, void> : public icommand
+		class Command<Ret, void, void> : public experimental::ICommand<>
 		{
 		public:
+			using base_type = experimental::ICommand<>;
 			using object_type = void;
 			using delegate_type = typename callback<Ret>::type;
-			using args_type = void;
+			using args_type = typename base_type::args_type;
 			using return_type = Ret;
 		public:
 			Command(delegate_type del) :
@@ -247,7 +265,7 @@ namespace pg
 		private:
 			delegate_type	del_;
 		};
-	}
+	} // namespace experimental
 
 } // namespace pg
 
