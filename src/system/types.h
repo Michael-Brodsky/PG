@@ -8,7 +8,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -46,8 +46,8 @@
 #if !defined __PG_TYPES_H
 # define __PG_TYPES_H 20210923L
 
-# include "cstddef"
-# include "type_traits"
+# include <cstddef>
+# include <type_traits>
 
 # if !(defined __PIN_T_DEFINED || defined pin_t)
 #  if !defined __PIN_T_TYPE
@@ -80,7 +80,7 @@ namespace pg
 # endif
 
 # if defined __ANALOG_T_DEFINED
-	typedef __ANALOG_T_TYPE analog_t;		// Unsigned integral type that represents an analog input level.
+	typedef __ANALOG_T_TYPE analog_t;		// Unsigned integral type that represents an adc output value.
 # endif 
 
 # if defined __FREQUENCY_T_DEFINED

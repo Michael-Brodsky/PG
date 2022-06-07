@@ -32,7 +32,7 @@
 #if !defined __PG_LIBC_STRING_H
 # define __PG_LIBC_STRING_H 20220504L
 
-# include "lib/fmath.h" // pg::sign();
+# include <lib/fmath.h> // pg::sign();
 
 # if defined __cplusplus
 extern "C" {

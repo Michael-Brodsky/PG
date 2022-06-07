@@ -8,7 +8,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -91,12 +91,12 @@
 #if !defined __PG_FMATH_H
 # define __PG_FMATH_H	20210925L
 
-# include "numbers"		// Numeric constants.
-# include "cmath"		// std::sqrt, std::abs
-# include "algorithm"	// std::min, std::max
-# include "numeric"		// std::accumulate.
-# include "imath.h"		// iseven, isodd
-# include "complex"		// Complex number support.
+# include <numbers>		// Numeric constants.
+# include <cmath>		// std::sqrt, std::abs
+# include <algorithm>	// std::min, std::max
+# include <numeric>		// std::accumulate.
+# include <complex>		// Complex number support.
+# include <lib/imath.h>	// iseven, isodd
 
 # if defined __PG_HAS_NAMESPACES 
 
@@ -184,11 +184,11 @@ namespace pg
 
 	/* Returns x**2. */
 	template<class T>
-	inline T sqr(const T& x) { return x * x; }
+	inline T sqr(T x) { return x * x; }
 
 	/* Returns x**3. */
 	template<class T>
-	inline T cube(const T& x) { return x * x * x; }
+	inline T cube(T x) { return x * x * x; }
 
 	/* Returns x! */
 	template <class T>
@@ -200,11 +200,11 @@ namespace pg
 
 	/* Returns 1 if a>b, -1 if a<b or 0 if a=b, without branching. */
 	template<class T>
-	inline T cmp(const T& a, const T& b) { return ((a > b) - (a < b)); }
+	inline T cmp(T a, T b) { return ((a > b) - (a < b)); }
 
 	/* Returns `x' clamped in [low, hi], (low < hi). */
 	template<class T>
-	inline T clamp(const T& x, const T& low, const T& hi) 
+	inline T clamp(T x, T low, T hi) 
 	{ 
 		// This generates three ASM instructions on ggc/clang, allegedly.
 		const T t = x < low ? low : x;
@@ -243,7 +243,7 @@ namespace pg
 
 	// Returns an approximation of e**x.
 	template<class T>
-	inline T exp(const T& x)
+	inline T exp(T x)
 	{
 		constexpr const size_t N = 13; // number of iterations.
 
@@ -253,7 +253,7 @@ namespace pg
 	/* Returns an approximation of sin(rads), where rads in [-pi, pi] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type 
-		sin(const T& rads)
+		sin(T rads)
 	{ 
 		const T z = sqr(rads);
 		
@@ -264,7 +264,7 @@ namespace pg
 	/* Returns an approximation of cos(rads), where rads in [-pi, pi] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type 
-		cos(const T& rads)
+		cos(T rads)
 	{ 
 		const T z = sqr(rads);
 
@@ -276,7 +276,7 @@ namespace pg
 	/* Returns an approximation of tan(rads), where rads in [-pi, pi] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type 
-		tan(const T& rads)
+		tan(T rads)
 	{
 		const T z = sqr(rads);
 
@@ -286,7 +286,7 @@ namespace pg
 	/* Returns an approximation of sec(rads), where rads in [-pi, pi] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type
-		sec(const T& rads)
+		sec(T rads)
 	{
 		return 1 / cos(rads);
 	}
@@ -294,7 +294,7 @@ namespace pg
 	/* Returns an approximation of csc(rads), where rads in [-pi, pi] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type
-		csc(const T& rads)
+		csc(T rads)
 	{
 		return 1 / sin(rads);
 	}
@@ -302,7 +302,7 @@ namespace pg
 	/* Returns an approximation of cot(rads), where rads in [-pi, pi] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type
-		cot(const T& rads)
+		cot(T rads)
 	{
 		return 1 / tan(rads);
 	}
@@ -310,7 +310,7 @@ namespace pg
 	/* Returns an approximation of sinh(rads). */
 	template<class T>
 	inline typename details::is_float<T>::type
-		sinh(const T& rads)
+		sinh(T rads)
 	{
 		return (exp(rads) - exp(-rads)) / 2;
 	} 
@@ -318,7 +318,7 @@ namespace pg
 	/* Returns an approximation of cosh(rads). */
 	template<class T>
 	inline typename details::is_float<T>::type
-		cosh(const T& rads)
+		cosh(T rads)
 	{
 		return (exp(rads) + exp(-rads)) / 2;
 	}
@@ -326,7 +326,7 @@ namespace pg
 	/* Returns an approximation of tanh(rads). */
 	template<class T>
 	inline typename details::is_float<T>::type
-		tanh(const T& rads)
+		tanh(T rads)
 	{
 		return (exp(rads * 2) - 1) / (exp(rads * 2) + 1);
 	}
@@ -334,7 +334,7 @@ namespace pg
 	/* Returns an approximation of coth(rads). */
 	template<class T>
 	inline typename details::is_float<T>::type
-		coth(const T& rads)
+		coth(T rads)
 	{
 		return (exp(rads * 2) + 1) / (exp(rads * 2) - 1);
 	}
@@ -342,7 +342,7 @@ namespace pg
 	/* Returns an approximation of sech(rads). */
 	template<class T>
 	inline typename details::is_float<T>::type
-		sech(const T& rads)
+		sech(T rads)
 	{
 		return (2 * exp(rads)) / (exp(rads * 2) + 1);
 	}
@@ -350,7 +350,7 @@ namespace pg
 	/* Returns an approximation of csch(rads). */
 	template<class T>
 	inline typename details::is_float<T>::type
-		csch(const T& rads)
+		csch(T rads)
 	{
 		return (2 * exp(rads)) / (exp(rads * 2) - 1);
 	}
@@ -358,7 +358,7 @@ namespace pg
 	/* Returns an approximation of asin(rads), where rads in [-1, 1] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type
-		asin(const T& rads)
+		asin(T rads)
 	{
 		// Algo not so great for rads < 0, so we use |rads| and reflect that over -1 < rads < 0.
 		const T z = std::abs(rads);
@@ -392,7 +392,7 @@ namespace pg
 	/* Returns an approximation of atan(rads), where rads in [-1, 1] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type 
-		atan(const T& rads)
+		atan(T rads)
 	{
 		constexpr const T a = 0.0776509570923569;
 		constexpr const T b = -0.287434475393028;
@@ -405,7 +405,7 @@ namespace pg
 	/* Returns an approximation of the length of the hypotenuse of a right triangle with sides (x,y). */
 	template<class T>
 	inline typename details::is_float<T>::type
-		hypot(const T& x, const T& y)
+		hypot(T x, T y)
 	{
 		constexpr const T a0 = 127. / 128., b0 = 3./16., a1 = 27. / 32., b1 = 71. / 128.;
 		const T z0 = a0 * std::max(std::abs(x), std::abs(y)) + b0 * std::min(std::abs(x), std::abs(y));
@@ -417,7 +417,7 @@ namespace pg
 	/* Returns an approximation of atan2(y, x), where y/x in [-1, 1] radians. */
 	template<class T>
 	inline typename details::is_float<T>::type
-		atan2(const T& y, const T& x)
+		atan2(T y, T x)
 	{
 		const int sx = static_cast<int>(sign(x)), sy = static_cast<int>((int)sign(y));
 
@@ -437,7 +437,7 @@ namespace pg
 
 	template<class T>
 	inline typename details::is_float<T>::type 
-		lerp(const T& x, const T& x0, const T& x1, const T& y0, const T& y1)
+		lerp(T x, T x0, T x1, T y0, T y1)
 	{
 		return (y0 + (y1 - y0) * (x - x0) / (x1 - x0));
 	}
@@ -446,10 +446,10 @@ namespace pg
 	template<class T>
 	inline typename details::is_float<T>::type 
 		bilerp(
-			const T& x, const T& y, 
-			const T& x1, const T& x2,
-			const T& y1, const T& y2,
-			const T& q11, const T& q12, const T& q21, const T& q22)
+			T x, T y, 
+			T x1, T x2,
+			T y1, T y2,
+			T q11, T q12, T q21, T q22)
 	{
 		return 1 / ((x2 - x1) * (y2 - y1)) * 
 			(

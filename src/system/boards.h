@@ -65,7 +65,7 @@
 #if !defined __PG_BOARDS_H
 # define __PG_BOARDS_H 20220515L
 
-# include "system/types.h"
+# include <system/types.h>
 
 	//
 	// These declare the type of the attacInterrupt() mode parameter.
@@ -92,7 +92,7 @@
 # else
 #  error getAnalogPins undefined
 # endif
-
+	
 	//
 	// These verify required definitions.
 	//

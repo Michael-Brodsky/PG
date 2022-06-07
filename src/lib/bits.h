@@ -9,7 +9,7 @@
  *  Version: 1.0
  *  Author: Michael Brodsky
  *  Email: mbrodskiis@gmail.com
- *  Copyright (c) 2012-2021 Michael Brodsky 
+ *  Copyright (c) 2012-2022 Michael Brodsky 
 
  *  **************************************************************************
  *
@@ -63,8 +63,8 @@
 #if !defined __PG_BITS_H
 # define __PG_BITS_H  2051215L
 
-# include "cstddef" // CHAR_BIT
-# include "imath.h"	// Template substitution helpers.
+# include <cstddef> // CHAR_BIT
+# include <lib/imath.h>	// Template substitution helpers.
  
 # if defined __PG_HAS_NAMESPACES
 

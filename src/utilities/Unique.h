@@ -8,7 +8,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky */
+ *	Copyright (c) 2012-2022 Michael Brodsky */
 
 /*	***************************************************************************
  *
@@ -30,7 +30,7 @@
 #if !defined __PG_UNIQUE_H
 # define __PG_UNIQUE_H 20210407L
 
-# include "cstdint"	// `uint8_t' type.
+# include <cstdint>	// Fixed width integral types.
 
 # if defined __PG_HAS_NAMESPACES 
 

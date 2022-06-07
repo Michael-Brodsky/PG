@@ -9,7 +9,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -51,8 +51,8 @@
 #if !defined RATIO_H__
 # define RATIO_H__ 20210814L
 
-# include "limits"    // Needed by SI ratio `enable' conditionals.
-# include "numeric"   // constexpr funcs: abs, sgn, gcd, lcm
+# include <limits>    // Needed by SI ratio `enable' conditionals.
+# include <numeric>   // constexpr funcs: abs, sgn, gcd, lcm
 
 # if defined __PG_HAS_NAMESPACES 
 

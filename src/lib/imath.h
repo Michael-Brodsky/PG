@@ -8,7 +8,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -90,9 +90,9 @@
 #if !defined __PG_IMATH_H
 # define __PG_IMATH_H	20210907L
 
-# include "cassert"		// assert() macro.
-# include "limits"		// Required to deduce function argument types.
-# include "type_traits"	// Required for function template substitution.
+# include <cassert>		// assert() macro.
+# include <limits>		// Required to deduce function argument types.
+# include <type_traits>	// Required for function template substitution.
 
 # if defined __PG_HAS_NAMESPACES 
 
@@ -366,7 +366,7 @@ namespace pg
 	// returns -1 if x < 0, else 0.
 	template <class T>
 	inline typename details::is_signed<T>::type
-		isgn(const T x)
+		isgn(T x)
 	{
 		return -static_cast<T>(
 			static_cast<typename std::make_unsigned<T>::type>
@@ -376,7 +376,7 @@ namespace pg
 	// returns -1 if x < 0, else +1.
 	template <class T>
 	inline typename  details::is_signed<T>::type
-		isign(const T x)
+		isign(T x)
 	{
 		return +1 | pg::isgn(x);
 	}
@@ -384,7 +384,7 @@ namespace pg
 	// returns -1 if x < 0, 0 if x == 0, else +1.
 	template <class T>
 	inline typename details::is_signed<T>::type
-		isignof(const T x)
+		isignof(T x)
 	{
 		return (x != 0) | pg::isgn(x);
 	}
@@ -392,9 +392,9 @@ namespace pg
 	// returns the unsigned absolute value of signed integer x.
 	template <class T>
 	inline typename std::make_unsigned<typename details::is_signed<T>::type>::type
-		iabs(const T x)
+		iabs(T x)
 	{
-		// Arg must be signed. Return type must be unsigned, else iabs(STYPE_MIN) = STYPE_MIN
+		// T must be signed. Return type must be unsigned, else iabs(STYPE_MIN) = STYPE_MIN
 		// signed int i = -42;			// OK
 		// unsigned int j = iabs(i);	// OK
 		T const m = pg::isgn(x);
@@ -405,7 +405,7 @@ namespace pg
 	// returns the greater of a and b.
 	template <class T>
 	inline typename details::is_integer<T>::type
-		imax(const T a, const T b)
+		imax(T a, T b)
 	{
 		return (a ^ ((a ^ b) & -(a < b)));
 	}
@@ -413,7 +413,7 @@ namespace pg
 	// returns the lesser of a and b.
 	template <class T>
 	inline typename details::is_integer<T>::type
-		imin(const T a, const T b)
+		imin(T a, T b)
 	{
 		return (b ^ ((a ^ b) & -(a < b)));
 	}
@@ -421,14 +421,14 @@ namespace pg
 	// return true if x is even.
 	template <class T>
 	inline typename details::is_integer<T, bool>::type
-		iseven(const T x)
+		iseven(T x)
 	{
 		return ((x & 0x1) == 0);
 	}
 
 	template <class T>
 	inline typename details::is_integer<T, bool>::type
-		isodd(const T x) // return true if x is odd.
+		isodd(T x) // return true if x is odd.
 	{
 		return ((x & 0x1) != 0);
 	}
@@ -436,7 +436,7 @@ namespace pg
 	// returns true if a and b have opposite signs.
 	template <class T>
 	inline typename details::is_signed<T, bool>::type
-		issignne(const T a, const T b)
+		issignne(T a, T b)
 	{
 		return ((a ^ b) < 0);
 	}
@@ -444,7 +444,7 @@ namespace pg
 	// returns true if x is an integer power of two.
 	template <class T>
 	inline typename details::is_unsigned<T, bool>::type
-		ispow2(const T x)
+		ispow2(T x)
 	{
 		return (x && !(x & (x - 1)));
 	}
@@ -452,7 +452,7 @@ namespace pg
 	// returns -x if f is true, else returns x.
 	template <class T>
 	inline typename details::is_signed<T>::type
-		inegateif(const T x, const bool f)
+		inegateif(T x, bool f)
 	{
 		return ((x ^ -f) + f);
 	}
@@ -468,16 +468,20 @@ namespace pg
 	// returns x / 2**s.
 	template <class T>
 	inline typename details::is_unsigned<T>::type
-		idiv2(const T x, const uint8_t s)
+		idiv2(T x, uint8_t s)
 	{
 		return (x >> s);
 	}
 
 	// returns 2**s.
-	template <class T>
-	constexpr typename details::is_unsigned<T>::type
-		ipow2(const uint8_t s)
-		//std::uintmax_t ipow2(const uint8_t s)
+	inline auto ipow2(uint8_t s) -> typename std::make_unsigned<decltype(0x1 << s)>::type
+	{
+		return (0x1 << s);
+	}
+
+	// Template version of ipow2(), returns 2**s.
+	template<class T>
+	inline T ipow2t(T s)
 	{
 		return ((T)1 << s);
 	}
@@ -485,7 +489,7 @@ namespace pg
 	// returns x * 2**s.
 	template <typename T>
 	inline typename details::is_unsigned<T>::type
-		ipow2x(const T x, const T s)
+		ipow2x(T x, T s)
 	{
 		return (x << s);
 	}
@@ -501,7 +505,7 @@ namespace pg
 	// returns the integral base 10 logarithm of x.
 	template <typename T>
 	inline typename details::is_unsigned<T>::type
-		ilog10(const T x)
+		ilog10(T x)
 	{
 		static T const powersOf10[] =
 		{
@@ -516,7 +520,7 @@ namespace pg
 	// returns x % m, where m is one less than an integer power of two.
 	template <typename T>
 	inline typename details::is_unsigned<T>::type
-		imod2m(const T x, const T m)
+		imod2m(T x, T m)
 	{
 		assert(ispow2(m + 1));
 
@@ -526,7 +530,7 @@ namespace pg
 	// returns x % n, where n is an integer power of two.
 	template <typename T>
 	inline typename details::is_unsigned<T>::type
-		imod2(const T x, const T n)
+		imod2(T x, T n)
 	{
 		return imod2m(x, n - 1);
 	}
@@ -563,12 +567,14 @@ namespace pg
 				b = pg::idiv2(b, 1);
 			}
 
-			while (pg::iseven(a)) a = pg::idiv2(a, 1);
+			while (pg::iseven(a)) 
+				a = pg::idiv2(a, 1);
 
 			do
 			{
 				while (pg::iseven(b)) b = pg::idiv2(b, 1);
-				if (a > b) pg::iswap(a, b);
+				if (a > b) 
+					pg::iswap(a, b);
 				b -= a;
 
 			} while (b != 0);

@@ -1,6 +1,6 @@
 /*
- *	This file defines a class that interprets instructions and generates 
- *	executable command objects.
+ *	This file defines a class that interprets messages and generates and   
+ *	executes command objects.
  *
  *	***************************************************************************
  *
@@ -31,14 +31,50 @@
 #if !defined __PG_INTERPRETER_H
 # define __PG_INTERPRETER_H 20220525L
 
-# include "cstdlib"
-# include "cstring"
-# include "array"
-# include "tuple"
-# include "interfaces/icommand.h"
+# include <cstdlib>
+# include <array>
+# include <tuple>
+# include <lib/strtok.h>
+# include <interfaces/icommand.h>
+# include <lib/imath.h>
 
 namespace pg
 {
+	// Less than comparator for sorting arrays of c-strings.
+	bool strcomp(const char* s1, const char* s2) { return std::strcmp(s1, s2) < 0; }  
+
+	// Binary search algorithm.
+	template<class RandomIt, class T, class BinaryPredicate>
+	RandomIt bsearch(RandomIt first, RandomIt last, T value, BinaryPredicate pred)
+	{
+		RandomIt result = nullptr;
+		bool found = false;
+		RandomIt middle;
+
+		while (!found && first < last)
+		{
+			middle = first + std::distance(first, last) / 2;
+			switch (isignof(pred(*middle, value)))	// Constrain the result of pred() in [-1,1].
+			{
+			case 0:
+				result = middle;
+				found = true;
+				break;
+			case +1:
+				last = middle;
+				break;
+			case -1:
+				first = middle + 1;
+				break;
+			default:
+				return nullptr;
+				break;
+			}
+		}
+
+		return result;
+	}
+
 	namespace details
 	{
 		void getArg(const char* tok, char*& arg)
@@ -150,7 +186,7 @@ namespace pg
 		}
 	} // namespace details
 
-	// Type that generates/executes command objects from string messages.
+	// Type that interprets string messages and executes matching command objects.
 	class Interpreter
 	{
 	public:
@@ -161,8 +197,18 @@ namespace pg
 		public:
 			CommandBase(const key_type& key) : key_(key) {}
 		public:
-			friend bool operator==(const CommandBase& other, const key_type& key) { return !std::strcmp(other.key_, key); }
-			friend bool operator!=(const CommandBase& other, const key_type& key) { return !(other == key); }
+			bool operator==(const key_type& key) { return std::strcmp(key_, key) == 0; }
+			bool operator!=(const key_type& key) { return !(*this == key); }
+			bool operator<(const key_type& key) { return std::strcmp(key_, key) < 0; }
+			bool operator>(const key_type& key) { return std::strcmp(key_, key) > 0; }
+			bool operator>=(const key_type& key) { return !(*this < key); }
+			bool operator<=(const key_type& key) { return !(*this > key); }
+			bool operator==(const CommandBase& other) { return *this == other.key_; }
+			bool operator!=(const CommandBase& other) { return *this != other.key_; }
+			bool operator<(const CommandBase& other) { return *this < other.key_; }
+			bool operator>(const CommandBase& other) { return *this > other.key_; }
+			bool operator>=(const CommandBase& other) { return *this >= other.key_; }
+			bool operator<=(const CommandBase& other) { return *this <= other.key_; }
 		public:
 			virtual bool assemble(char*) = 0;
 			const key_type& key() { return key_; }
@@ -255,101 +301,70 @@ namespace pg
 		};
 
 		using size_type = uint8_t;
-		using commands_type = std::ArrayWrapper<CommandBase*>;
 
-		static constexpr size_type MaxLineSize = 64;
-		static constexpr const char* CmdDelimChars = "=";
+		static constexpr size_type MsgSizeMax = 64;
+		static constexpr const char* CmdDelimChars = "= ";
 		static constexpr const char* ArgDelimChars = ",";
 
 	public:
-		template<std::size_t N>
-		explicit Interpreter(CommandBase* (&)[N]);
-		Interpreter(CommandBase* [], std::size_t);
-		explicit Interpreter(CommandBase** = nullptr, CommandBase** = nullptr);
-		Interpreter(std::initializer_list<CommandBase*>);
+		Interpreter();
 
 	public:
-		void commands(CommandBase**, CommandBase**);
-		const commands_type& commands() const;
-		char* strtok(char*, const char*, const char*, std::size_t);
-		void execute(const char*);
-		icommand* interpret(const char*);
+		inline static int compare(CommandBase*, CommandBase::key_type);
+		bool execute(CommandBase**, CommandBase**, const char*);
+		icommand* interpret(CommandBase**, CommandBase**, const char*);
 		template<class...Ts>
 		static size_type parse(char*, std::tuple<Ts...>&);
+		//inline char* strtok(char*, const char*, const char*, std::size_t);
 
 	private:
-		commands_type commands_;	// Current commands collection.
+		char buf_[MsgSizeMax];		// Temporary message buffer.
 	};
 
-	template<std::size_t N>
-	Interpreter::Interpreter(CommandBase* (&commands)[N]) :
-		commands_(commands)  
+	Interpreter::Interpreter() :
+		buf_{}
 	{
 
 	}
 
-	Interpreter::Interpreter(CommandBase* commands[], std::size_t n) :
-		commands_(commands, n) 
+	int Interpreter::compare(CommandBase* cmd, CommandBase::key_type key)
 	{
-
+		// C-string comparator for bsearch(). Function must able to return <, > and = results.
+		return std::strcmp(cmd->key(), key);
 	}
 
-	Interpreter::Interpreter(CommandBase** first, CommandBase** last) :
-		commands_(first, last) 
-	{
-		assert((first == nullptr && last == first) || (first != last));
-	}
+	//char* Interpreter::strtok(char* buf, const char* line, const char* delim, std::size_t len)
+	//{
+	//	// Make a copy of line before strtok mangles it.
+	//	(void)std::strncpy(buf, line, len);
 
-	Interpreter::Interpreter(std::initializer_list<CommandBase*> il) :
-		commands_(const_cast<CommandBase**>(il.begin()), il.size()) 
-	{
+	//	return  std::strtok(buf, delim);
+	//}
 
-	}
-
-	void Interpreter::commands(CommandBase** first, CommandBase** last)
-	{
-		commands_ = commands_type(first, last);
-	}
-
-	const typename Interpreter::commands_type& Interpreter::commands() const
-	{ 
-		return commands_; 
-	}
-
-	char* Interpreter::strtok(char* buf, const char* line, const char* delim, std::size_t len)
-	{
-		// Make a copy of line so strtok doesn't mangle it.
-		(void)std::strncpy(buf, line, len);
-
-		return  std::strtok(buf, delim);
-	}
-
-	icommand* Interpreter::interpret(const char* line)
+	icommand* Interpreter::interpret(CommandBase** first, CommandBase** last, const char* line)
 	{
 		icommand* result = nullptr;
 		char* key = nullptr;
-		char buf[MaxLineSize] = { '\0' };
 
 		if (line)
 		{
-			// Make a copy of the instruction and look for a command key.
-			if ((key = strtok(buf, line, CmdDelimChars, sizeof(buf)))) 
+			// Make a copy of the line and look for a command key.
+			if ((key = pg::strtok(buf_, line, CmdDelimChars, sizeof(buf_)))) 
 			{
-				// Loop through our commands collection.
-				for (auto cmd : commands_)
+				CommandBase** it = bsearch(first, last, key, compare);
+
+				// If the line key matches one of the our command keys, ...
+				if (it)
 				{
-					// If the instruction key matches one of the our command keys, ...
-					if (*cmd == key)
+					CommandBase* cmd = *it;
+
+					// ... make a copy of the line without the key.
+					(void)pg::strtok(buf_, line, CmdDelimChars, sizeof(buf_));
+					// If the line contains the number of expected command arguments, ...
+					if (cmd->assemble(buf_))
 					{
-						// ... make a copy of the instruction without the key.
-						(void)strtok(buf, line, CmdDelimChars, sizeof(buf));
-						// If the instruction contains the number of expected command arguments, ...
-						if (cmd->assemble(buf))
-						{
-							// ... return the matched command.
-							result = cmd;
-							break;
-						}
+						// ... return the matched command.
+						result = cmd;
 					}
 				}
 			}
@@ -358,19 +373,28 @@ namespace pg
 		return result;
 	}
 
-	void Interpreter::execute(const char* line)
+	bool Interpreter::execute(CommandBase** first, CommandBase** last, const char* line)
 	{
-		icommand* cmd = interpret(line);
+		icommand* cmd = interpret(first, last, line);
+		bool result = cmd != nullptr;
 
-		if (cmd)
+		if (result)
 			cmd->execute();
+
+		return result;
 	}
 
 	template<class...Ts>
 	Interpreter::size_type Interpreter::parse(char* line, std::tuple<Ts...>& args)
 	{
-		return line ? details::getArgs(ArgDelimChars, args) : 0;
+		size_type n = line ? details::getArgs(ArgDelimChars, args) : 0;
+
+		return n;
 	}
+
+	// Comparator for sorting arrays of Interpreter command objects.
+	bool cbcomp(Interpreter::CommandBase* cmd1, Interpreter::CommandBase* cmd2) { return *cmd1 >= *cmd2; } 
+
 } // namespace pg
 
 #endif // !defined __PG_INTERPRETER_H

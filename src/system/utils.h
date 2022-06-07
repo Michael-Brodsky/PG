@@ -8,7 +8,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2020 Michael Brodsky 
+ *	Copyright (c) 2012-2022 Michael Brodsky 
  *
  *	***************************************************************************
  *
@@ -30,42 +30,31 @@
 #if !defined __PG_UTILS_H
 # define __PG_UTILS_H 20210717L
 
-# include "cassert"
-# include "cstring"
+# include <cassert>
+# include <cstring>
 
 # if !defined AssertMsg
 #  define AssertMsg(x, msg) assert(((void) msg, (x))) // Prints `msg' on assertion failure of `x'.
 # endif
-
-# if !defined Print
-#  define Print(val) Serial.print(val)		// Prints `val' to the serial port.
-# endif // !defined Print
-
-# if !defined PrintLn
-#  define PrintLn(val) Serial.println(val)	// Prints `val' with a trailing `newline' to the serial port.
-# endif // !defined PrintLn
 
 # define NoTimer0Int TIMSK0 &= ~_BV(OCIE0A);					// Disable Timer0 cmp interrupt.
 # define Timer0Int(val) OCR0A = (val); TIMSK0 |= _BV(OCIE0A);	// Sets Timer0 cmp interrupt to trigger on `val'.
 
 namespace pg
 {
-	namespace utils
-	{
-		void sbegin(unsigned long baud, uint8_t frame = SERIAL_8N1) { Serial.begin(baud, frame); }
+	void sbegin(unsigned long baud, uint8_t frame = SERIAL_8N1) { Serial.begin(baud, frame); }
 
-		void send() { Serial.end(); }
+	void send() { Serial.end(); }
 
-		void sflush() { Serial.flush(); }
+	void sflush() { Serial.flush(); }
 
-		template<class T>
-		unsigned sprint(const T& t) { return Serial.print(t); }
+	template<class T>
+	unsigned sprint(const T& t) { return Serial.print(t); }
 
-		unsigned sprintln() { return Serial.println(); }
+	template<class T>
+	unsigned sprintln(const T& t) { return Serial.println(t); }
 
-		template<class T>
-		unsigned sprintln(const T& t) { return Serial.println(t); }
-	} // namespace serial
+	unsigned sprintln() { return Serial.println(); }
 } // namespace pg
 
 # if defined ARDUINO_ARCH_MEGAAVR

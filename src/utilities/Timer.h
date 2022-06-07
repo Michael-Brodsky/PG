@@ -163,25 +163,25 @@ namespace pg
 		CounterTimer(count_type, time_type);
 
 	public:
-		CounterTimer& operator++();
-		CounterTimer& operator--();
+		CounterTimer&		operator++();
+		CounterTimer&		operator--();
 		CounterTimer		operator++(int);
 		CounterTimer		operator--(int);
-		CounterTimer& operator+=(count_type);
-		CounterTimer& operator-=(count_type);
-		CounterTimer& operator=(count_type);
-		CounterTimer& operator=(const CounterTimer&);
+		CounterTimer&		operator+=(count_type);
+		CounterTimer&		operator-=(count_type);
+		CounterTimer&		operator=(count_type);
+		CounterTimer&		operator=(const CounterTimer&);
 		template<class V>
-		CounterTimer& operator+=(V);
+		CounterTimer&		operator+=(V);
 		template<class V>
-		CounterTimer& operator-=(V);
+		CounterTimer&		operator-=(V);
 		template<class V>
-		CounterTimer& operator=(V);
+		CounterTimer&		operator=(V);
 		bool				active() const;			// Checks if a counter/timer is currently active.
 		bool				active(counter_tag) const;	// Checks if a counter is currently active.
 		bool				active(timer_tag) const;	// Checks if a timer is currently active.
-		count_type& count() const;			// Returns an immutable reference to the current count.
-		count_type& count();				// Returns a mutable reference to the current count.	
+		count_type&			count() const;			// Returns an immutable reference to the current count.
+		count_type&			count();				// Returns a mutable reference to the current count.	
 		time_type			elapsed() const;		// Returns the currently elapsed time.
 		bool				reached() const;		// Checks if a counter has reached its limit.
 		bool				expired() const;		// Checks if a timer interval has expired.

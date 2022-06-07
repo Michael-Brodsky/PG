@@ -9,7 +9,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -31,9 +31,9 @@
 #if !defined __PG_CLOCK_H 
 # define __PG_CLOCK_H 20210918L
 
-# include "ctime" // std::time_t type.
-# include "ratio"
-# include "api.h" // chg to sys/api.h, move pgtypes.h to sys/types.h and clock.h to sys/clock.h
+# include <ctime>			// std::time_t type.
+# include <ratio>			// SI ratio types.
+# include <system/api.h>	// Arduino api. 
 
 # if defined __PG_HAS_NAMESPACES 
 
@@ -62,18 +62,8 @@ namespace pg
 	};
 }
 
-//namespace std
-//{
-//	namespace chrono
-//	{
-//		
-//		static std::time_t steady_clock_api() { return clock_api_steady(); }
-//		static std::time_t system_clock_api() { return clock_api_system(); }
-//	} // namespace chrono
-//} // namespace std
-
 # else // !defined __PG_HAS_NAMESPACES
-#  error Requires C++11 and namespace support.
+#  error Requires C++11 and named namespace support.
 # endif // defined __PG_HAS_NAMESPACES 
 
 #endif // !defined __PG_CLOCK_H 

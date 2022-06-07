@@ -33,7 +33,7 @@
 
 # include "cstdio"
 # include "cstdlib"
-# include "cstring"
+# include "lib/strtok.h"
 # include "system/boards.h"
 # include "utilities/ValueWrappers.h"
 # include "system/ethernet.h"
@@ -53,7 +53,7 @@ namespace pg
 			 Invalid = 3
 		};
 
-		static constexpr char DelimiterChar = ',';
+		static constexpr const char* ParamsDelimiterChar = ",";
 		static constexpr std::size_t size() 
 		{ 
 			return SERIAL_RX_BUFFER_SIZE < SERIAL_TX_BUFFER_SIZE 
@@ -134,6 +134,7 @@ namespace pg
 	public:
 		static constexpr uint32_t WaitConnect = 2000;
 		static constexpr uint32_t MaxWaitTime = 10000;
+		static constexpr const char* MacDelimiterChar = " ";
 
 	public:
 		EthernetConnection(const char* = nullptr);
@@ -263,7 +264,7 @@ namespace pg
 
 	const char* SerialConnection::receive()
 	{
-		std::size_t len = hardware_.readBytesUntil(EndOfMessageChar, buf_, sizeof(buf_));
+		std::size_t len = Serial.available() ? hardware_.readBytesUntil(EndOfMessageChar, buf_, sizeof(buf_)) : 0;
 
 		buf_[len] = '\0';
 
@@ -282,19 +283,17 @@ namespace pg
 		char buf[size()] = { '\0' };
 		char* tok = nullptr;
 
-		std::strncpy(buf, params, sizeof(buf));
-		tok = std::strtok(buf, ",");
-		if (tok)
+		if ((tok = pg::strtok(buf, params, ParamsDelimiterChar, sizeof(buf))))
 		{
 			baud_ = std::atol(tok);
-			if ((tok = std::strtok(nullptr, ",")))
+			if ((tok = std::strtok(nullptr, ParamsDelimiterChar)))
 			{
 				auto it = std::find(static_cast<frames_type>(SupportedFrames).begin(), 
 					static_cast<frames_type>(SupportedFrames).end(), (tok));
 
 				if (it)
 					frame_ = *it;
-				if((tok = std::strtok(nullptr, ",")))
+				if((tok = std::strtok(nullptr, ParamsDelimiterChar)))
 					timeout_ = std::atol(tok);
 			}
 		}
@@ -434,18 +433,18 @@ namespace pg
 		char* mac = nullptr;
 		char* port = nullptr;
 
-		if (mac = std::strtok(buf, " "))
+		if ((mac = pg::strtok(buf, params, ParamsDelimiterChar, sizeof(buf))))
 		{
 			std::size_t i = 0;
 
 			do
 			{
 				mac_[i++] = static_cast<typename mac_type::value_type>(std::strtol(mac, nullptr, 16));
-			} while ((mac = std::strtok(nullptr, " ")));
+			} while ((mac = std::strtok(nullptr, MacDelimiterChar)));
 		}
-		if (ip = std::strtok(nullptr, " "))
+		if ((ip = std::strtok(nullptr, MacDelimiterChar)))	// Might need to be comma.
 			local_ip_.fromString(ip);
-		if ((port = std::strtok(nullptr, ",")))
+		if ((port = std::strtok(nullptr, ParamsDelimiterChar)))
 			port_ = std::atoi(port);
 	}
 
@@ -576,10 +575,9 @@ namespace pg
 		char buf[size()] = { '\0' };
 		char* port = nullptr;
 
-		std::strncpy(buf, params, sizeof(buf));
-		if (ssid_ = std::strtok(buf, ","))
-			if (pw_ = std::strtok(nullptr, ","))
-				if ((port = std::strtok(nullptr, ",")))
+		if ((ssid_ = pg::strtok(buf, params, ParamsDelimiterChar, sizeof(buf))))
+			if ((pw_ = std::strtok(nullptr, ParamsDelimiterChar)))
+				if ((port = std::strtok(nullptr, ParamsDelimiterChar)))
 					port_ = std::atoi(port);
 	}
 

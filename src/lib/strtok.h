@@ -1,10 +1,11 @@
 /*
- *	This file is part of the C++ Standard Library error handling library.
+ *	This files defines a specialized version of the C Standard Library 
+ *	function strtok() that operates on a copy of the source string.
  *
- *  ***************************************************************************
+ *	***************************************************************************
  *
- *	File: cassert
- *	Date: September 8, 2021
+ *	File: strtok.h
+ *	Date: June 5, 2021
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -25,30 +26,22 @@
  *  You should have received a copy of the GNU General Public License
  *	along with this file. If not, see <http://www.gnu.org/licenses/>.
  *
- *	**************************************************************************
- *
- *	Description:
- *
- *		This file defines objects in the <cassert> header of the C++ Standard  
- *		Library, to the extent they are supported by the Arduino 
- *		implementation. The objects behave according to the C++ ISO/IEC 14882 
- *		Standards, except as noted.
- *
- *	Notes:
- *
- *		This header was originally in the C standard library as <assert.h>.
- * 
- *  Credits:
- * 
- *		This file is based in part on the GNU ISO C++ Library, Copyright (C) 
- *		1997-2017 Free Software Foundation, Inc.
- * 
  *	**************************************************************************/
 
-#if !defined __PG_CASSERT_
-# define __PG_CASSERT_ 20210908L
+#if !defined __PG_STRTOK_H
+# define __PG_STRTOK_H 20220605L
 
-#include <pg.h>
-#include <assert.h>
+# include <cstring>
 
-#endif // !defined __PG_CASSERT_
+namespace pg
+{
+	// Makes a copy of the original string and parses the copy, preserving the original.
+	char* strtok(char* cpy, const char* orig, const char* delim, std::size_t len)
+	{
+		(void)std::strncpy(cpy, orig, len);
+
+		return  std::strtok(cpy, delim);
+	}
+} // namespace pg
+
+#endif // !defined __PG_STRTOK_H

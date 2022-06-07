@@ -31,8 +31,8 @@
 #if !defined __PG_ICOMMAND_H
 # define __PG_ICOMMAND_H 20220524L
 
-# include "tuple"
-# include "lib/callback.h"	// `Callback' templates.
+# include <tuple>			// Needed by objects in namespace experimental.
+# include <lib/callback.h>	// `Callback' templates.
 
 # if defined __PG_HAS_NAMESPACES
 

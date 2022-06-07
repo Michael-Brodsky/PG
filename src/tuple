@@ -8,7 +8,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -46,7 +46,7 @@
 #if !defined __PG_TUPLE_
 # define __PG_TUPLE_ 20210902L
 
-# include "utility"    // Type support objects.
+# include <utility>    // Type support objects.
 
 # if defined __PG_HAS_NAMESPACES
 
@@ -138,9 +138,9 @@ namespace std
     };
 
     // Returns the number of elements in a tuple as a compile-time constant expression.
-    template<class... Types>
-    struct tuple_size<std::tuple<Types...>>
-        : std::integral_constant<std::size_t, sizeof...(Types)> 
+    template<class... Ts>
+    struct tuple_size<std::tuple<Ts...>>
+        : std::integral_constant<std::size_t, sizeof...(Ts)> 
     {};
 
     // Provides compile-time indexed access to the types of the elements of the tuple. recursive case

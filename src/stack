@@ -1,0 +1,257 @@
+/*
+ *	This file defines the C++ Standard Library stack container class and 
+ *	associated functions.
+ *
+ *  ***************************************************************************
+ *
+ *	File: stack
+ *	Date: June 4, 2022
+ *	Version: 1.0
+ *	Author: Michael Brodsky
+ *	Email: mbrodskiis@gmail.com
+ *	Copyright (c) 2012-2022 Michael Brodsky
+ *
+ *	***************************************************************************
+ *
+ *  This file is part of "Pretty Good" (Pg). "Pg" is free software:
+ *	you can redistribute it and/or modify it under the terms of the
+ *	GNU General Public License as published by the Free Software Foundation,
+ *	either version 3 of the License, or (at your option) any later version.
+ *
+ *  This file is distributed in the hope that it will be useful, but
+ *	WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *	along with this file. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	**************************************************************************
+ *
+ *	Description:
+ *
+ *		This file defines objects in the <stack> header of the C++ Standard 
+ *		Library - to the extent they are supported by the Arduino
+ *		implementation. The objects behave according to the C++ ISO/IEC 14882
+ *		Standards, except as noted.
+ *
+ *	**************************************************************************/
+
+#if !defined __PG_STACK_H
+# define __PG_STACK_H 20220604L
+
+# include <array>
+# include <utility>
+
+# if defined __PG_HAS_NAMESPACES 
+
+namespace std
+{
+	// A statically allocated, LIFO (last-in, first-out) data structure.
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc = std::array>
+	class stack
+	{
+	public:
+		using container_type = Alloc<T, N>;
+		using value_type = typename container_type::value_type;
+		using size_type = typename container_type::size_type;
+		using reference = typename container_type::reference;
+		using const_reference = typename container_type::const_reference;
+		using self_type = stack<T, N, Alloc>;
+
+	private:
+		using iterator = typename container_type::iterator;
+		using const_iterator = typename container_type::const_iterator;
+
+	public:
+		stack();
+		explicit stack(const container_type&);
+		explicit stack(container_type&&);
+		stack(const stack&);
+		stack(stack&&);
+		stack& operator=(const stack&);
+		stack& operator=(stack&&);
+
+	public:
+		reference top();
+		const_reference top() const;
+		bool empty() const;
+		size_type size() const;
+		void push(const value_type&);
+		void push(value_type&&);
+		void pop();
+		template<class... Args>
+		void emplace(Args&&...);
+		void swap(stack&) noexcept;
+
+	public:
+		friend bool operator==(std::stack<T, N, Alloc>& lhs, std::stack<T, N, Alloc>& rhs) { return lhs.container_ == rhs.container_; }
+		friend bool operator!=(std::stack<T, N, Alloc>& lhs, std::stack<T, N, Alloc>& rhs) { return lhs.container_ != rhs.container_; }
+		friend bool operator<(std::stack<T, N, Alloc>& lhs, std::stack<T, N, Alloc>& rhs) { return lhs.container_ < rhs.container_; }
+		friend bool operator>(std::stack<T, N, Alloc>& lhs, std::stack<T, N, Alloc>& rhs) { return lhs.container_ > rhs.container_; }
+		friend bool operator<=(std::stack<T, N, Alloc>& lhs, std::stack<T, N, Alloc>& rhs) { return lhs.container_ <= rhs.container_; }
+		friend bool operator>=(std::stack<T, N, Alloc>& lhs, std::stack<T, N, Alloc>& rhs) { return lhs.container_ >= rhs.container_; }
+
+	private:
+		template<class Arg>
+		void _emplace(Arg&&);
+		template<class Arg, class... Args>
+		void _emplace(Arg&&, Args&& ...);
+
+	private:
+		container_type	container_;
+		iterator		top_;
+	};
+
+#pragma region constructors 
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	stack<T, N, Alloc>::stack() : 
+		stack(container_type())
+	{
+
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	stack<T, N, Alloc>::stack(const container_type& cont) : 
+		container_(cont), top_(std::begin(container_))
+	{
+
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	stack<T, N, Alloc>::stack(container_type&& cont) :
+		container_(std::move(cont)), top_(std::begin(container_))
+	{
+
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	stack<T, N, Alloc>::stack(const stack& other) :
+		container_(other.container_), top_(other.top_) 
+	{
+
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	stack<T, N, Alloc>::stack(stack&& other) :
+		container_(std::move(other.container_)), top_(std::move(other.top_))
+	{
+
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	typename std::stack<T, N, Alloc>::self_type& stack<T, N, Alloc>::operator=(const stack& other)
+	{
+		container_ = other.container_;
+		top_ = other.top_;
+
+		return *this;
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	typename std::stack<T, N, Alloc>::self_type& stack<T, N, Alloc>::operator=(stack&& other)
+	{
+		std::fill(std::begin(container_), std::end(container_), T());
+		swap(other);
+
+		return *this;
+	}
+
+#pragma endregion
+#pragma region public members
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	typename std::stack<T, N, Alloc>::reference std::stack<T, N, Alloc>::top()
+	{
+		return *top_;
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	typename std::stack<T, N, Alloc>::const_reference std::stack<T, N, Alloc>::top() const
+	{
+		return *top_;
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	bool std::stack<T, N, Alloc>::empty() const
+	{
+		return size() == 0;
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	typename std::stack<T, N, Alloc>::size_type std::stack<T, N, Alloc>::size() const
+	{
+		return std::distance(std::begin(container_), const_cast<const_iterator>(top_));
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	void std::stack<T, N, Alloc>::push(const value_type& value)
+	{
+		if (size() < N)
+			*++top_ = value;
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	void std::stack<T, N, Alloc>::push(value_type&& value)
+	{
+		if (size() < N)
+			*++top_ = std::move(value);
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	void std::stack<T, N, Alloc>::pop()
+	{
+		if(size() > 0)
+			--top_;
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	template<class... Args>
+	void std::stack<T, N, Alloc>::emplace(Args&&... args)
+	{
+		_emplace(std::forward<Args>(args)...);
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	void stack<T, N, Alloc>::swap(stack<T, N, Alloc>& other)
+	{
+		std::swap(container_, other.container_);
+		std::swap(top_, other.top_);
+	}
+
+#pragma endregion
+#pragma region private menbers
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	template<class Arg>
+	void stack<T, N, Alloc>::_emplace(Arg&& arg)
+	{
+		push(static_cast<Arg&>(arg));
+	}
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	template<class Arg, class... Args>
+	void stack<T, N, Alloc>::_emplace(Arg&& arg, Args&& ...args)
+	{
+		push(static_cast<Arg&>(arg));
+		_emplace(std::forward<Args>(args)...);
+	}
+
+#pragma endregion
+#pragma region non-members
+
+	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
+	void swap(std::stack<T, N, Alloc>& lhs, std::stack<T, N, Alloc>& rhs) noexcept
+	{
+		lhs.swap(rhs);
+	}
+
+#pragma endregion
+} // namespace std
+ 
+# else // !defined __PG_HAS_NAMESPACES
+#  error Requires C++11 and named namespace support.
+# endif // defined __PG_HAS_NAMESPACES
+
+# endif // !defined __PG_STACK_H

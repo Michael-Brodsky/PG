@@ -9,7 +9,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -40,13 +40,15 @@
 #if !defined __PG_LCDDISPLAY_H
 # define __PG_LCDDISPLAY_H 20211212L
 
-# include "cstdio"					// String formatting funcs.
-# include "array"					// Fixed-size array type.
-# include "system/boards.h"			// board hardware traits.
-# include "interfaces/icomponent.h"	// `icomponent' interface.
-# include "interfaces/iclockable.h" // `iclockable' interface. 
-# include "utilities/Timer.h"		// Interval timer.
-# include <LiquidCrystal.h>			// Arduino LCD api.
+# include <cstdio>
+# include <cstring>
+# include <cstdlib>
+# include <array>
+# include <system/boards.h>
+# include <interfaces/icomponent.h>	
+# include <interfaces/iclockable.h>
+# include <utilities/Timer.h>
+# include <LiquidCrystal.h>
 
 # if defined __PG_HAS_NAMESPACES
 

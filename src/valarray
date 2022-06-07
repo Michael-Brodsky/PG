@@ -9,7 +9,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -76,12 +76,10 @@
 #if !defined __PG_VALARRAY_
 # define __PG_VALARRAY_ 20210912L
 
-# include "pg.h"
-# include "cmath"
-# include "numeric"
-# include "algorithm"
-# include "initializer_list"
-# include "array"
+# include <cmath>
+# include <numeric>
+# include <initializer_list>
+# include <array>
 
 # if defined __PG_HAS_NAMESPACES
 
@@ -392,7 +390,7 @@ namespace std
 		void operator>>=(const std::valarray<T, N, Alloc>& other) const;
 	};
 
-	// A class for representing and manipulating arrays of values.
+	// A statically allocated class for representing and manipulating arrays of values.
 	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc = std::array>
 	class valarray
 	{

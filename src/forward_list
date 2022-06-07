@@ -9,7 +9,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -68,8 +68,8 @@
 #if !defined __PG_FORWARD_LIST_
 # define __PG_FORWARD_LIST_ 20210901L
 
-# include "initializer_list"	// List-initialization support.
-# include "array"				// Default list allocator type.
+# include <initializer_list>	// List-initialization support.
+# include <array>				// Default list allocator type.
 
 # if defined __PG_HAS_NAMESPACES
 
@@ -86,11 +86,9 @@ namespace std
 	template<class T>
 	class _foward_list_iterator;
 
-	// template<class T, std::size_t N, template<class = _foward_list_node<T>, std::size_t = N> Alloc>
 	template<class T, std::size_t N, class Alloc>
 	class forward_list;
 
-	//template<class T>
 	static int _unallocated_node = -1;
 
 #pragma endregion
@@ -99,8 +97,6 @@ namespace std
 	template<class T>
 	struct _foward_list_node
 	{
-		//static constexpr const intptr_t Unallocated = -1; // Value indicating an unallocated node.
-
 		T					data_;	// Node data.
 		_foward_list_node*	next_;	// Pointer to next node in the list or -1 if unallocated.
 
@@ -177,8 +173,7 @@ namespace std
 		self_type next() const { return base_type::node_ ? self_type(base_type::node_->next_) : self_type(); }
 	};
 
-	// Singly-linked list container type.
-	// template<class T, std::size_t N, template<class = _foward_list_node<T>, std::size_t = N> Alloc = std::array>
+	// A statically allocated, singly-linked list container type.
 	template<class T, std::size_t N, class Alloc = std::array<_foward_list_node<T>, N>>
 	class forward_list
 	{
@@ -836,9 +831,7 @@ namespace std
 	template<class T, std::size_t N, class Alloc>
 	void forward_list<T, N, Alloc>::delete_node(node_type* node)
 	{
-		//assert(node && node->next_ != node_type::Unallocated);
 		assert(node && reinterpret_cast<void*>(node->next_) != reinterpret_cast<void*>(&_unallocated_node));
-		//node->next_ = node_type::Unallocated; // Mark node as free.
 		node->next_ = reinterpret_cast<node_type*>(&_unallocated_node); // Mark node as free.
 		--size_;
 	}

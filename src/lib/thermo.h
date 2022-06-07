@@ -8,7 +8,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -30,8 +30,8 @@
 #if !defined __THERMOMETER_H 
 # define __THERMOMETER_H 20211014L
 
-# include "fmath.h"
-# include "units.h"
+# include <lib/fmath.h>
+# include <lib/units.h>
 
 namespace pg
 {

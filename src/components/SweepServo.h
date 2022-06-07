@@ -8,7 +8,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -32,12 +32,12 @@
 # define __PG_SWEEPSERVO_H 20211104L
 
 # include <Servo.h>					// Arduino servo api.
-# include "system/types.h"			// Pg typedefs.
-# include "lib/callback.h"			// Callback signature templates.
-# include "lib/servos.h"			// Servo types and traits.
-# include "interfaces/iclockable.h"	// `iclockable' interface.
-# include "interfaces/icomponent.h"	// `icomponent' interface.
-# include "utilities/Timer.h"		// Interval timer.
+# include <system/types.h>			// Pg typedefs.
+# include <lib/callback.h>			// Callback signature templates.
+# include <lib/servos.h>			// Servo types and traits.
+# include <interfaces/iclockable.h>	// `iclockable' interface.
+# include <interfaces/icomponent.h>	// `icomponent' interface.
+# include <utilities/Timer.h>		// Interval timer.
 
 using namespace std::chrono;
 

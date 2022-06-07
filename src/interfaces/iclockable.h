@@ -9,7 +9,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -50,8 +50,8 @@
 #if !defined __PG_ICLOCKABLE_H 
 # define __PG_ICLOCKABLE_H 20210409L
 
-# include "cassert"
-# include "interfaces/icommand.h"	// `icommand' interface.
+# include <cassert>
+# include <interfaces/icommand.h>	// `icommand' interface.
 
 # if defined __PG_HAS_NAMESPACES 
 

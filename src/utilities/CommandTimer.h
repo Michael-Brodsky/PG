@@ -9,7 +9,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky 
+ *	Copyright (c) 2012-2022 Michael Brodsky 
  *
  *	***************************************************************************
  *
@@ -52,8 +52,8 @@
 #if !defined __PG_COMMANDTIMER_H
 # define __PG_COMMANDTIMER_H 20210403L
 
-# include "interfaces/icommand.h"	// `icommand' interface.
-# include "Timer.h"					// `Timer' class.
+# include <interfaces/icommand.h>	// `icommand' interface.
+# include <utilities/Timer.h>		// `Timer' class.
 
 # if defined __PG_HAS_NAMESPACES 
 

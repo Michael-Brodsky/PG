@@ -9,7 +9,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -31,7 +31,7 @@
 #if !defined __PG_IMEDIATOR_H
 # define __PG_IMEDIATOR_H 20210717L
 
-# include "pg.h"
+# include <pg.h>
 
 # if defined __PG_HAS_NAMESPACES
 

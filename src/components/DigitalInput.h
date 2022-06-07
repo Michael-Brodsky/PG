@@ -8,7 +8,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -76,9 +76,9 @@
 #if !defined __PG_DIGITAL_INPUT_H
 # define __PG_DIGITAL_INPUT_H 20211003L
 
-#include "system/types.h"			// pin_t type.
-#include "interfaces/icomponent.h"	// icomponent interface.
-#include "interfaces/iclockable.h"	// iclockable interface.
+#include <system/types.h>			// pin_t type.
+#include <interfaces/icomponent.h>	// icomponent interface.
+#include <interfaces/iclockable.h>	// iclockable interface.
 
 # if defined __PG_HAS_NAMESPACES
 

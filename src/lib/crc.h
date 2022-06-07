@@ -9,7 +9,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -179,9 +179,9 @@
 #if !defined __PG_CRC_H
 # define __PG_CRC_H 20211019L
 
-#include <lib/imath.h>	// is_unsigned type.
 #include <array>		// iterator_traits.
 #include <limits>		// numeric_limits.
+#include <lib/imath.h>	// is_unsigned type.
 
 # if defined __PG_HAS_NAMESPACES 
 

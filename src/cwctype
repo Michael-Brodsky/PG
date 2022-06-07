@@ -9,7 +9,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky
+ *	Copyright (c) 2012-2022 Michael Brodsky
  *
  *	***************************************************************************
  *
@@ -49,7 +49,7 @@
 #if !defined __PG_CWCTYPE_
 # define __PG_CWCTYPE_ 20210910L
 
-# include "pg.h"
+# include <pg.h>
 
 # if defined __PG_HAS_NAMESPACES
 
@@ -114,7 +114,7 @@ namespace std
 } // namespace std
 
 # else // !defined __PG_HAS_NAMESPACES
-#  error requires namespace support.
+#  error requires C++11 and named namespace support.
 # endif // defined __PG_HAS_NAMESPACES
 
 #endif // !defined __PG_CWCTYPE_

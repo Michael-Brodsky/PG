@@ -8,7 +8,7 @@
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
- *	Copyright (c) 2012-2021 Michael Brodsky 
+ *	Copyright (c) 2012-2022 Michael Brodsky 
  *
  *	***************************************************************************
  *
@@ -44,9 +44,9 @@
 
 # if defined ARDUINO
 #  if ARDUINO >= 100 
-#   include "Arduino.h"
+#   include <Arduino.h>
 #  else
-#   include "WProgram.h"
+#   include <WProgram.h>
 #  endif // ARDUINO >= 100 
 # endif // defined ARDUINO
 

@@ -4,7 +4,7 @@
  *	***************************************************************************
  *
  *	File: Jack.h
- *	Date: May 25, 2022
+ *	Date: June 3, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -30,44 +30,41 @@
  *	Description:
  * 
  *	The `Jack' class allows clients to operate a device remotely, over a 
- *	network connection using a simple messaging protocol. Clients can 
- *	configure, read/write values to/from the device’s gpio pins, and count/ 
- *	time external events. Jack also supports EEPROM storage and recall of its 
- *	current connection and configuration information. Network communications 
- *	are handled by the `Connection' type (see <Connection.h>); the messaging 
- *	protocol is defined by the `Interpreter' type, which also handles 
- *	message decoding and command execution (see <Interpreter.h>).
+ *	network connection, using a simple messaging protocol. Clients can 
+ *	configure, read/write values to/from the device’s gpio pins, count/time  
+ *	events and get device information. Jack also supports EEPROM storage and 
+ *	recall of its current connection and configuration information. Network 
+ *	communications are handled by the `Connection' type (see <Connection.h>); 
+ *	the messaging protocol is defined by the `Interpreter' type, which also 
+ *	handles message decoding and command execution (see <Interpreter.h>). For 
+ *	devices that support it, Jack can store and execute programs locally, on 
+ *	the device itself. 
  *
  *	Jack defines a collection of built-in command objects that, when executed, 
  *	call one of the member methods declared by its public interface (see 
- *	below). Command objects are defined by a key string and a parameter list. 
- *	Jack listens to the network connection and forwards any messages received 
- *	to the `Interpreter' which decodes and executes any valid commands.
- *	Any parameters encoded in the message are passed as arguments to the 
- *	delegate function/method. `Jack' also supports user-defined commands that 
- *	can be appended to the built-in collection. This allows developers to 
- *	expand an application’s capabilities with custom function/method calls.
+ *	below). Command objects are defined by a unique key string, parameter list 
+ *	and delegate, which can be ether a free-standing function or object method.
+ *	Jack listens to a network connection and forwards any messages received 
+ *	to the `Interpreter' which decodes and executes any valid messages. Any 
+ *	parameters encoded in the message are passed as arguments to the delegate.
+ *	Jack also supports user-defined command objects that can be appended to the 
+ *	built-in collection. This allows developers to expand an application’s 
+ *	capabilities with custom function/method calls.
  *
  *	Messages are plain text strings that have the general form: 
  *
  *		key[=arg0,arg1,…,argN], 
  *
  *	where key is the command identifier (name) optionally followed by a comma-
- *	separated list of arguments (values). Messages are terminated with a 
- *	newline character ‘\n’. For example: 
+ *	separated list of arguments (values) separated by an equal sign (=). 
+ *	Messages are terminated with a newline character ‘\n’. For example: 
  *
  *		rst - resets the device
- *		inf - sends device hardware info
- *		pin - sends pin type info for all pins
- *		pin=n - sends pin type info for pin n
- *		pmd=n - sends pin mode info for pin n
- *		pmd=n,m - sets pin n to mode m
- *		rdp=n - sends the state of input pin n
+ *		pin=n - returns pin type info for pin n
+ *		spm=n,m - sets pin n mode to m
+ *		rdp=n - returns (reads) the state of input pin n
  *		wrp=n,v - writes value v to output pin n
- *		net - sends the current connection parameters
- *		net=t,a,b,c - opens a new connection of type t with parameters a,b,c 
- *		lda - loads the device configuration from eeprom
- *		sto - stores the current device configuration to eeprom
+ *		snt=t,a,b,c - opens a new connection of type t with parameters a,b,c 
  *
  *	Read commands reply with a message in similar fashion. For example, rdp=n 
  *	replies with: 
@@ -78,7 +75,7 @@
  *	appropriate action. To reduce network traffic and execution time, Jack 
  *	does not implement any message handshaking or transactions, other than 
  *	acknowledging receipt of write messages (those which normally do not send 
- *	a reply). This can be enabled/disabled with the `ack' command. Otherwise 
+ *	a reply). This can be enabled/disabled with the `sck' command. Otherwise 
  *	clients must implement any message error detection/correction schemes, 
  *	including retransmitting messages where a reply was expected but not 
  *	received.
@@ -107,19 +104,23 @@
  *	**************************************************************************/
 
 #if !defined __PG_JACK_H
-# define __PG_JACK_H 20220525L
+# define __PG_JACK_H 20220603L
 
-# include "cstdio"
-# include "cstring"
-# include "valarray"
-# include "system/boards.h"
-# include "system/utils.h"
-# include "interfaces/iclockable.h"
-# include "interfaces/icomponent.h"
-# include "utilities/EEStream.h"
-# include "utilities/Timer.h"
-# include "utilities/Interpreter.h"
-# include "utilities/Connection.h"
+# include <cassert>
+# include <cstdio>
+# include <cstring>
+# include <valarray>
+# include <system/boards.h>
+# include <system/utils.h>
+# include <interfaces/iclockable.h>
+# include <interfaces/icomponent.h>
+# include <utilities/EEStream.h>
+# include <utilities/Timer.h>
+# include <utilities/Interpreter.h>
+# include <utilities/Connection.h>
+# if (defined FLASHEND && FLASHEND > 0x7FFF)
+#  include <utilities/Program.h>	// Jack programs require boards with more than 32K program (flash) memory. 
+# endif
 
 # if defined __PG_HAS_NAMESPACES
 
@@ -127,49 +128,63 @@ namespace pg
 {
 	using std::chrono::milliseconds;
 
+	class Jack;
+	static Jack* __jack_isr = nullptr; // Pointer to Jack instance used by static isr methods.
+
 	// Remote control and data acquisition class.
 	class Jack : public iclockable, public icomponent
 	{
 	public:
-		struct GpioPin;															// Forward decl (see below).
-		struct JackTimer;														// Forward decl (see below).
-		using address_type = EEStream::address_type;							// EEPROM address storage type.
-		using command_type = Interpreter::CommandBase;							// Remote command type.
-		using cmdlist_type = std::initializer_list<command_type*>;				// Remote command initializer list type.
-		using connection_type = Connection::Type;								// Network connection storage type.
-		using devid_type = unsigned long;										// Device id storage class type.
-		using fmt_type = const char*;											// Reply message formatting type.
-		using isr_type = pg::callback<void>::type;								// Isr function call type.
-		template<class... Ts>													// Jack command template.
-		using Command = typename Interpreter::Command<void, Jack, Ts...>;		
-		using key_type = typename command_type::key_type;						// Command key storage type.
-		using size_type = uint8_t;												// Type that can hold the size of any object.
-		using value_type = uint16_t;											// Type that can hold any pin input/output value.
-		using ct_type = CounterTimer<milliseconds, value_type>;					// Aggregate counter/timer type.
-		using counter_tag = ct_type::counter_tag;								// Tag type for dispatching counter methods.
-		using timer_tag = ct_type::timer_tag;									// Tag type for dispatching timer methods.
-		using timer_t = uint8_t;												// Timer index type alias.
+#pragma region typedefs and constants
+		template<class... Ts>											// Jack command template.
+		using Command = typename Interpreter::Command<void, Jack, Ts...>;
+		using address_type = EEStream::address_type;					// EEPROM address storage type.
+		using connection_type = Connection::Type;						// Network connection storage type.
+		using devid_type = unsigned long;								// Device id storage type.
+		using fmt_type = const char*;									// Reply message formatting type.
+		using isr_type = pg::callback<void>::type;						// Isr function call type.
+		using command_type = Interpreter::CommandBase;					// Remote command type.
+		using cmdlist_type = std::initializer_list<command_type*>;		// Remote command list type.
+		using key_type = typename command_type::key_type;				// Command key storage type.
+		using size_type = uint8_t;										// Type that can hold the size of any Jack object.
+		using value_type = uint16_t;									// Type that can hold any pin input/output value.
+		using ct_type = CounterTimer<milliseconds, value_type>;			// Aggregate counter/timer type.
+		using counter_tag = ct_type::counter_tag;						// Tag type for dispatching counter methods.
+		using timer_tag = ct_type::timer_tag;							// Tag type for dispatching timer methods.
+		using timer_t = uint8_t;										// Timer index type alias.
 
-		static constexpr devid_type DeviceId = 20220430UL;				// Identifier used to verify eeprom contents.
-		static constexpr size_type CommandsMaxCount = 32;				// Maximum number of storable remote commands.
+# if defined __PG_PROGRAM_H
+		static constexpr size_type CommandsMaxCount = 64;				// Maximum number of storable remote commands.
+		static constexpr size_type InstructionsMaxCount = 32;			// Maximum number of storable program instructions.
+# else
+		static constexpr size_type CommandsMaxCount = 40;				// Maximum number of storable remote commands.
+# endif
 		static constexpr size_type TimersMaxCount = 16;					// Maximum number of event counters/timers.
-		static constexpr size_type InterruptsCount =					// Number of available hardware interrupts.
+		static constexpr size_type InterruptsCount =					// Number of pins with hardware interrupts.
 			countInterrupts<GpioCount>();
-		static constexpr size_type TimersCount = 						// Number of event counters/timers.
+		static constexpr size_type TimersCount = 						// Number of instantiated event counters/timers.
 			InterruptsCount < TimersMaxCount 
 			? InterruptsCount 
 			: TimersMaxCount;
-
-		static constexpr pin_t PowerOnDefaultsPin = 2;
+		static constexpr devid_type DeviceId = 20220430UL;				// Value used to validate eeprom.
+		static constexpr pin_t PowerOnDefaultsPin = 2;					// Power-on/reset defaults pin.
 		static constexpr connection_type DefaultConnectionType = connection_type::Serial;
 		static constexpr const char* DefaultConnectionParams = "9600,8N1";
+		static constexpr const char* ListDelimiterChars = ".";			// Delimiter char for lists encoded as a single Command arg.
 
+		struct GpioPin;													// Forward decl (see below).
+		struct JackTimer;												// Forward decl (see below).
 		using Commands = typename std::valarray<command_type*, CommandsMaxCount>;	// Remote commands collection type.
-		using Timers = typename std::array<JackTimer, TimersCount>;					// Event counters/timers collection type.
-		using Pins = std::array<GpioPin, GpioCount>;								// GpioPins collection type.
-		using Isrs = std::array<isr_type, TimersCount>;								// ISRs collection type.
-
-		/* TODO: Reimplement the timed pin read scheme. */
+		using Timers = typename std::array<JackTimer, TimersCount>;		// Event counters/timers collection type.
+		using Pins = std::array<GpioPin, GpioCount>;					// GpioPins collection type.
+		using Isrs = std::array<isr_type, TimersCount>;					// ISRs collection type.
+# if defined __PG_PROGRAM_H
+		template<class... Ts>											// Program instruction template.
+		using Instruction = typename Interpreter::Command<void, Program, Ts...>;
+		using Instructions = typename std::valarray<command_type*, InstructionsMaxCount>;	// Program instructions collection type.
+		using jump_type = Program::size_type;
+# endif
+#pragma endregion
 
 		// Aggregates information about an event counter/timer. 
 		struct JackTimer
@@ -184,13 +199,13 @@ namespace pg
 			// Enumerates valid counter/timer actions.
 			enum Action : uint8_t
 			{
-				Start = 0,		// Starts the counter/timer.
-				Stop = 1,		// Stops the counter/timer.
+				Stop = 0,		// Starts the counter/timer.
+				Start = 1,		// Stops the counter/timer.
 				Resume = 2,		// Resumes the counter/timer with the current count/elapsed time.
 				Reset = 3		// Resets the current count/elapsed time.
 			};
 
-			// Enumerates JackTimer timing modes. 
+			// Enumerates counter/timer timing modes. 
 			enum Timing : uint8_t
 			{
 				Immediate = 0,	// Timer starts when attached, stops when triggered.
@@ -204,11 +219,6 @@ namespace pg
 			Timing			timing_;	// The current timing mode.
 			ct_type			object_;	// The counter/timer object.
 		};
-
-		using timer_action = JackTimer::Action;
-		using timer_mode = JackTimer::Mode;
-		using timing_mode = JackTimer::Timing;
-
 		// Aggregates information about a gpio pin.
 		struct GpioPin
 		{
@@ -244,8 +254,7 @@ namespace pg
 			bool isDigital() const { return !isAnalog(); }
 		};
 
-		using gpio_type = GpioPin::Type;
-		using gpio_mode = GpioPin::Mode;
+#pragma region more typedefs and constants
 
 		// EEPROM Memory Map
 		// 
@@ -257,45 +266,112 @@ namespace pg
 		static constexpr address_type ConfigurationEepromAddress = sizeof(devid_type);	// A
 		static constexpr address_type ConnectionEepromAddress =							// B
 			ConfigurationEepromAddress +
-			(GpioCount * sizeof(decltype(GpioPin::mode_))) +
-			Jack::TimersCount * (sizeof(decltype(JackTimer::pin_)) +
-				sizeof(decltype(JackTimer::mode_)) +
-				sizeof(decltype(JackTimer::trigger_)) +
-				sizeof(decltype(JackTimer::timing_)));
+			(GpioCount * sizeof(decltype(GpioPin::mode_))) +							// Pins Config saves mode_
+			Jack::TimersCount * (sizeof(decltype(JackTimer::pin_)) +					// Timers Config saves pin_
+				sizeof(decltype(JackTimer::mode_)) +									// mode_
+				sizeof(decltype(JackTimer::trigger_)) +									// trigger_ and 
+				sizeof(decltype(JackTimer::timing_)));									// timing_
 
+		using timer_action = JackTimer::Action;
+		using timer_mode = JackTimer::Mode;
+		using timing_mode = JackTimer::Timing;
+		using gpio_type = GpioPin::Type;
+		using gpio_mode = GpioPin::Mode;
+
+#pragma endregion
 #pragma region strings
 
 		/*
-		 *  Command key and reply string format specifiers.
+		 *  Command/instruction keys and reply string format specifiers.
 		 */
 
-		static constexpr key_type KeyDevReset = "rst";		// Device reset.
-		static constexpr key_type KeyDevInfo = "inf";		// Device info.
-		static constexpr key_type KeyAcknowledge = "ack";	// Write acknowledge.
-		static constexpr key_type KeyPinInfo = "pin";		// Get pin info.
-		static constexpr key_type KeyPinMode = "pmd";		// Get/set pin mode.
-		static constexpr key_type KeyReadPin = "rdp";		// Read pin (type dependent).
-		static constexpr key_type KeyReadPinList = "rdl";	// Read pin list (type dependent).
-		static constexpr key_type KeyWritePin = "wrp";		// Write pin (type dependent).
-		static constexpr key_type KeyTimerStatus = "tcs";	// Get/set timer state.
-		static constexpr key_type KeyTimerAttach = "atc";	// Attach/detach and get timer info.
-		static constexpr key_type KeyConnection = "net";	// Get/set network connection.
-		static constexpr key_type KeyLoadConfig = "lda";	// Load device config from eeprom.
-		static constexpr key_type KeyStoreConfig = "sto";	// Store device config to eeprom.
-
+		static constexpr key_type KeyDevReset = "rst";			// Device reset:					rst
+		static constexpr key_type KeyDevInfo = "inf";			// Device info:						inf
+		static constexpr key_type KeyGetAck = "ack";			// Get write acknowledge:			ack
+		static constexpr key_type KeySetAck = "sck";			// Set write acknowledge:			sck=0|1
+		static constexpr key_type KeyGetPinInfo = "pin";		// Get pin info:					pin=p
+		static constexpr key_type KeyGetPinInfoAll = "pna";		// Get all pins info:				pna
+		static constexpr key_type KeyGetPinMode = "pmd";		// Get pin mode:					pmd=p
+		static constexpr key_type KeyGetPinModeAll = "pma";		// Get all pins mode:				pma
+		static constexpr key_type KeySetPinMode = "spm";		// Set pin mode:					spm=p,m
+		static constexpr key_type KeySetPinModeAll = "spa";		// Set all pins mode:				spa=m
+		static constexpr key_type KeyGetElapsedTime = "rde";	// Get elapsed time:				rde=0|1
+		static constexpr key_type KeyReadPin = "rdp";			// Read pin:						rdp=p
+		static constexpr key_type KeyReadPinAll = "rda";		// Read all pins:					rda
+		static constexpr key_type KeyReadPinList = "rdl";		// Read pin list:					rdl=p0[.p1. ... .pN]
+		static constexpr key_type KeyWritePin = "wrp";			// Write pin:						wrp=p,v
+		static constexpr key_type KeyGetTimerStatus = "tms";	// Get timer state:					tms=t
+		static constexpr key_type KeyGetTimerStatusAll = "tma";	// Get all timers state:			tma
+		static constexpr key_type KeySetTimerStatus = "stm";	// Set timer state:					stm=t,s
+		static constexpr key_type KeyTimerDetach = "dtc";		// Detach timer:					dtc=t
+		static constexpr key_type KeyTimerGetAttach = "tcm";	// Get timer attach info:			tcm=t
+		static constexpr key_type KeyTimerGetAttachAll = "tca";	// Get all timers attach info:		tca
+		static constexpr key_type KeyTimerAttach = "atc";		// Attach timer to pin.				atc=t,p,m,e,n
+		static constexpr key_type KeyGetConnection = "net";		// Get network connection:			net
+		static constexpr key_type KeySetConnection = "snt";		// Set network connection:			snt=c,arg0,arg1,arg2
+		static constexpr key_type KeyLoadConfig = "lda";		// Load device config from eeprom:	lda
+		static constexpr key_type KeyStoreConfig = "sto";		// Store device config to eeprom:	sto
+# if defined __PG_PROGRAM_H
+		static constexpr key_type KeySetTimerStatusAll = "sta";			// Set all timers state:	sta=s
+		static constexpr key_type KeyTimerDetachAll = "dta";			// Detach all timers:		dta
+		static constexpr key_type KeyProgram = "pgm";					// Get/set program state:	pgm=a
+		static constexpr key_type KeyProgramAdd = "add";				// Add two values.
+		static constexpr key_type KeyProgramCall = "call";				// Call subroutine.
+		static constexpr key_type KeyProgramCompare = "cmp";			// Compare two values.
+		static constexpr key_type KeyProgramDecrement = "dec";			// Decrement a value.
+		static constexpr key_type KeyProgramDivide = "div";				// Divide a value by another.
+		static constexpr key_type KeyProgramHelp = "hlp";				// Get commands list.
+		static constexpr key_type KeyProgramIncrement = "inc";			// Increment a value.
+		static constexpr key_type KeyProgramJump = "jmp";				// Unconditional jump.
+		static constexpr key_type KeyProgramJumpEqual = "je";			// Jump on equal.
+		static constexpr key_type KeyProgramJumpNotEqual = "jne";		// Jump on not equal.
+		static constexpr key_type KeyProgramJumpGreater = "jgt";		// Jump on greater than.
+		static constexpr key_type KeyProgramJumpGreaterEqual = "jge";	// Jump on greater than or equal.
+		static constexpr key_type KeyProgramJumpLess = "jlt";			// Jump on less than.
+		static constexpr key_type KeyProgramJumpLessEqual = "jle";		// Jump on less than or equal.
+		static constexpr key_type KeyProgramJumpNotSign = "jns";		// Jump on not negative.
+		static constexpr key_type KeyProgramJumpSign = "js";			// Jump on negative.
+		static constexpr key_type KeyProgramJumpNotZero = "jnz";		// Jump on not zero.
+		static constexpr key_type KeyProgramJumpZero = "jz";			// Jump on zero.
+		static constexpr key_type KeyProgramLogicalAnd = "and";			// Logical and two values.
+		static constexpr key_type KeyProgramLogicalNot = "not";			// Logical complement a value.
+		static constexpr key_type KeyProgramLogicalOr = "or";			// Logical or two values.
+		static constexpr key_type KeyProgramLogicalTest = "tst";		// Logical and two values without saving result.
+		static constexpr key_type KeyProgramLogicalXor = "xor";			// Logical exclusive or two values.
+		static constexpr key_type KeyProgramLoop = "loop";				// Loop while cx not zero.
+		static constexpr key_type KeyProgramModulo = "mod";				// Modulo operator.
+		static constexpr key_type KeyProgramMove = "mov";				// Move value to register.
+		static constexpr key_type KeyProgramMultiply = "mul";			// Multiply two values.
+		static constexpr key_type KeyProgramNegate = "neg";				// Negate a value.
+		static constexpr key_type KeyProgramPop = "pop";				// Pop from stack to register.
+		static constexpr key_type KeyProgramPush = "push";				// Push value to stack.
+		static constexpr key_type KeyProgramReturn = "ret";				// Return from subroutine call.
+		static constexpr key_type KeyProgramReturnValue = "rets";		// Return from subroutine call with value on stack.
+		static constexpr key_type KeyProgramSleep = "dly";				// Program sleep.
+		static constexpr key_type KeyProgramSubtract = "sub";			// Subtract two values.
+		static constexpr key_type KeyProgramWriteRegister = "wrr";		// Write result to pin.
+# endif
+		static constexpr fmt_type FmtAcknowledge = "%s=%u";				// ack=0|1
 		static constexpr fmt_type FmtConnectionGet = "%s=%u,%s";		// net=type,arg0,arg1,arg2
 		static constexpr fmt_type FmtConnectionSet = "%s,%s,%s";		// "arg0,arg1,arg2"
 		static constexpr fmt_type FmtDevInfo = "%s=%lu,%s,%s,%u,%u,%u";	// inf=id,type,mcutype,mcuspd,#pins,#timers
+		static constexpr fmt_type FmtElapsedTime = "%s=%u,%lu";			// rde=unit,time
+		static constexpr fmt_type FmtHelp = "%s";						// key
 		static constexpr fmt_type FmtPinInfo = "%s=%u,%u,%u,%u";		// pin=p#,type,int,mode
 		static constexpr fmt_type FmtPinMode = "%s=%u,%u";				// pmd=p#,mode
 		static constexpr fmt_type FmtReadPin = "%u=%u";					// p#=value
-		static constexpr fmt_type FmtAcknowledge = "%s=%u";				// ack=0|1
 		static constexpr fmt_type FmtTimerAttach = "%s=%u,%u,%u,%u,%u";	// tmr=t#,p#,mode,trigger,timing
 		static constexpr fmt_type FmtTimerStatus = "%s=%u,%u,%lu";		// tmr=t#,active,value
+# if defined __PG_PROGRAM_H
+		static constexpr fmt_type FmtProgramStatus = "%s=%u,%u";		// pgm=action,status
+		static constexpr fmt_type FmtValueModifiers = "#%+*$";			// Program argument modifiers: 
+																		// #pin value, %timer elapsed, +counter count, 
+																		// *tc active, $time elapsed.
+# endif
 
 #pragma endregion
 #pragma region interrupt service routines
-		//
+
 		// These are called by the board when a hardware interrupt occurs.
 		// They in turn call our handler: isrHandler(t) passing the event 
 		// counter/timer index that handles the interrupt.
@@ -320,52 +396,63 @@ namespace pg
 #pragma endregion
 
 	public:
-		// Constructs a Jack object with an optional list of user-defined commands.
+		// Constructs a Jack object with an optional list of client-defined commands.
 		explicit Jack(cmdlist_type = cmdlist_type());
 
 	public:
+#pragma region public member methods
 		void clock() override;
-		void cmdAcknowledge(bool);
-		void cmdAcknowledge();
-		void cmdConnection();
-		void cmdConnection(uint8_t, const char*, const char*, const char*);
+		void cmdAckGet();
+		void cmdAckSet(bool);
+		void cmdConnectionGet();
+		void cmdConnectionSet(uint8_t, const char*, const char*, const char*);
 		void cmdDevInfo();
 		void cmdDevReset();
+		void cmdElapsedTime(uint8_t);
+		void cmdHelp();
 		void cmdLoadConfig();
-		void cmdPinInfo(pin_t);
-		void cmdPinInfo();
-		void cmdPinMode(pin_t, uint8_t);
-		void cmdPinMode(pin_t);
+		void cmdPinInfoGet(pin_t);
+		void cmdPinInfoGetAll();
+		void cmdPinModeGet(pin_t);
+		void cmdPinModeGetAll();
+		void cmdPinModeSet(pin_t, uint8_t);
+		void cmdPinModeSetAll(uint8_t);
 		void cmdReadPin(pin_t);
-		void cmdReadPin();
+		void cmdReadPinAll();
 		void cmdReadPinList(char*);
 		void cmdStoreConfig();
-		void cmdTimerAttach(timer_t, pin_t, uint8_t, uint8_t, uint8_t);
-		void cmdTimerDetach(timer_t, pin_t);
-		void cmdTimerInfo(timer_t);
-		void cmdTimerInfo();
-		void cmdTimerStatus(timer_t, uint8_t);
-		void cmdTimerStatus(timer_t);
-		void cmdTimerStatus();
+		void cmdTimerAttachGet(timer_t);
+		void cmdTimerAttachGetAll();
+		void cmdTimerAttachSet(timer_t, pin_t, uint8_t, uint8_t, uint8_t);
+		void cmdTimerDetach(timer_t);
+		void cmdTimerDetachAll();
+		void cmdTimerStatusGet(timer_t);
+		void cmdTimerStatusGetAll();
+		void cmdTimerStatusSet(timer_t, uint8_t);
+		void cmdTimerStatusSetAll(uint8_t);
 		void cmdWritePin(pin_t, value_type);
-		void connection(Connection*);
+		Commands commands() const;
 		Connection* connection() const;
 		void initialize(pin_t = PowerOnDefaultsPin);
-		Interpreter& interpreter();
 		void isrHandler(timer_t);
-		Pins& pins();
-		const Pins& pins() const;
-		Timers& timers();
-		const Timers& timers() const;
+#pragma endregion
 
 	private:
-		void attachTimer(JackTimer&, pin_t, uint8_t, uint8_t, uint8_t);
+#pragma region private member methods
+		template<class ForwardIt>
+		void addCommands(Commands&, ForwardIt, ForwardIt);
+		void attachTimer(timer_t, pin_t, uint8_t, uint8_t, uint8_t);
 		void closeConnection(Connection*&);
-		void detachTimer(JackTimer&);
+		void detachTimer(timer_t);
+		std::time_t elapsedTime(uint8_t);
 		void endTimer(timer_t);
 		bool eepromValid(EEStream&, devid_type);
 		inline isr_type getIsr(timer_t);
+# if defined __PG_PROGRAM_H
+		void initialize(cmdlist_type&, Instructions&);
+# else
 		void initialize(cmdlist_type&);
+# endif
 		template<size_type>
 		void initialize(Isrs&);
 		void initialize(Pins&);
@@ -376,9 +463,7 @@ namespace pg
 		Connection* loadConnection(EEStream&, char*);
 		Connection* openConnection(connection_type, const char*);
 		bool powerOnDefaults(pin_t);
-		void readPin(pin_t);
-		void readAnalog(pin_t);
-		void readDigital(pin_t);
+		value_type readPin(pin_t);
 		template<class... Ts>
 		void sendMessage(const char*, Ts...);
 		void sendPinInfo(pin_t);
@@ -387,71 +472,149 @@ namespace pg
 		void sendTimerInfo(timer_t);
 		void sendTimerStatus(timer_t);
 		void setConnection(Connection*);
-		void setTimerStatus(JackTimer&, JackTimer::Action);
+		void setPinMode(pin_t, uint8_t);
+		void setTimerStatus(timer_t, JackTimer::Action);
 		void storeConfig(EEStream&, const Pins&, const Timers&);
 		void storeConnection(EEStream&, connection_type, const char*);
 		void writePin(pin_t, value_type);
+# if defined __PG_PROGRAM_H
+		void cmdCompare(const char*, const char*);
+		void cmdMove(const char*, const char*);
+		void cmdWriteReg(pin_t, const char*);
+		void list();
+		const char* next(const char*);
+		void process(const char*);
+		void program(uint8_t);
+		void sendProgramStatus(Program::Action, value_type);
+		char* systemCall(const char*);
+		Program::value_type systemValue(const char*);
+		bool verify();
+# endif
+#pragma endregion
 
-	private:
-		/* Built-in commands*/
-
+	private: 
+#pragma region Built-in commands and instructions
 		Command<void> cmd_devinfo_{ KeyDevInfo, *this, &Jack::cmdDevInfo };	// inf
 		Command<void> cmd_devreset_{ KeyDevReset, *this, &Jack::cmdDevReset };	// rst
-		Command<void> cmd_getack_{ KeyAcknowledge, *this, &Jack::cmdAcknowledge }; // ack
-		Command<pin_t> cmd_getpininfo_{ KeyPinInfo, *this, &Jack::cmdPinInfo }; // pin=p
-		Command<void> cmd_getpinsinfo_{ KeyPinInfo, *this, &Jack::cmdPinInfo };	// pin
-		Command<pin_t> cmd_getpinmode_{ KeyPinMode, *this, &Jack::cmdPinMode };	// pmd=p
-		Command<timer_t, uint8_t> cmd_settimerstatus{ KeyTimerStatus, *this, &Jack::cmdTimerStatus }; // tcs=t,a
-		Command<timer_t> cmd_gettimerstatus{ KeyTimerStatus, *this, &Jack::cmdTimerStatus };	// tcs=t
-		Command<void> cmd_gettimersstatus{ KeyTimerStatus, *this, &Jack::cmdTimerStatus }; // tcs
+		Command<void> cmd_ackget_{ KeyGetAck, *this, &Jack::cmdAckGet }; // ack
+		Command<bool> cmd_ackset_{ KeySetAck, *this, &Jack::cmdAckSet };	// sck=[0|1]
+		Command<uint8_t> cmd_elapsed_{ KeyGetElapsedTime,*this,&Jack::cmdElapsedTime };	// rde=0|1
+		Command<pin_t> cmd_pininfoget_{ KeyGetPinInfo, *this, &Jack::cmdPinInfoGet }; // pin=p
+		Command<void> cmd_pininfogetall_{ KeyGetPinInfoAll, *this, &Jack::cmdPinInfoGetAll };	// pna
+		Command<pin_t> cmd_pinmodeget_{ KeyGetPinMode, *this, &Jack::cmdPinModeGet };	// pmd=p
+		Command<void> cmd_pinmodegetall_{ KeyGetPinModeAll, *this, &Jack::cmdPinModeGetAll };	// pma
+		Command<pin_t, uint8_t> cmd_pinmodeset_{ KeySetPinMode, *this, &Jack::cmdPinModeSet };	// spm=p,m
+		Command<uint8_t> cmd_pinmodesetall_{ KeySetPinModeAll, *this, &Jack::cmdPinModeSetAll };	// spa=m
+		Command<timer_t> cmd_timerstatusget_{ KeyGetTimerStatus, *this, &Jack::cmdTimerStatusGet };	// tms=t
+		Command<void> cmd_timerstatusgetall_{ KeyGetTimerStatusAll, *this, &Jack::cmdTimerStatusGetAll }; // tma
+		Command<timer_t, uint8_t> cmd_timerstatusset_{ KeySetTimerStatus, *this, &Jack::cmdTimerStatusSet }; // stm=t,a
 		Command<pin_t> cmd_readpin_{ KeyReadPin, *this, &Jack::cmdReadPin };	// rdp=p
+		Command<void> cmd_readpinall_{ KeyReadPinAll, *this, &Jack::cmdReadPinAll };	// rda
 		Command<char*> cmd_readpinlist_{ KeyReadPinList, *this, &Jack::cmdReadPinList };	// rdl="p0.p1.p2. ... .pN"
-		Command<void> cmd_readpins_{ KeyReadPin, *this, &Jack::cmdReadPin };	// rdp
-		Command<bool> cmd_setack_{ KeyAcknowledge, *this, &Jack::cmdAcknowledge };	// ack=[0|1]
-		Command<pin_t, uint8_t> cmd_setpinmode_{ KeyPinMode, *this, &Jack::cmdPinMode };	// pmd=p,m
-		Command<timer_t, pin_t, uint8_t, uint8_t, uint8_t> cmd_timerattach_{ KeyTimerAttach, *this, &Jack::cmdTimerAttach };	// atc=t,p,m,s,i
-		Command<timer_t, pin_t> cmd_timerdetach_{ KeyTimerAttach, *this, &Jack::cmdTimerDetach };	// atc=t,n
-		Command<timer_t> cmd_timerinfo_{ KeyTimerAttach, *this, &Jack::cmdTimerInfo };	// atc=t
-		Command<void> cmd_timersinfo_{ KeyTimerAttach, *this, &Jack::cmdTimerInfo };	// atc
+		Command<timer_t> cmd_timerattachget_{ KeyTimerGetAttach, *this, &Jack::cmdTimerAttachGet };	// tcm=t
+		Command<void> cmd_timerattachgetall_{ KeyTimerGetAttachAll, *this, &Jack::cmdTimerAttachGetAll };	// tca
+		Command<timer_t, pin_t, uint8_t, uint8_t, uint8_t> cmd_timerattachset_{ KeyTimerAttach, *this, &Jack::cmdTimerAttachSet };	// atc=t,p,m,s,i
+		Command<timer_t> cmd_timerdetach_{ KeyTimerDetach, *this, &Jack::cmdTimerDetach };	// dtc=t
 		Command<pin_t, value_type> cmd_writepin_{ KeyWritePin, *this, &Jack::cmdWritePin };	// wrp=p,v
-		Command<uint8_t, const char*, const char*, const char*> cmd_setconnection_{ KeyConnection, *this, &Jack::cmdConnection };	// net=n,a,b,c
-		Command<void> cmd_getconnection_{ KeyConnection, *this, &Jack::cmdConnection };	// net
+		Command<void> cmd_connectionget_{ KeyGetConnection, *this, &Jack::cmdConnectionGet };	// net
+		Command<uint8_t, const char*, const char*, const char*> cmd_connectionset_{ KeySetConnection, *this, &Jack::cmdConnectionSet };	// snt=n,a,b,c
 		Command<void> cmd_ldaconfig_{ KeyLoadConfig, *this, &Jack::cmdLoadConfig };	// lda
 		Command<void> cmd_stoconfig_{ KeyStoreConfig, *this, &Jack::cmdStoreConfig };	// sto
+ #if defined __PG_PROGRAM_H
+		Command<void> cmd_timerdetachall_{ KeyTimerDetachAll, *this, &Jack::cmdTimerDetachAll };	// dta
+		Command<uint8_t> cmd_timerstatussetall_{ KeySetTimerStatusAll, *this, &Jack::cmdTimerStatusSetAll }; // sta=t,a
+		Command<uint8_t> cmd_program_{ KeyProgram, *this, &Jack::program };
+		Command<void> cmd_help_{ KeyProgramHelp, *this, &Jack::cmdHelp };
+		Command<const char*, const char*> cmd_compare_{ KeyProgramCompare, *this, &Jack::cmdCompare };
+		Command<const char*, const char*> cmd_move_{ KeyProgramMove, *this, &Jack::cmdMove };
+		Command<pin_t, const char*> cmd_writeregister_{ KeyProgramWriteRegister, *this, &Jack::cmdWriteReg };
+		Instruction<const char*, const char*> ins_add_{ KeyProgramAdd, program_, &Program::add };
+		Instruction<const char*, const char*> ins_subtract_{ KeyProgramSubtract, program_, &Program::subtract };
+		Instruction<const char*, const char*> ins_multiply_{ KeyProgramMultiply, program_, &Program::multiply };
+		Instruction<const char*, const char*> ins_divide_{ KeyProgramDivide, program_, &Program::divide };
+		Instruction<const char*, const char*> ins_modulo_{ KeyProgramModulo, program_, &Program::modulo };
+		Instruction<const char*, const char*> ins_and_{ KeyProgramLogicalAnd, program_, &Program::logicalAnd };
+		Instruction<const char*, const char*> ins_or_{ KeyProgramLogicalOr, program_, &Program::logicalOr };
+		Instruction<const char*, const char*> ins_test_{ KeyProgramLogicalTest, program_, &Program::logicalTest };
+		Instruction<const char*, const char*> ins_xor_{ KeyProgramLogicalXor, program_, &Program::logicalXor };
+		Instruction<const char*> ins_not_{ KeyProgramLogicalNot, program_, &Program::logicalNot };
+		Instruction<const char*> ins_decrement_{ KeyProgramDecrement, program_, &Program::decrement };
+		Instruction<const char*> ins_increment_{ KeyProgramIncrement, program_, &Program::increment };
+		Instruction<const char*> ins_negate_{ KeyProgramNegate, program_, &Program::negate };
+		Instruction<std::time_t> ins_sleep_{ KeyProgramSleep, program_, &Program::sleep };
+		Instruction<jump_type> ins_jump_{ KeyProgramJump, program_, &Program::jump };
+		Instruction<jump_type> ins_jumpequal_{ KeyProgramJumpEqual, program_, &Program::jumpEqual };
+		Instruction<jump_type> ins_jumpnotequal_{ KeyProgramJumpNotEqual, program_, &Program::jumpNotEqual };
+		Instruction<jump_type> ins_jumpgreater_{ KeyProgramJumpGreater, program_, &Program::jumpGreater };
+		Instruction<jump_type> ins_jumpgreaterequal_{ KeyProgramJumpGreaterEqual, program_, &Program::jumpGreaterEqual };
+		Instruction<jump_type> ins_jumpless_{ KeyProgramJumpLess, program_, &Program::jumpLess };
+		Instruction<jump_type> ins_jumplessequal_{ KeyProgramJumpLess, program_, &Program::jumpLessEqual };
+		Instruction<jump_type> ins_loop_{ KeyProgramLoop, program_, &Program::loop };
+		Instruction<jump_type> ins_call_{ KeyProgramCall, program_, &Program::call };
+		Instruction<void> ins_return_{ KeyProgramReturn, program_, &Program::ret };
+		Instruction<const char*> ins_returnvalue_{ KeyProgramReturn, program_, &Program::ret };
+		Instruction<const char*> ins_push_{ KeyProgramPush, program_, &Program::push };
+		Instruction<const char*> ins_pop_{ KeyProgramPush, program_, &Program::pop };
+# endif
+#pragma endregion
 
-		/* Private class members */
-
+	private: 
+#pragma region Private class members
 		Connection*		connection_;	// Current network connection.
-		Interpreter		interp_;		// Command interpreter.
+		Interpreter		interp_;		// Language interpreter.
 		EEStream		eeprom_;		// EEPROM streaming access.
 		Pins			pins_;			// Gpio pins collection.
-		Timers			timers_;		// Event counter/timers collection.
-		Commands		commands_;		// Commands collection.
+		Timers			timers_;		// Event counters/timers collection.
+		Commands		commands_;		// Remote commands collection.
 		Isrs			isrs_;			// Interrupt service routines collection.
 		bool			ack_;			// Write command acknowledge flag.
+# if defined __PG_PROGRAM_H
+		Program			program_;		// Stored program manager.
+		Instructions	instructions_;	// Program instructions collection.
+# endif
+#pragma endregion
 	};
 } // namespace pg
-
-// Needed by static isr methods. This must be declared by the client and visible to this translation unit.
-extern pg::Jack _jack;	
 
 namespace pg
 {
 #pragma region public methods
 
+# if defined __PG_PROGRAM_H
 	Jack::Jack(cmdlist_type commands) :
-		connection_(), interp_(), eeprom_(), pins_(), timers_(), isrs_(), ack_(), 
-		commands_({ &cmd_readpin_ , &cmd_readpins_, &cmd_readpinlist_, &cmd_writepin_ , &cmd_setpinmode_, &cmd_getpinmode_,
-			&cmd_timerattach_, &cmd_timerdetach_, &cmd_timerinfo_, &cmd_timersinfo_, &cmd_settimerstatus, 
-			&cmd_gettimerstatus, &cmd_gettimersstatus, &cmd_getpininfo_, &cmd_getpinsinfo_,
-			&cmd_devinfo_, &cmd_devreset_, &cmd_setack_, &cmd_getack_, &cmd_setconnection_, 
-			&cmd_getconnection_, &cmd_ldaconfig_, &cmd_stoconfig_ })
+		connection_(), interp_(), eeprom_(), pins_(), timers_(), isrs_(), ack_(), program_(), 
+		commands_({ & cmd_devinfo_ , & cmd_devreset_, & cmd_ackget_, & cmd_ackset_, & cmd_pininfoget_, & cmd_pininfogetall_,
+			& cmd_pinmodeget_, & cmd_pinmodegetall_, & cmd_pinmodeset_, & cmd_pinmodesetall_, & cmd_timerstatusget_,
+			& cmd_timerstatusgetall_, & cmd_timerstatusset_, & cmd_timerstatussetall_, & cmd_readpin_, & cmd_readpinall_, 
+			& cmd_readpinlist_, & cmd_timerattachget_, & cmd_timerattachgetall_, & cmd_timerattachset_, & cmd_timerdetach_,
+			& cmd_timerdetachall_, & cmd_writepin_, & cmd_connectionget_, & cmd_connectionset_, & cmd_ldaconfig_, & cmd_stoconfig_, 
+			& cmd_elapsed_, & cmd_program_, & cmd_help_ }),
+		instructions_({ &cmd_compare_, &cmd_move_, &ins_negate_, &ins_not_, &ins_sleep_, &ins_jump_, &ins_jumpequal_,
+			&ins_jumpnotequal_, &ins_jumpless_, &ins_jumplessequal_, &ins_jumpgreater_, &ins_jumpgreaterequal_,
+			&cmd_writeregister_, &ins_loop_, & ins_decrement_, & ins_increment_, & ins_add_, & ins_subtract_, & ins_multiply_, 
+			& ins_divide_, & ins_modulo_, & ins_and_, & ins_or_, & ins_test_, & ins_xor_, & ins_call_, & ins_return_, 
+			& ins_returnvalue_, &ins_push_, &ins_pop_ })
+	{
+		initialize(pins_);
+		initialize(timers_);
+		initialize<TimersCount>(isrs_);
+		initialize(commands, instructions_);
+	}
+# else
+	Jack::Jack(cmdlist_type commands) :
+		connection_(), interp_(), eeprom_(), pins_(), timers_(), isrs_(), ack_(),
+		commands_({ &cmd_devinfo_ , &cmd_devreset_, &cmd_ackget_, &cmd_ackset_, &cmd_pininfoget_, &cmd_pininfogetall_,
+			&cmd_pinmodeget_, &cmd_pinmodegetall_, &cmd_pinmodeset_, &cmd_pinmodesetall_, &cmd_timerstatusget_,
+			&cmd_timerstatusgetall_, &cmd_timerstatusset_, &cmd_readpin_, &cmd_readpinall_, 
+			&cmd_readpinlist_, &cmd_timerattachget_, &cmd_timerattachgetall_, &cmd_timerattachset_, &cmd_timerdetach_,
+			&cmd_writepin_, &cmd_connectionget_, &cmd_connectionset_, &cmd_ldaconfig_, &cmd_stoconfig_ })
 	{
 		initialize(pins_);
 		initialize(timers_);
 		initialize<TimersCount>(isrs_);
 		initialize(commands);
 	}
+# endif
 
 	void Jack::clock()
 	{
@@ -460,37 +623,49 @@ namespace pg
 			const char* msg = connection_->receive();
 
 			if (*msg)
-				interp_.execute(msg);
+# if defined __PG_PROGRAM_H
+				process(msg);
+			if (program_.active())
+			{
+				const char* instruction = program_.instruction();
+
+				interp_.execute(std::begin(commands_), std::end(commands_), instruction) || 
+					interp_.execute(std::begin(instructions_), std::end(instructions_), instruction);
+			}
+# else 
+				interp_.execute(std::begin(commands_), std::end(commands_), msg);
+# endif
 		}
 	}
 
-	void Jack::cmdAcknowledge(bool value)
+	void Jack::cmdAckGet()
+	{
+		sendMessage(FmtAcknowledge, KeyGetAck, ack_);
+	}
+
+	void Jack::cmdAckSet(bool value)
 	{
 		if ((ack_ = value))
-			cmdAcknowledge();
+			sendMessage(FmtAcknowledge, KeyGetAck, ack_);
 	}
 
-	void Jack::cmdAcknowledge()
-	{
-		sendMessage(FmtAcknowledge, KeyAcknowledge, ack_);
-	}
-
-	void Jack::cmdConnection()
+	void Jack::cmdConnectionGet()
 	{
 		char params[Connection::size()] = { '\0' };
 
-		sendMessage(FmtConnectionGet, KeyConnection, connection_->type(), connection_->params(params));
+		sendMessage(FmtConnectionGet, KeyGetConnection, connection_->type(), connection_->params(params));
 	}
 
-	void Jack::cmdConnection(uint8_t type, const char* arg0, const char* arg1, const char* arg2)
+	void Jack::cmdConnectionSet(uint8_t type, const char* arg0, const char* arg1, const char* arg2)
 	{
 		connection_type net_type = static_cast<connection_type>(type);
 		char params[Connection::size()] = { '\0' };
 		Connection* connection = nullptr;
 
 		// Convert arg0, arg1 and arg2 into a comma-delimited string: "arg0,arg1,arg2".
-		(void)std::sprintf(params, FmtConnectionSet, arg0, arg1, arg2); 
+		(void)std::sprintf(params, FmtConnectionSet, arg0, arg1, arg2);
 		closeConnection(connection_);
+		setConnection(nullptr);
 		storeConnection(eeprom_, net_type, params);
 		connection = openConnection(net_type, params);	// openConnection() expects params as "arg0,arg1,arg2"
 		setConnection(connection);
@@ -511,6 +686,17 @@ namespace pg
 		resetFunc();				// Reset the device.
 	}
 
+	void Jack::cmdElapsedTime(uint8_t s)
+	{
+		sendMessage(FmtElapsedTime, KeyGetElapsedTime, s, elapsedTime(s));
+	}
+
+	void Jack::cmdHelp()
+	{
+		for (auto cmd : commands_)
+			sendMessage(FmtHelp, cmd->key());
+	}
+
 	void Jack::cmdLoadConfig()
 	{
 		loadConfig(eeprom_, pins_, timers_);
@@ -521,119 +707,131 @@ namespace pg
 		storeConfig(eeprom_, pins_, timers_);
 	}
 
-	void Jack::cmdPinInfo(pin_t p)
+	void Jack::cmdPinInfoGet(pin_t p)
 	{
 		if (p < GpioCount)
 			sendPinInfo(p);
 	}
 
-	void Jack::cmdPinInfo()
+	void Jack::cmdPinInfoGetAll()
 	{
-		for (size_type i = 0; i < pins_.size(); ++i)
-			sendPinInfo(i);
+		for (size_type p = 0; p < pins_.size(); ++p)
+			sendPinInfo(p);
 	}
 
-	void Jack::cmdPinMode(pin_t p, uint8_t mode)
-	{
-		if (p < GpioCount && mode < gpio_mode::Invalid)
-		{
-			pinMode(p, mode);
-			pins_[p].mode_ = static_cast<gpio_mode>(mode);
-			if (ack_)
-				sendPinMode(p);
-		}
-	}
-
-	void Jack::cmdPinMode(pin_t p)
+	void Jack::cmdPinModeGet(pin_t p)
 	{
 		if (p < GpioCount)
 			sendPinMode(p);
 	}
 
+	void Jack::cmdPinModeGetAll()
+	{
+		for(size_type p = 0; p < GpioCount; ++p)
+			sendPinMode(p);
+	}
+
+	void Jack::cmdPinModeSet(pin_t p, uint8_t mode)
+	{
+		if (p < GpioCount && mode < gpio_mode::Invalid)
+			setPinMode(p, mode);
+	}
+
+	void Jack::cmdPinModeSetAll(uint8_t mode)
+	{
+		if(mode < gpio_mode::Invalid)
+			for (size_type p = 0; p < pins_.size(); ++p)
+				setPinMode(p, mode);
+	}
+
 	void Jack::cmdReadPin(pin_t p)
 	{
 		if (p < GpioCount)
-			readPin(p);
+			sendPinValue(p, readPin(p));
 	}
 
-	void Jack::cmdReadPin()
+	void Jack::cmdReadPinAll()
 	{
-		for (size_type i = 0; i < GpioCount; ++i)
-			readPin(i);
+		for (size_type p = 0; p < GpioCount; ++p)
+			sendPinValue(p, readPin(p));
 	}
 
 	void Jack::cmdReadPinList(char* list)
 	{
-		const char* delim = ".";
-		char* p = std::strtok(list, delim);
+		char* p = std::strtok(list, ListDelimiterChars);
 
 		while (p)
 		{
-			readPin(std::atoi(p));
-			p = std::strtok(nullptr, delim);
+			pin_t pin = std::atoi(p);
+
+			if (pin < GpioCount)
+				sendPinValue(pin, readPin(pin));
+			p = std::strtok(nullptr, ListDelimiterChars);
 		}
 	}
 
-	void Jack::cmdTimerAttach(timer_t t, pin_t p, uint8_t mode, uint8_t trigger, uint8_t timing = timing_mode::Immediate)
-	{
-		// If t & p are valid, ...
-		if (t < TimersCount && pins_[p].int_)
-		{
-			JackTimer& timer = timers_[t];
-
-			// If timer t attached to another pin, detach it and ... 
-			if(timer.pin_ != InvalidPin)
-				detachTimer(timer);
-			// ... attach timer t to pin p.
-			attachInterrupt(digitalPinToInterrupt(p), getIsr(t), static_cast<PinStatus>(trigger));
-			attachTimer(timer, p, mode, trigger, timing);
-			if (ack_)
-				sendTimerInfo(t);
-		}
-	}
-
-	void Jack::cmdTimerDetach(timer_t t, pin_t)
-	{
-		if (t < TimersCount)
-		{
-			detachTimer(timers_[t]);
-			if (ack_)
-				sendTimerInfo(t);
-		}
-	}
-
-	void Jack::cmdTimerInfo(timer_t t)
+	void Jack::cmdTimerAttachGet(timer_t t)
 	{
 		if (t < TimersCount)
 			sendTimerInfo(t);
 	}
 
-	void Jack::cmdTimerInfo()
+	void Jack::cmdTimerAttachGetAll()
 	{
-		for (size_type i = 0; i < TimersCount; ++i)
-			sendTimerInfo(i);
+		for (size_type t = 0; t < TimersCount; ++t)
+			sendTimerInfo(t);
 	}
 
-	void Jack::cmdTimerStatus(timer_t t, uint8_t action)
+	void Jack::cmdTimerAttachSet(timer_t t, pin_t p, uint8_t mode, uint8_t trigger, uint8_t timing = timing_mode::Immediate)
 	{
-		if (t < TimersCount)
+		// If t & p are valid, ...
+		if (t < TimersCount && (p < GpioCount || p == InvalidPin))
 		{
-			setTimerStatus(timers_[t], static_cast<timer_action>(action));
-			if (ack_)
-				sendTimerStatus(t);
+			// If timer t attached to another pin, detach it first.
+			if (timers_[t].pin_ != InvalidPin)
+				detachTimer(t);
+			// If pin has interrupt capability, attach it.
+			if(p < GpioCount && pins_[p].int_)
+				attachInterrupt(digitalPinToInterrupt(p), getIsr(t), static_cast<PinStatus>(trigger));
+			// Set our timer state, p == InvalidPin allows user to operate timer manually wth commands.
+			attachTimer(t, p, mode, trigger, timing);
 		}
 	}
 
-	void Jack::cmdTimerStatus(timer_t t)
+	void Jack::cmdTimerDetach(timer_t t)
+	{
+		if (t < TimersCount)
+			detachTimer(t);
+	}
+
+	void Jack::cmdTimerDetachAll()
+	{
+		for (size_type t = 0; t < TimersCount; ++t)
+			detachTimer(t);
+	}
+
+	void Jack::cmdTimerStatusGet(timer_t t)
 	{
 		if (t < TimersCount)
 			sendTimerStatus(t);
 	}
 
-	void Jack::cmdTimerStatus()
+	void Jack::cmdTimerStatusGetAll()
 	{
-		for (size_type i = 0; i < TimersCount; ++i)
-			sendTimerStatus(i);
+		for (size_type t = 0; t < TimersCount; ++t)
+			sendTimerStatus(t);
+	}
+
+	void Jack::cmdTimerStatusSet(timer_t t, uint8_t action)
+	{
+		if (t < TimersCount)
+			setTimerStatus(t, static_cast<timer_action>(action));
+	}
+
+	void Jack::cmdTimerStatusSetAll(uint8_t action)
+	{
+		for (size_type t = 0; t < TimersCount; ++t)
+			setTimerStatus(t, static_cast<timer_action>(action));
 	}
 
 	void Jack::cmdWritePin(pin_t p, value_type value)
@@ -642,9 +840,9 @@ namespace pg
 			writePin(p, value);
 	}
 
-	void Jack::connection(Connection* cn)
-	{
-		connection_ = cn;
+	typename Jack::Commands Jack::commands() const
+	{ 
+		return commands_; 
 	}
 
 	Connection* Jack::connection() const
@@ -668,11 +866,6 @@ namespace pg
 		else
 			connection_ = loadConnection(eeprom_, params_buf);
 		setConnection(connection_);
-	}
-
-	Interpreter& Jack::interpreter()
-	{
-		return interp_;
 	}
 
 	void Jack::isrHandler(timer_t t)
@@ -713,31 +906,22 @@ namespace pg
 		}
 	}
 
-	Jack::Pins& Jack::pins()
-	{
-		return pins_;
-	}
-
-	const Jack::Pins& Jack::pins() const
-	{
-		return pins_;
-	}
-
-	Jack::Timers& Jack::timers()
-	{
-		return timers_;
-	}
-
-	const Jack::Timers& Jack::timers() const
-	{
-		return timers_;
-	}
-
 #pragma endregion
 #pragma region private methods
 
-	void Jack::attachTimer(JackTimer& timer, pin_t p, uint8_t mode, uint8_t trigger, uint8_t timing)
+	template<class ForwardIt>
+	void Jack::addCommands(Commands& commands, ForwardIt first, ForwardIt last)
 	{
+		auto end = std::end(commands);
+
+		commands_.resize(commands.size() + std::distance(first, last));
+		std::copy(first, last, end);
+	}
+
+	void Jack::attachTimer(timer_t t, pin_t p, uint8_t mode, uint8_t trigger, uint8_t timing)
+	{
+		JackTimer& timer = timers_[t];
+
 		timer.pin_ = p;
 		timer.mode_ = static_cast<timer_mode>(mode);
 		timer.trigger_ = static_cast<PinStatus>(trigger);
@@ -765,6 +949,8 @@ namespace pg
 		default:
 			break;
 		}
+		if (ack_)
+			sendTimerInfo(t);
 	}
 
 	void Jack::closeConnection(Connection*& connection)
@@ -778,11 +964,15 @@ namespace pg
 		}
 	}
 
-	void Jack::detachTimer(JackTimer& timer)
+	void Jack::detachTimer(timer_t t)
 	{
+		JackTimer& timer = timers_[t];
+
 		timer.object_.stop();
 		detachInterrupt(digitalPinToInterrupt(timer.pin_));
 		timer.pin_ = InvalidPin;
+		if (ack_)
+			sendTimerInfo(t);
 	}
 
 	bool Jack::eepromValid(EEStream& eeprom, devid_type device_id)
@@ -795,35 +985,60 @@ namespace pg
 		return eeprom_id == device_id;
 	}
 
+	std::time_t Jack::elapsedTime(uint8_t s)
+	{
+		std::time_t elapsed = 0;
+
+		switch (s)
+		{
+		case 0:
+			elapsed = micros();
+			break;
+		case 1:
+			elapsed = millis();
+			break;
+		default:
+			break;
+		}
+
+		return elapsed;
+	}
+
 	void Jack::endTimer(timer_t t)
 	{
-		JackTimer& timer = timers_[t];
-
-		timer.object_.stop();
-		detachTimer(timer);
+		timers_[t].object_.stop();
+		detachTimer(t);
 	}
 
 	Jack::isr_type Jack::getIsr(timer_t n)
 	{
 		return isrs_[n];
 	}
+# if defined __PG_PROGRAM_H
+	void Jack::initialize(cmdlist_type& user_cmds, Instructions& pgm_instrs)
+	{
+		// This method appends any client-defined commands to the built-in collection.
+		
+		addCommands(commands_, const_cast<command_type**>(std::begin(user_cmds)), const_cast<command_type**>(std::end(user_cmds)));
+		// Interpreter uses binary search algo, collections must be sorted.
+		std::sort(std::begin(commands_), std::end(commands_), cbcomp);
+		std::sort(std::begin(instructions_), std::end(instructions_), cbcomp);
+		// Command keys must be unique, uncomment this if you need to check:
+		//assert(std::unique(std::begin(commands_), std::end(commands_)) == std::end(commands_));
 
+	}
+# else
 	void Jack::initialize(cmdlist_type& user_cmds)
 	{
-		// This method appends any user-defined commands to the built-in collection 
-		// and passes the collection to the interpreter.
+		// This method appends any client-defined commands to the built-in collection.
 
-		if (user_cmds.size())
-		{
-			auto list_end = std::end(commands_);
-			auto first = const_cast<command_type**>(user_cmds.begin());
-			auto last = const_cast<command_type**>(user_cmds.begin()) + user_cmds.size();
-
-			commands_.resize(commands_.size() + user_cmds.size());
-			std::copy(first, last, list_end);
-		}
-		interp_.commands(std::begin(commands_), std::end(commands_));
+		addCommands(commands_, const_cast<command_type**>(std::begin(user_cmds)), const_cast<command_type**>(std::end(user_cmds)));
+		// Interpreter uses binary search algo, collections must be sorted.
+		std::sort(std::begin(commands_), std::end(commands_), cbcomp);
+		// Command keys must be unique, uncomment this if you need to check:
+		//assert(std::unique(std::begin(commands_), std::end(commands_)) == std::end(commands_));
 	}
+# endif
 
 	template<typename Jack::size_type I>
 	void Jack::initialize(Isrs& isrs)
@@ -896,6 +1111,8 @@ namespace pg
 			isrs[i] = isr;
 		if(i)
 			initialize<i>(isrs); // Recurse until all used isrs are compiled.
+
+		__jack_isr = this;		// Set our external pointer to this.
 	}
 
 	void Jack::initialize(Pins& pins)
@@ -1004,46 +1221,39 @@ namespace pg
 
 	bool Jack::powerOnDefaults(pin_t pin)
 	{
-		gpio_mode pin_mode = _jack.pins()[pin].mode_;
+		gpio_mode pin_mode =pins_[pin].mode_;
 		bool result = false;
 
 		pinMode(pin, gpio_mode::Pullup);
-		if (digitalRead(pin) == false)
+		if (digitalRead(pin) == false)		// Change to: result = !digitalRead(pin)
 			result = true;
 		pinMode(pin, pin_mode);
 
 		return result;
 	}
 
-	void Jack::readAnalog(pin_t n)
+	typename Jack::value_type Jack::readPin(pin_t p)
 	{
-		sendPinValue(n, analogRead(n));
-	}
-
-	void Jack::readDigital(pin_t n)
-	{
-		sendPinValue(n, digitalRead(n));
-	}
-
-	void Jack::readPin(pin_t n)
-	{
-		GpioPin& pin = pins_[n];
+		GpioPin& pin = pins_[p];
+		value_type value = value_type();
 
 		if (pin.isInput())
 		{
 			switch (pin.type_)
 			{
 			case gpio_type::Analog:
-				readAnalog(n);
+				value = analogRead(p);
 				break;
 			case gpio_type::Pwm:
 			case gpio_type::Digital:
-				readDigital(n);
+				value = digitalRead(p);
 				break;
 			default:
 				break;
 			}
 		}
+
+		return value;
 	}
 
 	template<class... Ts>
@@ -1059,14 +1269,14 @@ namespace pg
 	{
 		const GpioPin& pin = pins_[n];
 
-		sendMessage(FmtPinInfo, KeyPinInfo, n, pin.type_, pin.int_, pin.mode_);
+		sendMessage(FmtPinInfo, KeyGetPinInfo, n, pin.type_, pin.int_, pin.mode_);
 	}
 
 	void Jack::sendPinMode(pin_t n)
 	{
 		const GpioPin& pin = pins_[n];
 
-		sendMessage(FmtPinMode, KeyPinMode, n, pin.mode_);
+		sendMessage(FmtPinMode, KeyGetPinMode, n, pin.mode_);
 	}
 
 	void Jack::sendPinValue(pin_t n, value_type value)
@@ -1100,17 +1310,27 @@ namespace pg
 		default:
 			break;
 		}
-		sendMessage(FmtTimerStatus, KeyTimerStatus, n, active, value);
+		sendMessage(FmtTimerStatus, KeyGetTimerStatus, n, active, value);
 	}
 
 	void Jack::setConnection(Connection* connection)
 	{
 		connection_ = connection;
-		digitalWrite(pg::LedPinNumber, connection->open());
+		digitalWrite(pg::LedPinNumber, connection && connection->open());
 	}
 
-	void Jack::setTimerStatus(JackTimer& timer, JackTimer::Action action)
+	void Jack::setPinMode(pin_t p, uint8_t mode)
 	{
+		pinMode(p, mode); // put in function
+		pins_[p].mode_ = static_cast<gpio_mode>(mode);
+		if (ack_)
+			sendPinMode(p);
+	}
+
+	void Jack::setTimerStatus(timer_t t, JackTimer::Action action)
+	{
+		JackTimer& timer = timers_[t];
+
 		switch (timer.mode_)
 		{
 		case timer_mode::Counter:
@@ -1154,6 +1374,8 @@ namespace pg
 		default:
 			break;
 		}
+		if (ack_)
+			sendTimerStatus(t);
 	}
 
 	void Jack::storeConfig(EEStream& eeprom, const Jack::Pins& pins, const Jack::Timers& timers)
@@ -1204,26 +1426,220 @@ namespace pg
 		if (ack_)
 			sendPinValue(n, write_value);
 	}
+# if defined __PG_PROGRAM_H
+	char* Jack::systemCall(const char* arg)
+	{
+		return std::strpbrk(arg, FmtValueModifiers);
+	}
+
+	void Jack::cmdCompare(const char* arg1, const char* arg2)
+	{
+		// Program class doesn't support concept of system/kernel calls, 
+		// so we handle them here. systemCall() returns some Jack value 
+		// such as a pin or timer value, which gets passed to the program.
+
+		char* sys_call_1 = systemCall(arg1);
+		char* sys_call_2 = systemCall(arg2);
+
+		if (sys_call_1)
+		{
+			if (sys_call_2)
+				program_.compare(systemValue(arg1), systemValue(arg2));
+			else
+				program_.compare(systemValue(arg1), arg2);
+		}
+		else if (sys_call_2)
+			program_.compare(arg1, systemValue(arg2));
+		else
+			program_.compare(arg1, arg2);
+	}
+
+	void Jack::cmdMove(const char* arg1, const char* arg2)
+	{
+		// See cmdCompare re: systemCall().
+
+		char* sys_call = systemCall(arg2);
+
+		if(sys_call)
+			program_.move(arg1, systemValue(sys_call));
+		else
+			program_.move(arg1, arg2);
+	}
+
+	void Jack::cmdWriteReg(pin_t p, const char* r)
+	{
+		writePin(p, program_.regValue(r));
+	}
+
+	void Jack::list()
+	{
+		const char* text = program_.text();
+
+		while (*text)
+		{
+			connection_->send(text);
+			text = next(text);
+		}
+	}
+
+	const char* Jack::next(const char* line)
+	{
+		return line + std::strlen(line) + sizeof(char);
+	}
+
+	typename Program::value_type Jack::systemValue(const char* str)
+	{
+		Program::value_type value = 0;
+		size_type n = std::atoi(str + 1);
+
+		switch (*str)
+		{
+		case '#':
+			value = readPin(n);
+			break;
+		case '%':
+			value = timers_[n].object_.elapsed().count();
+			break;
+		case '+':
+			value = timers_[n].object_.count();
+			break;
+		case '*':
+			value = timers_[n].object_.active();
+			break;
+		case '$':
+			value = elapsedTime(n);
+			break;
+		default:
+			value = std::atol(str);
+			break;
+		}
+
+		return value;
+	}
+
+	void Jack::process(const char* msg)
+	{
+		// Message processor only executes remote commands, not program instructions.
+		command_type* cmd = static_cast<command_type*>(interp_.interpret(std::begin(commands_), std::end(commands_), msg));
+
+		// When loading a program, execute any "pgm" commands else forward message to program for storage.
+		if (program_.loading())
+		{
+			if (cmd && *cmd == KeyProgram)
+				cmd->execute();
+			else
+				program_.instruction(msg);
+		}
+		else if (cmd)
+			cmd->execute();
+	}
+
+	void Jack::program(uint8_t a)
+	{
+		// This method handles program change of state commands ("pgm").
+
+		Program::Action action = static_cast<Program::Action>(a);
+		bool send = false;
+		value_type status = 0;
+
+		switch (action)
+		{
+		case Program::Action::Active:
+			status = program_.active();
+			send = true;
+			break;
+		case Program::Action::Begin:
+			program_.begin();
+			action = Program::Action::Size;
+			status = program_.size();
+			break;
+		case Program::Action::End:
+			program_.end();
+			action = Program::Action::Size;
+			status = program_.size();
+			break;
+		case Program::Action::Halt:
+			program_.halt();
+			action = Program::Action::Active;
+			status = program_.active();
+			break;
+		case Program::Action::List:
+			list();
+			break;
+		case Program::Action::Reset:
+			program_.reset();
+			break;
+		case Program::Action::Run:
+			program_.run();
+			action = Program::Action::Active;
+			status = program_.active();
+			break;
+		case Program::Action::Size:
+			status = program_.size();
+			send = true;
+			break;
+		case Program::Action::Verify:
+			status = verify();
+			send = true;
+			break;
+		default:
+			break;
+		}
+		if (ack_ || send)
+			sendProgramStatus(action, status);
+	}
+
+	void Jack::sendProgramStatus(Program::Action action, value_type status)
+	{
+		sendMessage(FmtProgramStatus, KeyProgram, action, status);
+	}
+
+	bool Jack::verify()
+	{
+		// This method verifies a program by attempting to interpret each line in the text.
+
+		bool result = false;
+
+		if (!(program_.active() || program_.loading()))
+		{
+			const char* text = program_.text();
+
+			if (*text)
+			{
+				while (*text)
+				{
+					if (!(interp_.interpret(std::begin(commands_), std::end(commands_), text) || 
+						interp_.interpret(std::begin(instructions_), std::end(instructions_), text)))
+						break;
+					text = next(text);
+				}
+				result = !(*text);	// Program is valid if end of text reached.
+			}
+		}
+
+		return result;
+	}
+# endif
 
 #pragma endregion
-#pragma region static methods
+#pragma region static isr methods
 
-	void Jack::isrTimer0() { _jack.isrHandler(0); }
-	void Jack::isrTimer1() { _jack.isrHandler(1); }
-	void Jack::isrTimer2() { _jack.isrHandler(2); }
-	void Jack::isrTimer3() { _jack.isrHandler(3); }
-	void Jack::isrTimer4() { _jack.isrHandler(4); }
-	void Jack::isrTimer5() { _jack.isrHandler(5); }
-	void Jack::isrTimer6() { _jack.isrHandler(6); }
-	void Jack::isrTimer7() { _jack.isrHandler(7); }
-	void Jack::isrTimer8() { _jack.isrHandler(8); }
-	void Jack::isrTimer9() { _jack.isrHandler(9); }
-	void Jack::isrTimer10() { _jack.isrHandler(10); }
-	void Jack::isrTimer11() { _jack.isrHandler(11); }
-	void Jack::isrTimer12() { _jack.isrHandler(12); }
-	void Jack::isrTimer13() { _jack.isrHandler(13); }
-	void Jack::isrTimer14() { _jack.isrHandler(14); }
-	void Jack::isrTimer15() { _jack.isrHandler(15); }
+	void Jack::isrTimer0() { __jack_isr->isrHandler(0); }
+	void Jack::isrTimer1() { __jack_isr->isrHandler(1); }
+	void Jack::isrTimer2() { __jack_isr->isrHandler(2); }
+	void Jack::isrTimer3() { __jack_isr->isrHandler(3); }
+	void Jack::isrTimer4() { __jack_isr->isrHandler(4); }
+	void Jack::isrTimer5() { __jack_isr->isrHandler(5); }
+	void Jack::isrTimer6() { __jack_isr->isrHandler(6); }
+	void Jack::isrTimer7() { __jack_isr->isrHandler(7); }
+	void Jack::isrTimer8() { __jack_isr->isrHandler(8); }
+	void Jack::isrTimer9() { __jack_isr->isrHandler(9); }
+	void Jack::isrTimer10() { __jack_isr->isrHandler(10); }
+	void Jack::isrTimer11() { __jack_isr->isrHandler(11); }
+	void Jack::isrTimer12() { __jack_isr->isrHandler(12); }
+	void Jack::isrTimer13() { __jack_isr->isrHandler(13); }
+	void Jack::isrTimer14() { __jack_isr->isrHandler(14); }
+	void Jack::isrTimer15() { __jack_isr->isrHandler(15); }
 
 #pragma endregion
 
