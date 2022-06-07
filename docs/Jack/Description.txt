@@ -1,0 +1,97 @@
+*****************************************
+*                 Jack                  *
+*****************************************
+
+/////////////////////////////////////////
+// Description                         //
+/////////////////////////////////////////
+
+Jack is part of a software library and application suite that allows inexpensive microcontroller-based
+devices to function as remote control, data acquisition (DAQ) and IoT platforms. Along with its 
+desktop counterpart View, Jack forms the basis of a general purpose HMI/SCADA system.
+
+Remote hosts communicate with Jack devices over a network connection, and can configure and control 
+them using a simple query language. Hosts can also download programs to Jack devices that execute 
+remotely on the device. This can increase device functionality while significantly reducing host 
+workload and network traffic.
+
+Jack supports all typical microcontroller functions, including configuring general purpose 
+input/output (GPIO) pins, reading and setting pin states, counting and timing pin events, network and 
+device configuration and more. Jack also supports EEPROM storage and recall of device settings, 
+allowing devices to be placed into a known state after power-cycling or reset.
+
+Jack is compatible with a wide range of hardware devices that use the AVR, MEGAAVR, SAM and SAMD 
+architectures. This includes Arduino, ST Micro, Teensy, Microchip and other boards.
+
+
+/////////////////////////////////////////
+// General Features                    //
+/////////////////////////////////////////
+
+*	Control of upto 255 GPIO pins.
+*	Control of upto 15 event counters/timers.
+*	USB (Serial), Ethernet and WiFi connectivity.
+*	EEPROM storage of device settings.
+*	Device type and hardware capability reporting.
+*	Remote programability.
+*	Expandability with client-defined messages.
+*	Wide range of hardware compatibility. 
+
+
+/////////////////////////////////////////
+// Connectivity                        //
+/////////////////////////////////////////
+
+Jack supports connectivity over USB (Serial), Ethernet and WiFi networks and communicates using a 
+simple query language. Messages are sent and received as text strings having the general form: 
+
+	key=value1,value2,...,valueN
+
+This allows any host capable of sending and receiving text messages to interact with Jack devices 
+and makes development of host applications simple. Messages have a human-readable syntax. For 
+example:
+
+	rdp=p		; reads the input state of pin p,
+	wrp=p,v		; writes value v to output pin p, 
+	inf			; reads the device hardare information.
+
+Replies are sent in similar fashion. For instance, Jack will reply to the rdp=p message with:
+
+	p=v
+
+where p is the pin number and v the current input state. Hosts can parse reply messages and take 
+appropriate actions. Jack can also acknowledge receipt of "write" messages (those which normally 
+do not send a reply), allowing detection of network errors. 
+
+Developers can add custom device functionality by expanding Jack's built-in command set with client-
+defined commands. These operate similarly to remote procedure calls (RPC), where a message triggers 
+a client-defined function on the device and optionally returns a reply.
+
+
+/////////////////////////////////////////
+// Programmability                     // 
+/////////////////////////////////////////
+
+Jack provides a programming language for devices that support remote programming. The language 
+syntax is very similar to assembly language and includes instructions for saving and moving data, 
+logical and arithmetic operations, branching, looping, stack operations and subroutine calls. For 
+example, the following program will blink an LED connected to device pin 13 every second:
+
+	; setup
+	0	spm=13,1	; set led pin as digital out
+	1	mov ax,0	; ax holds led state, start with led off
+	; loop
+	2	wrr 13,ax	; write led state to pin
+	3	dly 1000	; sleep one second
+	4	not ax		; flip led state
+	5	jmp 2		; goto start of loop.
+
+
+/////////////////////////////////////////
+// Applications                        //
+/////////////////////////////////////////
+ 
+Jack devices can fulfill nearly any HMI, SCADA, DAQ or IoT role. Jack can remotely operate other 
+devices, read sensors and control machinery, apparatus and plant processes. Home automation systems, 
+a growing market, are easily implemented using Jack. Custom, intelligent application development is  
+simple with Jack's expandability and remote programming features. 
