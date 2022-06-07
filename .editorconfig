@@ -4,6 +4,9 @@ root = true
 end_of_line = lf
 insert_final_newline = true
 
+[src/*]
+treat_as_with_extension = .h
+
 [*.{c,h,cpp,hpp,txt}]
 charset = utf-8
 indent_style = space
