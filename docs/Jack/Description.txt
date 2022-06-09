@@ -32,6 +32,7 @@ architectures. This includes Arduino, ST Micro, Teensy, Microchip and other boar
 *	Control of upto 15 event counters/timers.
 *	USB (Serial), Ethernet and WiFi connectivity.
 *	EEPROM storage of device settings.
+*	Transmission error detection.
 *	Device type and hardware capability reporting.
 *	Remote programability.
 *	Expandability with client-defined messages.
@@ -53,15 +54,14 @@ example:
 
 	rdp=p		; reads the input state of pin p,
 	wrp=p,v		; writes value v to output pin p, 
-	inf			; reads the device hardare information.
+	inf		; reads the device hardware information.
 
 Replies are sent in similar fashion. For instance, Jack will reply to the rdp=p message with:
 
 	p=v
 
-where p is the pin number and v the current input state. Hosts can parse reply messages and take 
-appropriate actions. Jack can also acknowledge receipt of "write" messages (those which normally 
-do not send a reply), allowing detection of network errors. 
+where p is the pin number and v the current input state. Hosts can parse replies and take appropriate 
+action. Jack can also acknowledge receipt of messages and validate messages using checksums. 
 
 Developers can add custom device functionality by expanding Jack's built-in command set with client-
 defined commands. These operate similarly to remote procedure calls (RPC), where a message triggers 
