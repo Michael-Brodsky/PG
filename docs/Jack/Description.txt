@@ -3,7 +3,7 @@
 *****************************************
 
 /////////////////////////////////////////
-// Description                         //
+// Overview                            //
 /////////////////////////////////////////
 
 Jack is part of a software library and application suite that allows inexpensive microcontroller-based
@@ -54,7 +54,7 @@ example:
 
 	rdp=p		; reads the input state of pin p,
 	wrp=p,v		; writes value v to output pin p, 
-	inf		; reads the device hardware information.
+	inf		    ; reads the device hardware information.
 
 Replies are sent in similar fashion. For instance, Jack will reply to the rdp=p message with:
 
