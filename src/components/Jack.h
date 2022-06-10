@@ -471,7 +471,7 @@ namespace pg
 		void storeConnection(EEStream&, connection_type, const char*);
 		void writePin(pin_t, value_type);
 # if defined __PG_PROGRAM_H
-		void cmdWitePgm(pin_t, const char*);
+		void cmdWritePgm(pin_t, const char*);
 		void list();
 		const char* next(const char*);
 		void process(const char*);
@@ -512,7 +512,7 @@ namespace pg
 		Command<uint8_t> cmd_timerstatussetall_{ KeySetTimerStatusAll, *this, &Jack::cmdTimerStatusSetAll }; // sta=t,a
 		Command<uint8_t> cmd_program_{ KeyProgram, *this, &Jack::program };
 		Command<void> cmd_help_{ KeyHelp, *this, &Jack::cmdHelp };
-		Command<pin_t, const char*> cmd_writepgm_{ KeyProgramWriteFrom, *this, &Jack::cmdWitePgm };
+		Command<pin_t, const char*> cmd_writepgm_{ KeyProgramWriteFrom, *this, &Jack::cmdWritePgm };
 		Instruction<const char*, const char*> ins_add_{ Program::KeyAdd, program_, &Program::add };
 		Instruction<const char*, const char*> ins_subtract_{ Program::KeySubtract, program_, &Program::subtract };
 		Instruction<const char*, const char*> ins_multiply_{ Program::KeyMultiply, program_, &Program::multiply };
@@ -1289,7 +1289,7 @@ namespace pg
 
 		(void)fmtMessage(msg, fmt, args...);
 # if defined __PG_CRC_H
-		if (checksum_)	// If we received a msg with a checksum then append one to any replies.
+		if (checksum_)	// If we received a msg with a checksum then append one to reply.
 			(void)fmtMessage(msg + std::strlen(msg), ":%u", checksum(static_cast<char*>(msg)));
 # endif
 		connection_->send(msg);
@@ -1469,9 +1469,9 @@ namespace pg
 # endif
 # if defined __PG_PROGRAM_H
 
-	void Jack::cmdWitePgm(pin_t p, const char* r)
+	void Jack::cmdWritePgm(pin_t p, const char* src)
 	{
-		writePin(p, program_.get(r));
+		writePin(p, program_.get(src));
 	}
 
 	void Jack::list()
