@@ -30,15 +30,13 @@
  *	Description:
  * 
  *	The `Jack' class allows clients to operate a device remotely, over a 
- *	network connection, using a simple messaging protocol. Clients can 
- *	configure, read/write values to/from the device’s gpio pins, count/time  
- *	events and get device information. Jack also supports EEPROM storage and 
- *	recall of its current connection and configuration information. Network 
- *	communications are handled by the `Connection' type (see <Connection.h>); 
- *	the messaging protocol is defined by the `Interpreter' type, which also 
- *	handles message decoding and command execution (see <Interpreter.h>). For 
- *	devices that support it, Jack can store and execute programs locally, on 
- *	the device itself. 
+ *	network connection, using a simple messaging protocol. Jack also supports 
+ *	EEPROM storage and recall of its current connection and configuration 
+ *	information. Network communications are handled by the `Connection' type 
+ *	(see <Connection.h>); messaging and command protocols are defined by the 
+ *	`Interpreter' type, which also handles message decoding and command 
+ *	execution (see <Interpreter.h>). On supported devices, Jack can store and 
+ *	execute programs locally, on the device itself. 
  *
  *	Jack defines a collection of built-in command objects that, when executed, 
  *	call one of the member methods declared by its public interface (see 
@@ -57,28 +55,14 @@
  *
  *	where key is the command identifier (name) optionally followed by a comma-
  *	separated list of arguments (values) separated by an equal sign (=). 
- *	Messages are terminated with a newline character ‘\n’. For example: 
- *
- *		rst - resets the device
- *		pin=n - returns pin type info for pin n
- *		spm=n,m - sets pin n mode to m
- *		rdp=n - returns (reads) the state of input pin n
- *		wrp=n,v - writes value v to output pin n
- *		snt=t,a,b,c - opens a new connection of type t with parameters a,b,c 
- *
- *	Read commands reply with a message in similar fashion. For example, rdp=n 
- *	replies with: 
- *
- *		n=v 
- *
- *	where v is the state of input pin n. Clients can decode replies and take 
- *	appropriate action. To reduce network traffic and execution time, Jack 
- *	does not implement any message handshaking or transactions, other than 
- *	acknowledging receipt of write messages (those which normally do not send 
- *	a reply). This can be enabled/disabled with the `sck' command. Otherwise 
- *	clients must implement any message error detection/correction schemes, 
- *	including retransmitting messages where a reply was expected but not 
- *	received.
+ *	Messages are terminated with a newline character ‘\n’. 
+ *	
+ *	To reduce network traffic and execution time, Jack does not implement any 
+ *	message handshaking or transactions, other than acknowledging receipt of 
+ *	"write" messages (those which normally do not send a reply). This can be 
+ *	enabled/disabled by clients. Otherwise clients must implement any message 
+ *	error detection/correction schemes, including retransmitting messages where 
+ *	a reply was expected but not received.
  *
  *	Messages can be sent consecutively at network speeds, however Jack 
  *	currently does not implement any message queueing. Messages are decoded, 
@@ -163,12 +147,19 @@ namespace pg
 		static constexpr size_type CommandsMaxCount = 40;				// Maximum number of storable remote commands.
 # endif
 		static constexpr size_type TimersMaxCount = 16;					// Maximum number of event counters/timers.
+		static constexpr size_type TimersMinCount = 4;					// Minimum number of event counters/timers.
 		static constexpr size_type InterruptsCount =					// Number of pins with hardware interrupts.
 			countInterrupts<GpioCount>();
-		static constexpr size_type TimersCount = 						// Number of instantiated event counters/timers.
-			InterruptsCount < TimersMaxCount 
-			? InterruptsCount 
-			: TimersMaxCount;
+		static constexpr size_type TimersCount = 						// Number of instantiated event counters/timers, 
+			InterruptsCount > TimersMaxCount							// TimersMinCount <= TimersCount <= TimersMaxCount.
+			? TimersMaxCount
+			: InterruptsCount < TimersMinCount
+			? TimersMinCount 
+			: InterruptsCount;
+		static constexpr size_type IsrsCount = 							// Number of instantiated isrs, 
+			InterruptsCount > TimersCount								// IsrsCount <= TimersCount.
+			? TimersCount
+			: InterruptsCount;
 		static constexpr devid_type DeviceId = 20220430UL;				// Value used to validate eeprom.
 		static constexpr pin_t PowerOnDefaultsPin = 2;					// Power-on/reset defaults pin.
 		static constexpr connection_type DefaultConnectionType = connection_type::Serial;
