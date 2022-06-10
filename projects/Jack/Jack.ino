@@ -1,15 +1,11 @@
 /*
  *	This program demonstrates use of the pg::Jack class as a remote control,
- *	data acquisition (DAQ) and IoT platform. Remote hosts and devices can
- *	communicate with Jack over a network and send commands to configure the
- *	board's pins, read and write values to and from the pins, count and time
- *	pin state changes, store and recall information from the onboard EEPROM
- *	and more. (see <Jack.h>).
+ *	data acquisition (DAQ) and IoT platform (see <Jack.h>). 
  *
  *	***************************************************************************
  *
  *	File: Jack.ino
- *	Date: May 25, 2022
+ *	Date: June 6, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -32,6 +28,21 @@
  *
  *	**************************************************************************/
 
+#if (defined FLASHEND)	
+# if ((FLASHEND) > 0x7FFF)		// Remote programs require boards with more than 32K program (flash) memory.
+#  define __PG_USE_PROGRAM 1 
+#  define __PG_USE_CHECKSUM 1 
+# endif
+# if ((FLASHEND) > 0x77FF)	
+#  if !defined ARDUINO_AVR_PRO	// Checksum feature & user commands too big for Arduino Pro & Pro Mini.
+#   define __PG_USE_COMMANDS 1
+#  else 
+#   error device not supported	// Pro/Pro Mini devices not supported.
+#  endif 
+# else
+#  error device not supported	// ATmega168 devices not supported.
+# endif
+#endif
 #include <pg.h>
 #include <components/Jack.h>
 
@@ -50,19 +61,19 @@ constexpr pin_t PowerOnDefaultsPin = 4;
 // Clients must define "command" objects to execute client-defined
 // functions. Command types are templates that take three parameters: 
 // the return type, object type (or void for free-standing functions) 
-// and a comma-separated list of argument type(s) (or void for 
-// functions taking no arguments). Commands constructors require the 
-// command "key" (a unique string that identifies the command), an 
-// object reference (ommitted for commands that execute free-standing 
-// functions) and the function address. Whenever Jack receives a  
-// message over the network, it executes the command with a matching key.
-# if !defined ARDUINO_AVR_PRO
+// and a parameter list of argument type(s) (or void for functions 
+// taking no arguments). Commands constructors require the command 
+// "key" (a unique string that identifies the command), an object  
+// reference (ommitted for commands that execute free-standing functions) 
+// and the function address. Whenever Jack receives a message over the  
+// network, it executes the command with a matching key.
+# if defined __PG_USE_COMMANDS 
 Interpreter::Command<void, void, void> usr_cmd{ "usr",&doSomething };
 # endif
 // Clients must pass a list of any client-defined commands to Jack's 
 // constructor, or use the default constructor if no client commands 
 // are defined.
-# if !defined ARDUINO_AVR_PRO
+# if defined __PG_USE_COMMANDS 
 Jack jack({ &usr_cmd });
 #else
 Jack jack;
