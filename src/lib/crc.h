@@ -5,7 +5,7 @@
  *	***************************************************************************
  *
  *	File: crc.h
- *	Date: October 19, 2021
+ *	Date: June 10, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -177,11 +177,11 @@
  *	**************************************************************************/
 
 #if !defined __PG_CRC_H
-# define __PG_CRC_H 20211019L
+# define __PG_CRC_H 20220610L
 
 #include <array>		// iterator_traits.
 #include <limits>		// numeric_limits.
-#include <lib/imath.h>	// is_unsigned type.
+#include <lib/imath.h>	// is_unsigned template.
 
 # if defined __PG_HAS_NAMESPACES 
 
@@ -869,6 +869,17 @@ namespace pg
 	typename details::is_unsigned<T>::type checksum(T(&arr)[N])
 	{
 		return checksum(arr, arr + N);
+	}
+
+	// Checksum specialization for character strings.
+	unsigned char checksum(const char* str)
+	{
+		unsigned char cs = 0;
+
+		while (*str)
+			cs += *str++;
+
+		return ~cs;
 	}
 
 } // namespace pg

@@ -4,7 +4,7 @@
  *	***************************************************************************
  *
  *	File: Jack.h
- *	Date: June 3, 2022
+ *	Date: June 10, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -99,12 +99,12 @@
  *	running the program. Once intitialized, the program should be recompiled 
  *	and uploaded with the `invalidateEeprom()' line commented out. If not,
  *	the eeprom memory will be overwritten each time the device is reset or
- *	power-cycled and you will lose any saved information.
+ *	power-cycled and lose any saved information.
  *
  *	**************************************************************************/
 
 #if !defined __PG_JACK_H
-# define __PG_JACK_H 20220603L
+# define __PG_JACK_H 20220610L
 
 # include <cassert>
 # include <cstdio>
@@ -114,12 +114,16 @@
 # include <system/utils.h>
 # include <interfaces/iclockable.h>
 # include <interfaces/icomponent.h>
+# include <interfaces/isystem.h>
 # include <utilities/EEStream.h>
 # include <utilities/Timer.h>
 # include <utilities/Interpreter.h>
 # include <utilities/Connection.h>
-# if (defined FLASHEND && FLASHEND > 0x7FFF)
-#  include <utilities/Program.h>	// Jack programs require boards with more than 32K program (flash) memory. 
+# if defined __PG_USE_PROGRAM
+#  include <utilities/Program.h>	
+# endif
+# if defined __PG_USE_CHECKSUM 
+#  include <lib/crc.h>
 # endif
 
 # if defined __PG_HAS_NAMESPACES
@@ -132,23 +136,22 @@ namespace pg
 	static Jack* __jack_isr = nullptr; // Pointer to Jack instance used by static isr methods.
 
 	// Remote control and data acquisition class.
-	class Jack : public iclockable, public icomponent
+	class Jack : public iclockable, public icomponent, public isystem 
 	{
 	public:
-#pragma region typedefs and constants
-		template<class... Ts>											// Jack command template.
+		template<class... Ts>											// Remote command template.
 		using Command = typename Interpreter::Command<void, Jack, Ts...>;
 		using address_type = EEStream::address_type;					// EEPROM address storage type.
 		using connection_type = Connection::Type;						// Network connection storage type.
 		using devid_type = unsigned long;								// Device id storage type.
-		using fmt_type = const char*;									// Reply message formatting type.
+		using fmt_type = const char*;									// Reply message format specifier type.
 		using isr_type = pg::callback<void>::type;						// Isr function call type.
-		using command_type = Interpreter::CommandBase;					// Remote command type.
-		using cmdlist_type = std::initializer_list<command_type*>;		// Remote command list type.
+		using command_type = Interpreter::CommandBase;					// Remote command interface type.
+		using cmdlist_type = std::initializer_list<command_type*>;		// Remote command interface list type.
 		using key_type = typename command_type::key_type;				// Command key storage type.
 		using size_type = uint8_t;										// Type that can hold the size of any Jack object.
 		using value_type = uint16_t;									// Type that can hold any pin input/output value.
-		using ct_type = CounterTimer<milliseconds, value_type>;			// Aggregate counter/timer type.
+		using ct_type = CounterTimer<milliseconds, value_type>;			// Event counter/timer type.
 		using counter_tag = ct_type::counter_tag;						// Tag type for dispatching counter methods.
 		using timer_tag = ct_type::timer_tag;							// Tag type for dispatching timer methods.
 		using timer_t = uint8_t;										// Timer index type alias.
@@ -184,7 +187,6 @@ namespace pg
 		using Instructions = typename std::valarray<command_type*, InstructionsMaxCount>;	// Program instructions collection type.
 		using jump_type = Program::size_type;
 # endif
-#pragma endregion
 
 		// Aggregates information about an event counter/timer. 
 		struct JackTimer
@@ -219,6 +221,11 @@ namespace pg
 			Timing			timing_;	// The current timing mode.
 			ct_type			object_;	// The counter/timer object.
 		};
+
+		using timer_action = JackTimer::Action;
+		using timer_mode = JackTimer::Mode;
+		using timing_mode = JackTimer::Timing;
+
 		// Aggregates information about a gpio pin.
 		struct GpioPin
 		{
@@ -254,7 +261,8 @@ namespace pg
 			bool isDigital() const { return !isAnalog(); }
 		};
 
-#pragma region more typedefs and constants
+		using gpio_type = GpioPin::Type;
+		using gpio_mode = GpioPin::Mode;
 
 		// EEPROM Memory Map
 		// 
@@ -272,13 +280,6 @@ namespace pg
 				sizeof(decltype(JackTimer::trigger_)) +									// trigger_ and 
 				sizeof(decltype(JackTimer::timing_)));									// timing_
 
-		using timer_action = JackTimer::Action;
-		using timer_mode = JackTimer::Mode;
-		using timing_mode = JackTimer::Timing;
-		using gpio_type = GpioPin::Type;
-		using gpio_mode = GpioPin::Mode;
-
-#pragma endregion
 #pragma region strings
 
 		/*
@@ -295,7 +296,7 @@ namespace pg
 		static constexpr key_type KeyGetPinModeAll = "pma";		// Get all pins mode:				pma
 		static constexpr key_type KeySetPinMode = "spm";		// Set pin mode:					spm=p,m
 		static constexpr key_type KeySetPinModeAll = "spa";		// Set all pins mode:				spa=m
-		static constexpr key_type KeyGetElapsedTime = "rde";	// Get elapsed time:				rde=0|1
+		static constexpr key_type KeyGetElapsedTime = "rde";	// Get system elapsed time:			rde=0|1
 		static constexpr key_type KeyReadPin = "rdp";			// Read pin:						rdp=p
 		static constexpr key_type KeyReadPinAll = "rda";		// Read all pins:					rda
 		static constexpr key_type KeyReadPinList = "rdl";		// Read pin list:					rdl=p0[.p1. ... .pN]
@@ -314,42 +315,42 @@ namespace pg
 # if defined __PG_PROGRAM_H
 		static constexpr key_type KeySetTimerStatusAll = "sta";			// Set all timers state:	sta=s
 		static constexpr key_type KeyTimerDetachAll = "dta";			// Detach all timers:		dta
+		static constexpr key_type KeyHelp = "hlp";						// Get commands list.
 		static constexpr key_type KeyProgram = "pgm";					// Get/set program state:	pgm=a
-		static constexpr key_type KeyProgramAdd = "add";				// Add two values.
-		static constexpr key_type KeyProgramCall = "call";				// Call subroutine.
-		static constexpr key_type KeyProgramCompare = "cmp";			// Compare two values.
-		static constexpr key_type KeyProgramDecrement = "dec";			// Decrement a value.
-		static constexpr key_type KeyProgramDivide = "div";				// Divide a value by another.
-		static constexpr key_type KeyProgramHelp = "hlp";				// Get commands list.
-		static constexpr key_type KeyProgramIncrement = "inc";			// Increment a value.
-		static constexpr key_type KeyProgramJump = "jmp";				// Unconditional jump.
-		static constexpr key_type KeyProgramJumpEqual = "je";			// Jump on equal.
-		static constexpr key_type KeyProgramJumpNotEqual = "jne";		// Jump on not equal.
-		static constexpr key_type KeyProgramJumpGreater = "jgt";		// Jump on greater than.
-		static constexpr key_type KeyProgramJumpGreaterEqual = "jge";	// Jump on greater than or equal.
-		static constexpr key_type KeyProgramJumpLess = "jlt";			// Jump on less than.
-		static constexpr key_type KeyProgramJumpLessEqual = "jle";		// Jump on less than or equal.
-		static constexpr key_type KeyProgramJumpNotSign = "jns";		// Jump on not negative.
-		static constexpr key_type KeyProgramJumpSign = "js";			// Jump on negative.
-		static constexpr key_type KeyProgramJumpNotZero = "jnz";		// Jump on not zero.
-		static constexpr key_type KeyProgramJumpZero = "jz";			// Jump on zero.
-		static constexpr key_type KeyProgramLogicalAnd = "and";			// Logical and two values.
-		static constexpr key_type KeyProgramLogicalNot = "not";			// Logical complement a value.
-		static constexpr key_type KeyProgramLogicalOr = "or";			// Logical or two values.
-		static constexpr key_type KeyProgramLogicalTest = "tst";		// Logical and two values without saving result.
-		static constexpr key_type KeyProgramLogicalXor = "xor";			// Logical exclusive or two values.
-		static constexpr key_type KeyProgramLoop = "loop";				// Loop while cx not zero.
-		static constexpr key_type KeyProgramModulo = "mod";				// Modulo operator.
-		static constexpr key_type KeyProgramMove = "mov";				// Move value to register.
-		static constexpr key_type KeyProgramMultiply = "mul";			// Multiply two values.
-		static constexpr key_type KeyProgramNegate = "neg";				// Negate a value.
-		static constexpr key_type KeyProgramPop = "pop";				// Pop from stack to register.
-		static constexpr key_type KeyProgramPush = "push";				// Push value to stack.
-		static constexpr key_type KeyProgramReturn = "ret";				// Return from subroutine call.
-		static constexpr key_type KeyProgramReturnValue = "rets";		// Return from subroutine call with value on stack.
-		static constexpr key_type KeyProgramSleep = "dly";				// Program sleep.
-		static constexpr key_type KeyProgramSubtract = "sub";			// Subtract two values.
-		static constexpr key_type KeyProgramWriteRegister = "wrr";		// Write result to pin.
+		//static constexpr key_type KeyProgramAdd = "add";				// Add two values.
+		//static constexpr key_type KeyProgramCall = "call";				// Call subroutine.
+		//static constexpr key_type KeyProgramCompare = "cmp";			// Compare two values.
+		//static constexpr key_type KeyProgramDecrement = "dec";			// Decrement a value.
+		//static constexpr key_type KeyProgramDivide = "div";				// Divide a value by another.
+		//static constexpr key_type KeyProgramIncrement = "inc";			// Increment a value.
+		//static constexpr key_type KeyProgramJump = "jmp";				// Unconditional jump.
+		//static constexpr key_type KeyProgramJumpEqual = "je";			// Jump on equal.
+		//static constexpr key_type KeyProgramJumpNotEqual = "jne";		// Jump on not equal.
+		//static constexpr key_type KeyProgramJumpGreater = "jgt";		// Jump on greater than.
+		//static constexpr key_type KeyProgramJumpGreaterEqual = "jge";	// Jump on greater than or equal.
+		//static constexpr key_type KeyProgramJumpLess = "jlt";			// Jump on less than.
+		//static constexpr key_type KeyProgramJumpLessEqual = "jle";		// Jump on less than or equal.
+		//static constexpr key_type KeyProgramJumpNotSign = "jns";		// Jump on not negative.
+		//static constexpr key_type KeyProgramJumpSign = "js";			// Jump on negative.
+		//static constexpr key_type KeyProgramJumpNotZero = "jnz";		// Jump on not zero.
+		//static constexpr key_type KeyProgramJumpZero = "jz";			// Jump on zero.
+		//static constexpr key_type KeyProgramLogicalAnd = "and";			// Logical and two values.
+		//static constexpr key_type KeyProgramLogicalNot = "not";			// Logical complement a value.
+		//static constexpr key_type KeyProgramLogicalOr = "or";			// Logical or two values.
+		//static constexpr key_type KeyProgramLogicalTest = "tst";		// Logical and two values without saving result.
+		//static constexpr key_type KeyProgramLogicalXor = "xor";			// Logical exclusive or two values.
+		//static constexpr key_type KeyProgramLoop = "loop";				// Loop while cx not zero.
+		//static constexpr key_type KeyProgramModulo = "mod";				// Modulo operator.
+		//static constexpr key_type KeyProgramMove = "mov";				// Move value to register.
+		//static constexpr key_type KeyProgramMultiply = "mul";			// Multiply two values.
+		//static constexpr key_type KeyProgramNegate = "neg";				// Negate a value.
+		//static constexpr key_type KeyProgramPop = "pop";				// Pop from stack to register.
+		//static constexpr key_type KeyProgramPush = "push";				// Push value to stack.
+		//static constexpr key_type KeyProgramReturn = "ret";				// Return from subroutine call.
+		//static constexpr key_type KeyProgramReturnValue = "rets";		// Return from subroutine call with value on stack.
+		//static constexpr key_type KeyProgramSleep = "dly";				// Program sleep.
+		//static constexpr key_type KeyProgramSubtract = "sub";			// Subtract two values.
+		static constexpr key_type KeyProgramWriteFrom = "wrr";		// Write result to pin.
 # endif
 		static constexpr fmt_type FmtAcknowledge = "%s=%u";				// ack=0|1
 		static constexpr fmt_type FmtConnectionGet = "%s=%u,%s";		// net=type,arg0,arg1,arg2
@@ -400,7 +401,6 @@ namespace pg
 		explicit Jack(cmdlist_type = cmdlist_type());
 
 	public:
-#pragma region public member methods
 		void clock() override;
 		void cmdAckGet();
 		void cmdAckSet(bool);
@@ -435,18 +435,20 @@ namespace pg
 		Connection* connection() const;
 		void initialize(pin_t = PowerOnDefaultsPin);
 		void isrHandler(timer_t);
-#pragma endregion
+		isystem::value_type sys_get(const char*) override;
 
 	private:
-#pragma region private member methods
 		template<class ForwardIt>
 		void addCommands(Commands&, ForwardIt, ForwardIt);
 		void attachTimer(timer_t, pin_t, uint8_t, uint8_t, uint8_t);
+		bool check(char*);
 		void closeConnection(Connection*&);
 		void detachTimer(timer_t);
 		std::time_t elapsedTime(uint8_t);
 		void endTimer(timer_t);
 		bool eepromValid(EEStream&, devid_type);
+		template<class... Ts>
+		size_type fmtMessage(char*, const char*, Ts...);
 		inline isr_type getIsr(timer_t);
 # if defined __PG_PROGRAM_H
 		void initialize(cmdlist_type&, Instructions&);
@@ -478,22 +480,16 @@ namespace pg
 		void storeConnection(EEStream&, connection_type, const char*);
 		void writePin(pin_t, value_type);
 # if defined __PG_PROGRAM_H
-		void cmdCompare(const char*, const char*);
-		void cmdMove(const char*, const char*);
-		void cmdWriteReg(pin_t, const char*);
+		void cmdWitePgm(pin_t, const char*);
 		void list();
 		const char* next(const char*);
 		void process(const char*);
 		void program(uint8_t);
 		void sendProgramStatus(Program::Action, value_type);
-		char* systemCall(const char*);
-		Program::value_type systemValue(const char*);
 		bool verify();
 # endif
-#pragma endregion
 
-	private: 
-#pragma region Built-in commands and instructions
+	private: /* Built-in commands and instructions. */
 		Command<void> cmd_devinfo_{ KeyDevInfo, *this, &Jack::cmdDevInfo };	// inf
 		Command<void> cmd_devreset_{ KeyDevReset, *this, &Jack::cmdDevReset };	// rst
 		Command<void> cmd_ackget_{ KeyGetAck, *this, &Jack::cmdAckGet }; // ack
@@ -520,46 +516,44 @@ namespace pg
 		Command<uint8_t, const char*, const char*, const char*> cmd_connectionset_{ KeySetConnection, *this, &Jack::cmdConnectionSet };	// snt=n,a,b,c
 		Command<void> cmd_ldaconfig_{ KeyLoadConfig, *this, &Jack::cmdLoadConfig };	// lda
 		Command<void> cmd_stoconfig_{ KeyStoreConfig, *this, &Jack::cmdStoreConfig };	// sto
- #if defined __PG_PROGRAM_H
+# if defined __PG_PROGRAM_H
 		Command<void> cmd_timerdetachall_{ KeyTimerDetachAll, *this, &Jack::cmdTimerDetachAll };	// dta
 		Command<uint8_t> cmd_timerstatussetall_{ KeySetTimerStatusAll, *this, &Jack::cmdTimerStatusSetAll }; // sta=t,a
 		Command<uint8_t> cmd_program_{ KeyProgram, *this, &Jack::program };
-		Command<void> cmd_help_{ KeyProgramHelp, *this, &Jack::cmdHelp };
-		Command<const char*, const char*> cmd_compare_{ KeyProgramCompare, *this, &Jack::cmdCompare };
-		Command<const char*, const char*> cmd_move_{ KeyProgramMove, *this, &Jack::cmdMove };
-		Command<pin_t, const char*> cmd_writeregister_{ KeyProgramWriteRegister, *this, &Jack::cmdWriteReg };
-		Instruction<const char*, const char*> ins_add_{ KeyProgramAdd, program_, &Program::add };
-		Instruction<const char*, const char*> ins_subtract_{ KeyProgramSubtract, program_, &Program::subtract };
-		Instruction<const char*, const char*> ins_multiply_{ KeyProgramMultiply, program_, &Program::multiply };
-		Instruction<const char*, const char*> ins_divide_{ KeyProgramDivide, program_, &Program::divide };
-		Instruction<const char*, const char*> ins_modulo_{ KeyProgramModulo, program_, &Program::modulo };
-		Instruction<const char*, const char*> ins_and_{ KeyProgramLogicalAnd, program_, &Program::logicalAnd };
-		Instruction<const char*, const char*> ins_or_{ KeyProgramLogicalOr, program_, &Program::logicalOr };
-		Instruction<const char*, const char*> ins_test_{ KeyProgramLogicalTest, program_, &Program::logicalTest };
-		Instruction<const char*, const char*> ins_xor_{ KeyProgramLogicalXor, program_, &Program::logicalXor };
-		Instruction<const char*> ins_not_{ KeyProgramLogicalNot, program_, &Program::logicalNot };
-		Instruction<const char*> ins_decrement_{ KeyProgramDecrement, program_, &Program::decrement };
-		Instruction<const char*> ins_increment_{ KeyProgramIncrement, program_, &Program::increment };
-		Instruction<const char*> ins_negate_{ KeyProgramNegate, program_, &Program::negate };
-		Instruction<std::time_t> ins_sleep_{ KeyProgramSleep, program_, &Program::sleep };
-		Instruction<jump_type> ins_jump_{ KeyProgramJump, program_, &Program::jump };
-		Instruction<jump_type> ins_jumpequal_{ KeyProgramJumpEqual, program_, &Program::jumpEqual };
-		Instruction<jump_type> ins_jumpnotequal_{ KeyProgramJumpNotEqual, program_, &Program::jumpNotEqual };
-		Instruction<jump_type> ins_jumpgreater_{ KeyProgramJumpGreater, program_, &Program::jumpGreater };
-		Instruction<jump_type> ins_jumpgreaterequal_{ KeyProgramJumpGreaterEqual, program_, &Program::jumpGreaterEqual };
-		Instruction<jump_type> ins_jumpless_{ KeyProgramJumpLess, program_, &Program::jumpLess };
-		Instruction<jump_type> ins_jumplessequal_{ KeyProgramJumpLess, program_, &Program::jumpLessEqual };
-		Instruction<jump_type> ins_loop_{ KeyProgramLoop, program_, &Program::loop };
-		Instruction<jump_type> ins_call_{ KeyProgramCall, program_, &Program::call };
-		Instruction<void> ins_return_{ KeyProgramReturn, program_, &Program::ret };
-		Instruction<const char*> ins_returnvalue_{ KeyProgramReturn, program_, &Program::ret };
-		Instruction<const char*> ins_push_{ KeyProgramPush, program_, &Program::push };
-		Instruction<const char*> ins_pop_{ KeyProgramPush, program_, &Program::pop };
-# endif
-#pragma endregion
+		Command<void> cmd_help_{ KeyHelp, *this, &Jack::cmdHelp };
+		Command<pin_t, const char*> cmd_writepgm_{ KeyProgramWriteFrom, *this, &Jack::cmdWitePgm };
+		Instruction<const char*, const char*> ins_add_{ Program::KeyAdd, program_, &Program::add };
+		Instruction<const char*, const char*> ins_subtract_{ Program::KeySubtract, program_, &Program::subtract };
+		Instruction<const char*, const char*> ins_multiply_{ Program::KeyMultiply, program_, &Program::multiply };
+		Instruction<const char*, const char*> ins_divide_{ Program::KeyDivide, program_, &Program::divide };
+		Instruction<const char*, const char*> ins_modulo_{ Program::KeyModulo, program_, &Program::modulo };
+		Instruction<const char*, const char*> ins_and_{ Program::KeyLogicalAnd, program_, &Program::logicalAnd };
+		Instruction<const char*, const char*> ins_or_{ Program::KeyLogicalOr, program_, &Program::logicalOr };
+		Instruction<const char*, const char*> ins_test_{ Program::KeyLogicalTest, program_, &Program::logicalTest };
+		Instruction<const char*, const char*> ins_xor_{ Program::KeyLogicalXor, program_, &Program::logicalXor };
+		Instruction<const char*, const char*> ins_compare_{ Program::KeyCompare, program_, &Program::compare };
+		Instruction<const char*, const char*> ins_move_{ Program::KeyMove, program_, &Program::move };
+		Instruction<const char*> ins_not_{ Program::KeyLogicalNot, program_, &Program::logicalNot };
+		Instruction<const char*> ins_decrement_{ Program::KeyDecrement, program_, &Program::decrement };
+		Instruction<const char*> ins_increment_{ Program::KeyIncrement, program_, &Program::increment };
+		Instruction<const char*> ins_negate_{ Program::KeyNegate, program_, &Program::negate };
+		Instruction<std::time_t> ins_sleep_{ Program::KeySleep, program_, &Program::sleep };
+		Instruction<jump_type> ins_jump_{ Program::KeyJump, program_, &Program::jump };
+		Instruction<jump_type> ins_jumpequal_{ Program::KeyJumpEqual, program_, &Program::jumpEqual };
+		Instruction<jump_type> ins_jumpnotequal_{ Program::KeyJumpNotEqual, program_, &Program::jumpNotEqual };
+		Instruction<jump_type> ins_jumpgreater_{ Program::KeyJumpGreater, program_, &Program::jumpGreater };
+		Instruction<jump_type> ins_jumpgreaterequal_{ Program::KeyJumpGreaterEqual, program_, &Program::jumpGreaterEqual };
+		Instruction<jump_type> ins_jumpless_{ Program::KeyJumpLess, program_, &Program::jumpLess };
+		Instruction<jump_type> ins_jumplessequal_{ Program::KeyJumpLess, program_, &Program::jumpLessEqual };
+		Instruction<jump_type> ins_loop_{ Program::KeyLoop, program_, &Program::loop };
+		Instruction<jump_type> ins_call_{ Program::KeyCall, program_, &Program::call };
+		Instruction<void> ins_return_{ Program::KeyReturn, program_, &Program::ret };
+		Instruction<const char*> ins_returnvalue_{ Program::KeyReturn, program_, &Program::ret };
+		Instruction<const char*> ins_push_{ Program::KeyPush, program_, &Program::push };
+		Instruction<const char*> ins_pop_{ Program::KeyPop, program_, &Program::pop };
 
-	private: 
-#pragma region Private class members
+# endif
+	private: /* Private class members */
 		Connection*		connection_;	// Current network connection.
 		Interpreter		interp_;		// Language interpreter.
 		EEStream		eeprom_;		// EEPROM streaming access.
@@ -572,26 +566,28 @@ namespace pg
 		Program			program_;		// Stored program manager.
 		Instructions	instructions_;	// Program instructions collection.
 # endif
-#pragma endregion
+# if defined __PG_CRC_H 
+		bool checksum_;
+#endif
 	};
 } // namespace pg
 
 namespace pg
 {
-#pragma region public methods
+#pragma region public program_
 
 # if defined __PG_PROGRAM_H
 	Jack::Jack(cmdlist_type commands) :
-		connection_(), interp_(), eeprom_(), pins_(), timers_(), isrs_(), ack_(), program_(), 
+		connection_(), interp_(), eeprom_(), pins_(), timers_(), isrs_(), ack_(), program_(*this), 
 		commands_({ & cmd_devinfo_ , & cmd_devreset_, & cmd_ackget_, & cmd_ackset_, & cmd_pininfoget_, & cmd_pininfogetall_,
 			& cmd_pinmodeget_, & cmd_pinmodegetall_, & cmd_pinmodeset_, & cmd_pinmodesetall_, & cmd_timerstatusget_,
 			& cmd_timerstatusgetall_, & cmd_timerstatusset_, & cmd_timerstatussetall_, & cmd_readpin_, & cmd_readpinall_, 
 			& cmd_readpinlist_, & cmd_timerattachget_, & cmd_timerattachgetall_, & cmd_timerattachset_, & cmd_timerdetach_,
 			& cmd_timerdetachall_, & cmd_writepin_, & cmd_connectionget_, & cmd_connectionset_, & cmd_ldaconfig_, & cmd_stoconfig_, 
 			& cmd_elapsed_, & cmd_program_, & cmd_help_ }),
-		instructions_({ &cmd_compare_, &cmd_move_, &ins_negate_, &ins_not_, &ins_sleep_, &ins_jump_, &ins_jumpequal_,
+		instructions_({ & ins_compare_, & ins_move_, & ins_negate_, & ins_not_, & ins_sleep_, & ins_jump_, & ins_jumpequal_,
 			&ins_jumpnotequal_, &ins_jumpless_, &ins_jumplessequal_, &ins_jumpgreater_, &ins_jumpgreaterequal_,
-			&cmd_writeregister_, &ins_loop_, & ins_decrement_, & ins_increment_, & ins_add_, & ins_subtract_, & ins_multiply_, 
+			&cmd_writepgm_, &ins_loop_, & ins_decrement_, & ins_increment_, & ins_add_, & ins_subtract_, & ins_multiply_, 
 			& ins_divide_, & ins_modulo_, & ins_and_, & ins_or_, & ins_test_, & ins_xor_, & ins_call_, & ins_return_, 
 			& ins_returnvalue_, &ins_push_, &ins_pop_ })
 	{
@@ -623,17 +619,20 @@ namespace pg
 			const char* msg = connection_->receive();
 
 			if (*msg)
+# if defined __PG_CRC_H
+				if(check(const_cast<char*>(msg))) // Look for trailing check value and compare to checksum.
+# endif
 # if defined __PG_PROGRAM_H
-				process(msg);
-			if (program_.active())
-			{
-				const char* instruction = program_.instruction();
-
-				interp_.execute(std::begin(commands_), std::end(commands_), instruction) || 
-					interp_.execute(std::begin(instructions_), std::end(instructions_), instruction);
-			}
+					process(msg);	// Check for program control messages before execution.
+				if (program_.active())	// If current program is active, execute next instruction.
+				{
+					const char* instruction = program_.instruction();
+					// Programs can execute both remote commands and program instructions.
+					interp_.execute(std::begin(commands_), std::end(commands_), instruction) || 
+						interp_.execute(std::begin(instructions_), std::end(instructions_), instruction);
+				}
 # else 
-				interp_.execute(std::begin(commands_), std::end(commands_), msg);
+					interp_.execute(std::begin(commands_), std::end(commands_), msg);
 # endif
 		}
 	}
@@ -663,7 +662,7 @@ namespace pg
 		Connection* connection = nullptr;
 
 		// Convert arg0, arg1 and arg2 into a comma-delimited string: "arg0,arg1,arg2".
-		(void)std::sprintf(params, FmtConnectionSet, arg0, arg1, arg2);
+		(void)fmtMessage(params, FmtConnectionSet, arg0, arg1, arg2);
 		closeConnection(connection_);
 		setConnection(nullptr);
 		storeConnection(eeprom_, net_type, params);
@@ -793,7 +792,7 @@ namespace pg
 			// If pin has interrupt capability, attach it.
 			if(p < GpioCount && pins_[p].int_)
 				attachInterrupt(digitalPinToInterrupt(p), getIsr(t), static_cast<PinStatus>(trigger));
-			// Set our timer state, p == InvalidPin allows user to operate timer manually wth commands.
+			// Set our timer state, p == InvalidPin allows user to operate timer manually with commands.
 			attachTimer(t, p, mode, trigger, timing);
 		}
 	}
@@ -906,6 +905,36 @@ namespace pg
 		}
 	}
 
+	isystem::value_type Jack::sys_get(const char* str)
+	{
+		isystem::value_type value = 0;
+		size_type n = std::atoi(str + 1);
+
+		switch (*str)
+		{
+		case '#':
+			value = readPin(n);
+			break;
+		case '%':
+			value = timers_[n].object_.elapsed().count();
+			break;
+		case '+':
+			value = timers_[n].object_.count();
+			break;
+		case '*':
+			value = timers_[n].object_.active();
+			break;
+		case '$':
+			value = elapsedTime(n);
+			break;
+		default:
+			value = std::atol(str);
+			break;
+		}
+
+		return value;
+	}
+
 #pragma endregion
 #pragma region private methods
 
@@ -1008,6 +1037,12 @@ namespace pg
 	{
 		timers_[t].object_.stop();
 		detachTimer(t);
+	}
+
+	template<class... Ts>
+	Jack::size_type Jack::fmtMessage(char* buf, const char* fmt, Ts... args)
+	{
+		return std::sprintf(buf, fmt, args...);
 	}
 
 	Jack::isr_type Jack::getIsr(timer_t n)
@@ -1261,7 +1296,11 @@ namespace pg
 	{
 		char msg[Connection::size()] = { '\0' };
 
-		std::sprintf(msg, fmt, args...);
+		(void)fmtMessage(msg, fmt, args...);
+# if defined __PG_CRC_H
+		if (checksum_)	// If we received a msg with a checksum then append one to any replies.
+			(void)fmtMessage(msg + std::strlen(msg), ":%u", checksum(static_cast<char*>(msg)));
+# endif
 		connection_->send(msg);
 	}
 
@@ -1426,49 +1465,22 @@ namespace pg
 		if (ack_)
 			sendPinValue(n, write_value);
 	}
+# if defined __PG_CRC_H
+	bool Jack::check(char* msg)
+	{
+		const char* const delim = ":";
+		(void)std::strtok(msg, delim); // look for msg w/ trailing ":", 
+		char* chk_val = std::strtok(nullptr, delim); // followed by a check value. 
+		checksum_ = chk_val;	// set our checksum reply flag.
+		// result is either no check value found or check value == checksum().
+		return !chk_val || checksum(msg) == static_cast<unsigned char>(std::atoi(chk_val));
+	}
+# endif
 # if defined __PG_PROGRAM_H
-	char* Jack::systemCall(const char* arg)
+
+	void Jack::cmdWitePgm(pin_t p, const char* r)
 	{
-		return std::strpbrk(arg, FmtValueModifiers);
-	}
-
-	void Jack::cmdCompare(const char* arg1, const char* arg2)
-	{
-		// Program class doesn't support concept of system/kernel calls, 
-		// so we handle them here. systemCall() returns some Jack value 
-		// such as a pin or timer value, which gets passed to the program.
-
-		char* sys_call_1 = systemCall(arg1);
-		char* sys_call_2 = systemCall(arg2);
-
-		if (sys_call_1)
-		{
-			if (sys_call_2)
-				program_.compare(systemValue(arg1), systemValue(arg2));
-			else
-				program_.compare(systemValue(arg1), arg2);
-		}
-		else if (sys_call_2)
-			program_.compare(arg1, systemValue(arg2));
-		else
-			program_.compare(arg1, arg2);
-	}
-
-	void Jack::cmdMove(const char* arg1, const char* arg2)
-	{
-		// See cmdCompare re: systemCall().
-
-		char* sys_call = systemCall(arg2);
-
-		if(sys_call)
-			program_.move(arg1, systemValue(sys_call));
-		else
-			program_.move(arg1, arg2);
-	}
-
-	void Jack::cmdWriteReg(pin_t p, const char* r)
-	{
-		writePin(p, program_.regValue(r));
+		writePin(p, program_.get(r));
 	}
 
 	void Jack::list()
@@ -1487,42 +1499,12 @@ namespace pg
 		return line + std::strlen(line) + sizeof(char);
 	}
 
-	typename Program::value_type Jack::systemValue(const char* str)
-	{
-		Program::value_type value = 0;
-		size_type n = std::atoi(str + 1);
-
-		switch (*str)
-		{
-		case '#':
-			value = readPin(n);
-			break;
-		case '%':
-			value = timers_[n].object_.elapsed().count();
-			break;
-		case '+':
-			value = timers_[n].object_.count();
-			break;
-		case '*':
-			value = timers_[n].object_.active();
-			break;
-		case '$':
-			value = elapsedTime(n);
-			break;
-		default:
-			value = std::atol(str);
-			break;
-		}
-
-		return value;
-	}
-
 	void Jack::process(const char* msg)
 	{
 		// Message processor only executes remote commands, not program instructions.
 		command_type* cmd = static_cast<command_type*>(interp_.interpret(std::begin(commands_), std::end(commands_), msg));
 
-		// When loading a program, execute any "pgm" commands else forward message to program for storage.
+		// When loading a program, execute any program control commands else forward message to program for storage.
 		if (program_.loading())
 		{
 			if (cmd && *cmd == KeyProgram)

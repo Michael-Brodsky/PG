@@ -4,7 +4,7 @@
  *	***************************************************************************
  *
  *	File: Program.h
- *	Date: June 3, 2022
+ *	Date: June 10, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -28,12 +28,13 @@
  *	**************************************************************************/
 
 #if !defined __PG_PROGRAM_H
-# define __PG_PROGRAM_H 20220603L
+# define __PG_PROGRAM_H 20220610L
 
 # include <cstdint>
 # include <cstring>
 # include <cstdlib>
 # include <stack>
+# include <interfaces/isystem.h>
 # include <utilities/Timer.h>
 
 namespace pg
@@ -56,21 +57,60 @@ namespace pg
 			List = 8,	// Lists the current program text.
 		};
 		using size_type = uint16_t;	// Type that can hold the size of any program object.
-		using value_type = int32_t;	// Type that can hold the value of any program object. 
+		using value_type = isystem::value_type;	// Type that can hold the value of any program object. 
 		using timer_type = Timer<std::chrono::milliseconds>; // Program sleep timer type.
+		using key_type = const char*;
 
 		static constexpr size_type CharsMax = 1024;	// Maximum size of program text in characters.
 		static constexpr size_type StackSize = 32;	// Maximum size of program stack.
 
+		static constexpr key_type KeyAdd = "add";				// Add two values.
+		static constexpr key_type KeyCall = "call";				// Call subroutine.
+		static constexpr key_type KeyCompare = "cmp";			// Compare two values.
+		static constexpr key_type KeyDecrement = "dec";			// Decrement a value.
+		static constexpr key_type KeyDivide = "div";			// Divide a value by another.
+		static constexpr key_type KeyHelp = "hlp";				// Get commands list.
+		static constexpr key_type KeyIncrement = "inc";			// Increment a value.
+		static constexpr key_type KeyJump = "jmp";				// Unconditional jump.
+		static constexpr key_type KeyJumpEqual = "je";			// Jump on equal.
+		static constexpr key_type KeyJumpNotEqual = "jne";		// Jump on not equal.
+		static constexpr key_type KeyJumpGreater = "jgt";		// Jump on greater than.
+		static constexpr key_type KeyJumpGreaterEqual = "jge";	// Jump on greater than or equal.
+		static constexpr key_type KeyJumpLess = "jlt";			// Jump on less than.
+		static constexpr key_type KeyJumpLessEqual = "jle";		// Jump on less than or equal.
+		static constexpr key_type KeyJumpNotSign = "jns";		// Jump on not negative.
+		static constexpr key_type KeyJumpSign = "js";			// Jump on negative.
+		static constexpr key_type KeyJumpNotZero = "jnz";		// Jump on not zero.
+		static constexpr key_type KeyJumpZero = "jz";			// Jump on zero.
+		static constexpr key_type KeyLogicalAnd = "and";		// Logical and two values.
+		static constexpr key_type KeyLogicalNot = "not";		// Logical complement a value.
+		static constexpr key_type KeyLogicalOr = "or";			// Logical or two values.
+		static constexpr key_type KeyLogicalTest = "tst";		// Logical and two values without saving result.
+		static constexpr key_type KeyLogicalXor = "xor";		// Logical exclusive or two values.
+		static constexpr key_type KeyLoop = "loop";				// Loop while cx not zero.
+		static constexpr key_type KeyModulo = "mod";			// Modulo operator.
+		static constexpr key_type KeyMove = "mov";				// Move value to register.
+		static constexpr key_type KeyMultiply = "mul";			// Multiply two values.
+		static constexpr key_type KeyNegate = "neg";			// Negate a value.
+		static constexpr key_type KeyPop = "pop";				// Pop from stack to register.
+		static constexpr key_type KeyPush = "push";				// Push value to stack.
+		static constexpr key_type KeyReturn = "ret";			// Return from subroutine call.
+		static constexpr key_type KeyReturnValue = "rets";		// Return from subroutine call with value on stack.
+		static constexpr key_type KeySleep = "dly";				// Sleep.
+		static constexpr key_type KeySubtract = "sub";			// Subtract two values.
+
+		static constexpr const char* const SystemCallChars = "#%+*$";
+
 		using stack_type = std::stack<value_type, StackSize>; // Program stack.
 
 	public:
-		Program();
+		Program(isystem&);
 
 	public: /* Program control methods. */
 		bool active() const;					// Checks whether the program is currently running.
 		void begin();							// Begins loading a new program.
 		void end();								// Ends loading a new program.
+		value_type get(const char*);			// Returns the value of a register.
 		void halt();							// Stops a running program.
 		void instruction(const char*);			// Adds an instruction to a new program.
 		const char* instruction();				// Returns the current program instruction and advances to the next one.
@@ -84,9 +124,6 @@ namespace pg
 	public:	/* Program execution methods. */
 		void add(const char*, const char*);
 		void call(size_type);
-		void compare(value_type, value_type);
-		void compare(const char*, value_type);
-		void compare(value_type, const char*);
 		void compare(const char*, const char*);	
 		void decrement(const char*);
 		void divide(const char*, const char*);
@@ -110,20 +147,19 @@ namespace pg
 		void loop(size_type);
 		void modulo(const char*, const char*);
 		void move(const char*, const char*);
-		void move(const char*, value_type);
 		void multiply(const char*, const char*);
 		void negate(const char*);
 		void pop(const char*);
 		void push(const char*);
-		value_type regValue(const char*);
 		void ret();
 		void ret(const char*);
 		void subtract(const char*, const char*);
 
 	private:
-		value_type argValue(const char* arg);
+		value_type* getDest(const char*);
+		bool isSysCall(const char*);
+		void moveValue(const char*, value_type);
 		size_type next() const;		
-		value_type* regAddress(const char*);
 		bool sleeping();			
 
 	private:
@@ -139,13 +175,14 @@ namespace pg
 		value_type	dx_;
 		value_type	sr_;
 		stack_type	stack_;
+		isystem&	system_;
 	};
 
 #pragma region public program control methods
 
-	Program::Program() :
+	Program::Program(isystem& system) :
 		loading_(), active_(), text_{}, ptr_(text_), end_(ptr_), sleep_(),
-		ax_(), bx_(), cx_(), dx_(), sr_(), stack_() 
+		ax_(), bx_(), cx_(), dx_(), sr_(), stack_(), system_(system) 
 	{
 
 	}
@@ -173,6 +210,21 @@ namespace pg
 			*ptr_ = '\0';	// Mark one past the last instruction.
 			ptr_ = text_;
 		}
+	}
+
+	Program::value_type Program::get(const char* arg)
+	{
+		Program::value_type value = 0;
+		value_type* dest = nullptr;
+
+		if (isSysCall(arg))
+			value = system_.sys_get(arg);
+		else if ((dest = getDest(arg)))
+			value = *dest;
+		else
+			value = std::atol(arg);
+
+		return value;
 	}
 
 	void Program::halt()
@@ -205,13 +257,6 @@ namespace pg
 		return loading_;
 	}
 	
-	Program::value_type Program::regValue(const char* arg)
-	{
-		value_type* reg = regAddress(arg);
-
-		return reg ? *reg : value_type();
-	}
-
 	void Program::reset()
 	{
 		if (!loading_)
@@ -242,50 +287,56 @@ namespace pg
 #pragma endregion
 #pragma region private
 
-	Program::value_type Program::argValue(const char* arg)
+	Program::value_type* Program::getDest(const char* arg)
 	{
-		value_type* reg = regAddress(arg);
-
-		return reg ? *reg : std::atol(arg);
-	}
-
-	Program::size_type Program::next() const
-	{
-		return std::strlen(ptr_) + sizeof(char);
-	}
-
-	Program::value_type* Program::regAddress(const char* arg)
-	{
-		value_type* reg = nullptr;
+		value_type* dest = nullptr;
 		char c = 'x';
 
 		switch (*arg)
 		{
 		case 'a':
-			reg = &ax_;
+			dest = &ax_;
 			break;
 		case 'b':
-			reg = &bx_;
+			dest = &bx_;
 			break;
 		case 'c':
-			reg = &cx_;
+			dest = &cx_;
 			break;
 		case 'd':
-			reg = &dx_;
+			dest = &dx_;
 			break;
 		case 'p':
-			reg = reinterpret_cast<value_type*>(&ptr_);
+			dest = reinterpret_cast<value_type*>(&ptr_);
 			c = 'c';
 			break;
 		case 's':
-			reg = &sr_;
+			dest = &sr_;
 			c = 'r';
 			break;
 		default:
 			break;
 		}
 
-		return reg && *(arg + 1) == c && *(arg + 2) == '\0' ? reg : nullptr;
+		return dest && *(arg + 1) == c && *(arg + 2) == '\0' ? dest : nullptr;
+	}
+
+	bool Program::isSysCall(const char* arg)
+	{
+		return std::strpbrk(arg, SystemCallChars) == arg;
+	}
+
+	void Program::moveValue(const char* arg, value_type value)
+	{
+		value_type* dest = getDest(arg);
+
+		if(dest)
+			*dest = value;
+	}
+
+	Program::size_type Program::next() const
+	{
+		return std::strlen(ptr_) + sizeof(char);
 	}
 
 	bool Program::sleeping()
@@ -299,10 +350,7 @@ namespace pg
 
 	void Program::add(const char* arg1, const char* arg2)
 	{
-		value_type* reg = regAddress(arg1);
-
-		if (reg)
-			sr_ = *reg += argValue(arg2);
+		moveValue(arg1, (sr_ = get(arg1) + get(arg2)));
 	}
 
 	void Program::call(size_type address)
@@ -312,48 +360,24 @@ namespace pg
 		jump(address);
 	}
 
-	void Program::compare(value_type a, value_type b)
-	{
-		sr_ = a - b;
-	}
-
-	void Program::compare(const char* arg, value_type v)
-	{
-		sr_ = argValue(arg) - v;
-	}
-
-	void Program::compare(value_type v, const char* arg)
-	{
-		sr_ = v - argValue(arg);
-	}
-
 	void Program::compare(const char* arg1, const char* arg2)
 	{
-		sr_ = argValue(arg1) - argValue(arg2);
+		sr_ = get(arg1) - get(arg2);
 	}
 
 	void Program::decrement(const char* arg)
 	{
-		value_type* reg = regAddress(arg);
-
-		if (reg)
-			sr_ = --(*reg);
+		moveValue(arg, (sr_ = get(arg) - 1));
 	}
 
 	void Program::divide(const char* arg1, const char* arg2)
 	{
-		value_type* reg = regAddress(arg1);
-
-		if (reg)
-			sr_ = *reg /= argValue(arg2);
+		moveValue(arg1, (sr_ = get(arg1) / get(arg2)));
 	}
 
 	void Program::increment(const char* arg)
 	{
-		value_type* reg = regAddress(arg);
-
-		if (reg)
-			sr_ = ++(*reg);
+		moveValue(arg, (sr_ = get(arg) + 1));
 	}
 
 	void Program::jump(size_type n)
@@ -422,110 +446,72 @@ namespace pg
 
 	void Program::logicalAnd(const char* arg1, const char* arg2)
 	{
-		value_type* reg = regAddress(arg1);
-
-		if (reg)
-			sr_ = *reg &= argValue(arg2);
+		moveValue(arg1, (sr_ = get(arg1) & get(arg2)));
 	}
 
 	void Program::logicalOr(const char* arg1, const char* arg2)
 	{
-		value_type* reg = regAddress(arg1);
-
-		if (reg)
-			sr_ = *reg |= argValue(arg2);
+		moveValue(arg1, (sr_ = get(arg1) | get(arg2)));
 	}
 
 	void Program::logicalTest(const char* arg1, const char* arg2)
 	{
-		value_type* reg = regAddress(arg1);
-
-		if (reg)
-			sr_ = *reg & argValue(arg2);
+		sr_ = get(arg1) & get(arg2);
 	}
 
 	void Program::logicalXor(const char* arg1, const char* arg2)
 	{
-		value_type* reg = regAddress(arg1);
-
-		if (reg)
-			sr_ = *reg ^= argValue(arg2);
+		moveValue(arg1, (sr_ = get(arg1) ^ get(arg2)));
 	}
 
 	void Program::logicalNot(const char* arg)
 	{
-		value_type* reg = regAddress(arg);
-
-		if (reg)
-			sr_ = *reg = ~(*reg);
+		moveValue(arg, (sr_ = ~get(arg)));
 	}
 
 	void Program::loop(size_type address)
 	{
 		if (--cx_ > 0)
-		{
 			jump(address);
-			//--cx_;
-		}
 	}
 
 	void Program::modulo(const char* arg1, const char* arg2)
 	{
-		value_type* reg = regAddress(arg1);
-
-		if (reg)
-			sr_ = *reg %= argValue(arg2);
+		moveValue(arg1, (sr_ = get(arg1) % get(arg2)));
 	}
 
 	void Program::multiply(const char* arg1, const char* arg2)
 	{
-		value_type* reg = regAddress(arg1);
-
-		if (reg)
-			sr_ = *reg *= argValue(arg2);
+		moveValue(arg1, (sr_ = get(arg1) * get(arg2)));
 	}
 
 	void Program::move(const char* arg1, const char* arg2)
 	{
-		value_type* reg = regAddress(arg1);
-
-		if (reg)
-			sr_ = *reg = argValue(arg2);
-	}
-
-	void Program::move(const char* arg, value_type v)
-	{
-		value_type* reg = regAddress(arg);
-
-		if (reg)
-			sr_ = *reg = v;
+		moveValue(arg1, get(arg2));
 	}
 
 	void Program::negate(const char* arg)
 	{
-		value_type* reg = regAddress(arg);
-
-		if (reg)
-			sr_ = *reg = -(*reg);
+		moveValue(arg, -get(arg));
 	}
 
-	void Program::pop(const char* r)
+	void Program::pop(const char* arg)
 	{
-		value_type* reg = regAddress(r);
+		value_type* dest = getDest(arg);
 
-		if (reg)
+		if (dest)
 		{
-			if (reg == reinterpret_cast<value_type*>(&ptr_))
+			if (dest == reinterpret_cast<value_type*>(&ptr_))
 				ptr_ = reinterpret_cast<char*>(stack_.top());
 			else
-				*reg = stack_.top();
+				*dest = stack_.top();
 			stack_.pop();
 		}
 	}
 
 	void Program::push(const char* arg)
 	{
-		stack_.push(argValue(arg));
+		stack_.push(get(arg));
 	}
 
 	void Program::ret()
@@ -542,10 +528,7 @@ namespace pg
 
 	void Program::subtract(const char* arg1, const char* arg2)
 	{
-		value_type* reg = regAddress(arg1);
-
-		if (reg)
-			sr_ = *reg -= argValue(arg2);
+		moveValue(arg1, (sr_ = get(arg1) - get(arg2)));
 	}
 
 #pragma endregion
