@@ -1,0 +1,130 @@
+*****************************************
+*         Jack Device Operation         *
+*****************************************
+
+Jack devices are remotely operated over a network connection using messages. Messages encode commands 
+to control devices and issue replies. Commands execute operations to:
+
+* Manage the network connection, 
+* Retrieve the device hardware capabilities, 
+* Manage the device hardware configuration, 
+* Manage the device status,
+* Get and set GPIO pin states, 
+* Manage GPIO event counters and timers,
+* Store and retrieve the device configuration from EEPROM, 
+* Remotely program the device.
+
+Once the device is powered up and initialized, it can be remotely operated using messages. 
+
+
+/////////////////////////////////
+// Start-Up and Initialization //
+/////////////////////////////////
+
+On power-up or after a reset, Jack configures all of the device's GPIO pins as inputs, opens a 
+network connection and starts listening for messages. The connection can be either the one last used 
+or the default connection. The default connection is automatically selected on first use or when one 
+of the device input pins is held LOW during start-up.
+
+The default connection type is USB (Serial), baud rate=9600, frame=8N1, timeout=1000 ms. The default 
+start-up pin checked is pin 4. Once initialized, the start-up pin can be used normally. Jack indicates 
+a successful connection by lighting the device's built-in LED. Connections over WiFi or wide area 
+networks (WAN) can take several seconds to establish. If the built-in LED does not light within the 
+expected amount of time, the connection was unsuccessful and cannot be used.
+
+
+//////////////////////
+// Normal Operation //
+//////////////////////
+
+Jack supports connectivity over USB (Serial), Ethernet and Wifi networks. Messages are sent over the 
+network as text. Messages encode "commands" which are simple character strings having the form:
+
+	key=value1,value2,...,valueN
+
+where `key' is a unique string identifying the command, optionally followed by a comma-separated list 
+of values (arguments) and terminated by a newline character '\n'. Jack reply messages have the same 
+format. Messages have a strict format. Descriptions can be found in document <Messages.txt>. Command  
+listings and descriptions are documented in <Commands.txt>.
+
+
+1) Network Connection
+
+The network connection is set with the "snt" command and read with the "net" command. In order to 
+communicate, hosts must use the same connection type and parameters as the Jack device. Connections  
+can be set or read at any time.
+
+
+2) Device Capabilities and Status
+
+Hosts can retrive information about the device hardware, status and set operating modes. The device 
+hardware information is retrieved with the "inf" command, which returns the device name/type, the 
+microcontroller (MCU) name/ type and clock speed, the GPIO pin count and the the event counter/timer 
+count. The message acknowledge feature is set with the "sck" command and read with the "ack" command. 
+When enabled, the device will reply to all messages, including ones that normally do not return replies. 
+The device can be reset with the "rst" command. When commanded, the device will reply to indicate it is 
+resetting, however hosts must query the device to determine if it is back online. 
+
+
+3) GPIO Pin Types
+
+Pin type information is read with the "pin" and "pna" commands. The information returned includes 
+whether the pin is digital-only, supports analog inputs or outputs, and has hardware interrupts. Pins 
+with interrupt capability can be attached to one of Jack's event counter/timers (see below). Pin type 
+information can be retrieved at any time.
+
+
+4) GPIO Pin Modes
+
+Pins can be configured as inputs or outputs. Modes are set with the "spm" and "spa" commands, and read 
+with the "pmd" and "pma" commands. Pin modes can be set or read at any time. 
+
+
+5) Reading Input Pin States
+
+Pin states are read with the "rdp" and "rda" commands. Pin states can be read at any time. The value 
+returned will depend on the pin type. Digital pins will return 0 or 1, analog pins will return a value 
+in [0-adcmax], where adcmax is the maximum possible output value from the device's analog to digital 
+converters (ADC). The value of adcmax is device-specific.
+
+
+6) Writing Output Pin States
+
+Pin states are written with the "wrp" command. Pin states can be written at any time, but only those 
+configured as outputs will change states. Valid output states depend on the pin type. Digital-only pins 
+can be set to 0 or 1, while those supporting pulse-width-modulated (PWM) outputs can be set anywhere in 
+the range [0-pwmmax], where 0 represents the value that produces a 0% duty cycle (continuously off) 
+output and pwmmax the value that produces a 100% duty cycle (continuously on) output. The value of 
+pwmmax is device-specific.
+
+
+7) General Purpose Counter/Timers
+
+Counter/Timers are used to count and time GPIO state changes or manually for general-purpose timing.
+Monitoring pin state changes is interrupt-driven and counter/timers can only be attached to pins 
+with hardware interrupt capability. Pin capability is device-specific. General-purpose timing 
+is not associated with any pins and completely under host control. Counter/Timers are attached to pins 
+using the "atc" command and detached using the "dtc" and "dta" commands. Timer attachment information 
+is retrived with the "tcm" and "tca" commands. Timer status is retrieved using the "tms" and "tma" 
+commands. Timers can be commanded to start, stop, resume or reset using the "stm" and "sta" commands. 
+Jack supports upto 16 counter/timers. The actual count is limited to the number of 
+pins supporting interrupts, but no less than 4. Counter/timers can be commanded at any time.
+
+
+8) Storing and Loading Device Configuration 
+
+Jack can store and recall its current configuration using the device's EEPROM memory. The configuration 
+is stored in memory using the "sto" command and retrieved using the "lda" command. Information 
+maintained includes the network connection, GPIO pin modes and event counter/timer states. 
+Configurations can be stored or retrieved at any time.
+ 
+
+////////////////////////
+// Remote Programming // 
+////////////////////////
+
+Devices with sufficient internal memory are remotely programmable. Hosts can download programs to 
+execute on the device and control program status. Programs can be loaded, started, stopped, reset, 
+verified and listed using the "pgm" command at any time. Jack uses a programming language very similar 
+to common assembly language that can be intermixed with normal commands. For a complete description, see 
+document <Programming.txt>

@@ -11,9 +11,9 @@ devices to function as remote control, data acquisition (DAQ) and IoT platforms.
 desktop counterpart View, Jack forms the basis of a general purpose HMI/SCADA system.
 
 Remote hosts communicate with Jack devices over a network connection, and can configure and control 
-them using a simple query language. Hosts can also download programs to Jack devices that execute 
-remotely on the device. This can increase device functionality while significantly reducing host 
-workload and network traffic.
+them using simple commands. Hosts can also download programs to Jack devices that execute remotely on 
+the device. This can increase device functionality while significantly reducing host workload and 
+network traffic.
 
 Jack supports all typical microcontroller functions, including configuring general purpose 
 input/output (GPIO) pins, reading and setting pin states, counting and timing pin events, network and 
@@ -28,12 +28,12 @@ architectures. This includes Arduino, ST Micro, Teensy, Microchip and other boar
 // General Features                    //
 /////////////////////////////////////////
 
+*	Device type and hardware capability reporting.
 *	Control of upto 255 GPIO pins.
 *	Control of upto 15 event counters/timers.
 *	USB (Serial), Ethernet and WiFi connectivity.
+*	Communication error detection.
 *	EEPROM storage of device settings.
-*	Transmission error detection.
-*	Device type and hardware capability reporting.
 *	Remote programability.
 *	Expandability with client-defined messages.
 *	Wide range of hardware compatibility. 
