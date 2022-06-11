@@ -3,7 +3,7 @@ C++ Standard Library for the Arduino that uses only static memory (no new, mallo
 
 
 ### components
-A collection of reusable objects that follow the Mediator design pattern.
+A collection of reusable objects that follow the Mediator design pattern and provide higher-level functionality.
 
 ### interfaces 
 A collection of abstract interface classes for implementing common C++ design patterns.
