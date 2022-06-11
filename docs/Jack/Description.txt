@@ -2,10 +2,6 @@
 *                 Jack                  *
 *****************************************
 
-/////////////////////////////////////////
-// Overview                            //
-/////////////////////////////////////////
-
 Jack is part of a software library and application suite that allows inexpensive microcontroller-based
 devices to function as remote control, data acquisition (DAQ) and IoT platforms. Along with its 
 desktop counterpart View, Jack forms the basis of a general purpose HMI/SCADA system.

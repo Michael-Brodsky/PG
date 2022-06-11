@@ -1,6 +1,6 @@
-/////////////////////////////////////////
-// Jack Messages                       //
-/////////////////////////////////////////
+***********************************
+*          Jack Messages          *
+***********************************
 
 
 Hosts communicate with Jack devices over a network connection using "messages" Messages encode 
