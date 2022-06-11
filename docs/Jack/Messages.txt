@@ -1,0 +1,67 @@
+/////////////////////////////////////////
+// Jack Messages                       //
+/////////////////////////////////////////
+
+
+Hosts communicate with Jack devices over a network connection using "messages" Messages encode 
+"commands" that the device can execute. Commands are character strings with the general form: 
+
+	key=value1,value2,...,valueN
+
+where `key' is a unique string identifying the command, optionally followed by a comma-separated list 
+of values (arguments) and terminated by a newline character '\n'.
+
+Messages have a strict format. Command keys must match exactly. For commands taking argument lists, the 
+key and list must be separated by exactly one equal character '=' with no surrounding whitespace. 
+Commands without arguments omit the separator and use the key string alone. Arguments must be separated 
+by exactly one comma character ','. Arguments must not contain any of the special characters "=,:". 
+Arguments are interpreted literally, including any punctuation and quotes. Messages should not contain 
+any trailing characters not part of the command, as they will be interpreted as part of the last 
+argument. The number of message arguments must match the number expected by the command. Messages with 
+less than that the expected number of arguments are invalid and dropped. Extra arguments are ignored. 
+For example:
+
+	rda		; read all input pins, excpects 0 arguments, 
+	rdp=4		; read input pin 4, expects 1 argument,
+	wrp=13,0	; write 0 to output pin 13, expects 2 arguments,
+
+	rda=4		; OK, extra ignored,
+	rdp		; Invalid, missing required argument,
+	wrp=13		; Invalid, missing required argument.
+
+Arguments are "typed" and thus have a range of valid values. Valid types include: 
+
+	byte		; [0-255]
+	integer		; [0-65535]
+	long		; [0-4294967295]
+	string		; any alphanumeric character, spaces, punctuation and quotes except special 
+			; characters: '=' ',' ':'
+	list		; dot '.' separated list of numeric values. The list type only has special 
+			; meaning for commands taking list arguments.
+
+All numeric arguments are unsigned values. Valid messages with incorrectly formatted arguments may 
+execute, but with unexpected behavior. Hosts must ensure argument validity before transmission. 
+For example:
+
+	rdp=255		; OK, rdp expects unsigned byte argument,
+	rdp=256		; Incorrect, interpreted as 256 mod 256, resulting in rdp=0,
+	rdp=x		; Incorrect, expects numeric value, resulting in rdp=0.
+	rdp=-250	; Incorrect, expects unsigned argument, resulting in rdp=6.
+	rdp=9.0		; Incorrect, converted to unsigned integral, resulting in rdp=9
+	rdl=1.2.3	; OK, rdl expects list argument, reads input pins 1,2 and 3,
+	rdp=1.2.3	; Incorrect, rdp expects unsigned byte, resulting in rdp=1.
+
+Messages can be sent at network speeds and are interpreted and executed on receipt. Commands are non-
+blocking and optimized for immediate execution. However, Jack does not use any special message buffering 
+or queueing. Message queues are limited to the size of the device's built-in hardware buffers. Messages 
+transmitted when the buffers are full will be dropped. Hosts can avoid message overruns by using Jack's 
+"acknowledge" feature or by inserting small delays between consecutive messages (e.g. 25 ms).
+
+Messages can be checked for transmission errors using checksums. Check values are appended to the 
+message text separated by a colon ':' character. Jack validates any messages containing check values and 
+replies with the same. Messages with invalid check values are ignored. Jack calculates check values 
+using an "inverted sum" algorithm that has possible values in the range [0-255]. Check values are 
+transmitted as string equivalents. Hosts must use the same. 
+
+	rdp=4		; plain message to read input pin 4
+	rdp=4:72	; same message with appended check value
