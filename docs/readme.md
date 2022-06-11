@@ -1,5 +1,8 @@
 # Pg Documents Library 
 Contains miscellaneous design documents.
 
-### PID.xlsx 
-MSExcel spreadsheet that models PID controller behavior.
+### Jack 
+Documentation for the Jack application suite.
+
+### PID
+PID controller design models.
