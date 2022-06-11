@@ -126,5 +126,5 @@ Configurations can be stored or retrieved at any time.
 Devices with sufficient internal memory are remotely programmable. Hosts can download programs to 
 execute on the device and control program status. Programs can be loaded, started, stopped, reset, 
 verified and listed using the "pgm" command at any time. Jack uses a programming language very similar 
-to common assembly language that can be intermixed with normal commands. For a complete description, see 
-document <Programming.txt>
+to common assembly language that can be intermixed with its normal commands. For a complete description, 
+see document <Programming.txt>
