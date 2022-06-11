@@ -4,10 +4,15 @@ root = true
 end_of_line = lf
 insert_final_newline = true
 
-[*.{c,h,cpp,hpp,txt}]
+[*.{c,h,cpp,hpp}]
 charset = utf-8
 indent_style = space
 indent_size = 4
+
+[*.{txt}]
+charset = utf-8
+indent_style = space
+indent_size = 8
 
 [src/*]
 charset = utf-8
