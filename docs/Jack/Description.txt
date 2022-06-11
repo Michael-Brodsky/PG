@@ -30,7 +30,7 @@ architectures. This includes Arduino, ST Micro, Teensy, Microchip and other boar
 
 *	Device type and hardware capability reporting.
 *	Control of upto 255 GPIO pins.
-*	Control of upto 15 event counters/timers.
+*	Control of upto 16 event counters/timers.
 *	USB (Serial), Ethernet and WiFi connectivity.
 *	Communication error detection.
 *	EEPROM storage of device settings.
