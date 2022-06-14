@@ -306,42 +306,9 @@ namespace pg
 # if defined __PG_PROGRAM_H
 		static constexpr key_type KeySetTimerStatusAll = "sta";			// Set all timers state:	sta=s
 		static constexpr key_type KeyTimerDetachAll = "dta";			// Detach all timers:		dta
-		static constexpr key_type KeyHelp = "hlp";						// Get commands list.
+		static constexpr key_type KeyHelp = "hlp";						// Get commands list:		hlp
 		static constexpr key_type KeyProgram = "pgm";					// Get/set program state:	pgm=a
-		//static constexpr key_type KeyProgramAdd = "add";				// Add two values.
-		//static constexpr key_type KeyProgramCall = "call";				// Call subroutine.
-		//static constexpr key_type KeyProgramCompare = "cmp";			// Compare two values.
-		//static constexpr key_type KeyProgramDecrement = "dec";			// Decrement a value.
-		//static constexpr key_type KeyProgramDivide = "div";				// Divide a value by another.
-		//static constexpr key_type KeyProgramIncrement = "inc";			// Increment a value.
-		//static constexpr key_type KeyProgramJump = "jmp";				// Unconditional jump.
-		//static constexpr key_type KeyProgramJumpEqual = "je";			// Jump on equal.
-		//static constexpr key_type KeyProgramJumpNotEqual = "jne";		// Jump on not equal.
-		//static constexpr key_type KeyProgramJumpGreater = "jgt";		// Jump on greater than.
-		//static constexpr key_type KeyProgramJumpGreaterEqual = "jge";	// Jump on greater than or equal.
-		//static constexpr key_type KeyProgramJumpLess = "jlt";			// Jump on less than.
-		//static constexpr key_type KeyProgramJumpLessEqual = "jle";		// Jump on less than or equal.
-		//static constexpr key_type KeyProgramJumpNotSign = "jns";		// Jump on not negative.
-		//static constexpr key_type KeyProgramJumpSign = "js";			// Jump on negative.
-		//static constexpr key_type KeyProgramJumpNotZero = "jnz";		// Jump on not zero.
-		//static constexpr key_type KeyProgramJumpZero = "jz";			// Jump on zero.
-		//static constexpr key_type KeyProgramLogicalAnd = "and";			// Logical and two values.
-		//static constexpr key_type KeyProgramLogicalNot = "not";			// Logical complement a value.
-		//static constexpr key_type KeyProgramLogicalOr = "or";			// Logical or two values.
-		//static constexpr key_type KeyProgramLogicalTest = "tst";		// Logical and two values without saving result.
-		//static constexpr key_type KeyProgramLogicalXor = "xor";			// Logical exclusive or two values.
-		//static constexpr key_type KeyProgramLoop = "loop";				// Loop while cx not zero.
-		//static constexpr key_type KeyProgramModulo = "mod";				// Modulo operator.
-		//static constexpr key_type KeyProgramMove = "mov";				// Move value to register.
-		//static constexpr key_type KeyProgramMultiply = "mul";			// Multiply two values.
-		//static constexpr key_type KeyProgramNegate = "neg";				// Negate a value.
-		//static constexpr key_type KeyProgramPop = "pop";				// Pop from stack to register.
-		//static constexpr key_type KeyProgramPush = "push";				// Push value to stack.
-		//static constexpr key_type KeyProgramReturn = "ret";				// Return from subroutine call.
-		//static constexpr key_type KeyProgramReturnValue = "rets";		// Return from subroutine call with value on stack.
-		//static constexpr key_type KeyProgramSleep = "dly";				// Program sleep.
-		//static constexpr key_type KeyProgramSubtract = "sub";			// Subtract two values.
-		static constexpr key_type KeyProgramWriteFrom = "wrr";		// Write result to pin.
+		static constexpr key_type KeyProgramWriteFrom = "wrr";			// Write register to pin:	wrr=13,ax
 # endif
 		static constexpr fmt_type FmtAcknowledge = "%s=%u";				// ack=0|1
 		static constexpr fmt_type FmtConnectionGet = "%s=%u,%s";		// net=type,arg0,arg1,arg2
@@ -1233,11 +1200,16 @@ namespace pg
 		case connection_type::Serial:
 			connection = new pg::SerialConnection(Serial, params);
 			break;
+# if !defined __PG_NO_WIFI_CONNECTION
 		case connection_type::WiFi:
 			connection = new pg::WiFiConnection(params);
 			break;
+# endif
+# if !defined __PG_NO_ETHERNET_CONNECTION
 		case connection_type::Ethernet:
 			connection = new pg::EthernetConnection(params);
+			break;
+# endif
 		default:
 			break;
 		}
@@ -1251,7 +1223,7 @@ namespace pg
 		bool result = false;
 
 		pinMode(pin, gpio_mode::Pullup);
-		if (digitalRead(pin) == false)		// Change to: result = !digitalRead(pin)
+		if (!digitalRead(pin))		// Check if pin state = LOW.
 			result = true;
 		pinMode(pin, pin_mode);
 
@@ -1289,7 +1261,7 @@ namespace pg
 
 		(void)fmtMessage(msg, fmt, args...);
 # if defined __PG_CRC_H
-		if (checksum_)	// If we received a msg with a checksum then append one to reply.
+		if (checksum_)	// If we received a msg with a checksum then append one to the reply.
 			(void)fmtMessage(msg + std::strlen(msg), ":%u", checksum(static_cast<char*>(msg)));
 # endif
 		connection_->send(msg);
@@ -1351,7 +1323,7 @@ namespace pg
 
 	void Jack::setPinMode(pin_t p, uint8_t mode)
 	{
-		pinMode(p, mode); // put in function
+		pinMode(p, mode); 
 		pins_[p].mode_ = static_cast<gpio_mode>(mode);
 		if (ack_)
 			sendPinMode(p);
@@ -1460,6 +1432,7 @@ namespace pg
 	bool Jack::check(char* msg)
 	{
 		const char* const delim = ":";
+
 		(void)std::strtok(msg, delim); // look for msg w/ trailing ":", 
 		char* chk_val = std::strtok(nullptr, delim); // followed by a check value. 
 		checksum_ = chk_val;	// set our checksum reply flag.
