@@ -287,7 +287,7 @@ namespace pg
 		static constexpr key_type KeyGetPinModeAll = "pma";		// Get all pins mode:				pma
 		static constexpr key_type KeySetPinMode = "spm";		// Set pin mode:					spm=p,m
 		static constexpr key_type KeySetPinModeAll = "spa";		// Set all pins mode:				spa=m
-		static constexpr key_type KeyGetElapsedTime = "rde";	// Get system elapsed time:			rde=0|1
+		static constexpr key_type KeyGetElapsedTime = "tim";	// Get system elapsed time:			tim=0|1
 		static constexpr key_type KeyReadPin = "rdp";			// Read pin:						rdp=p
 		static constexpr key_type KeyReadPinAll = "rda";		// Read all pins:					rda
 		static constexpr key_type KeyReadPinList = "rdl";		// Read pin list:					rdl=p0[.p1. ... .pN]
