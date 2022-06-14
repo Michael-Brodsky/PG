@@ -69,7 +69,6 @@ namespace pg
 		static constexpr key_type KeyCompare = "cmp";			// Compare two values.
 		static constexpr key_type KeyDecrement = "dec";			// Decrement a value.
 		static constexpr key_type KeyDivide = "div";			// Divide a value by another.
-		static constexpr key_type KeyHelp = "hlp";				// Get commands list.
 		static constexpr key_type KeyIncrement = "inc";			// Increment a value.
 		static constexpr key_type KeyJump = "jmp";				// Unconditional jump.
 		static constexpr key_type KeyJumpEqual = "je";			// Jump on equal.
