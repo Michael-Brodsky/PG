@@ -10,7 +10,7 @@ Describes remote operation of Jack devices.
 ### Messages.txt 
 Describes Jack remote messaging protocols.
 
-### Commands,txt 
+### Commands.txt 
 Describes the Jack command set and how it is used to operate devices.
 
 ### Programming.txt 
