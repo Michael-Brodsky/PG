@@ -52,9 +52,10 @@ namespace pg
 			 WiFi = 2,
 			 Invalid = 3
 		};
+		using size_type = uint8_t;
 
 		static constexpr const char* ParamsDelimiterChar = ",";
-		static constexpr std::size_t size() 
+		static constexpr size_type size() 
 		{ 
 			return SERIAL_RX_BUFFER_SIZE < SERIAL_TX_BUFFER_SIZE 
 				? SERIAL_RX_BUFFER_SIZE 
@@ -68,7 +69,7 @@ namespace pg
 		virtual bool open() = 0;
 		virtual void close() = 0;
 		virtual void flush() = 0;
-		virtual std::size_t send(const char*) = 0;
+		virtual size_type send(const char*) = 0;
 		virtual const char* receive() = 0;
 		virtual const char* params(char*) = 0;
 	};
@@ -98,7 +99,7 @@ namespace pg
 		bool open() override;
 		void close() override;
 		void flush() override;
-		std::size_t send(const char*) override;
+		size_type send(const char*) override;
 		const char* receive() override;
 		const char* params(char*) override;
 		HardwareSerial& hardware();
@@ -128,7 +129,7 @@ namespace pg
 	}
 
 	const std::ArrayWrapper<SerialConnection::frame_map_type> SerialConnection::SupportedFrames(detail::supported_frames);
-
+# if !defined __PG_NO_ETHERNET_CONNECTION
 	class EthernetConnection : public Connection
 	{
 	public:
@@ -146,12 +147,13 @@ namespace pg
 		bool open() override;
 		void close() override;
 		void flush() override;
-		std::size_t send(const char*) override;
+		size_type send(const char*) override;
 		const char* receive() override;
 		const char* params(char*) override;
 		EthernetClass& hardware();
-		mac_type mac() const;
+		const mac_type& mac() const;
 		uint16_t port() const;
+		void remoteIP(IPAddress);
 		IPAddress remoteIP() const;
 		IPAddress localIP() const;
 
@@ -167,7 +169,8 @@ namespace pg
 		unsigned int	port_;			// The current UDP port.
 		IPAddress		remote_ip_;		// The current remote address.
 	};
-
+# endif
+# if !defined __PG_NO_WIFI_CONNECTION
 	// Creates a WiFi network connection.
 	class WiFiConnection : public Connection
 	{
@@ -185,14 +188,14 @@ namespace pg
 		bool open() override;
 		void close() override;
 		void flush() override;
-		std::size_t send(const char*) override;
+		size_type send(const char*) override;
 		const char* receive() override;
 		const char* params(char*) override;
 		WiFiClass& hardware();
 		const char* ssid() const;
 		uint16_t port() const;
-		IPAddress remoteIP() const;
 		void remoteIP(IPAddress);
+		IPAddress remoteIP() const;
 		IPAddress localIP() const;
 
 	private:
@@ -208,7 +211,7 @@ namespace pg
 		char			buf_[size()];	// Receive buffer.
 
 	};
-
+# endif
 #pragma region SerialConnection
 
 	SerialConnection::SerialConnection(HardwareSerial& hs, const char* params) : 
@@ -257,14 +260,14 @@ namespace pg
 			(void)hardware_.read();
 	}
 
-	std::size_t SerialConnection::send(const char* message)
+	Connection::size_type SerialConnection::send(const char* message)
 	{
 		return hardware_.println(message);
 	}
 
 	const char* SerialConnection::receive()
 	{
-		std::size_t len = Serial.available() ? hardware_.readBytesUntil(EndOfMessageChar, buf_, sizeof(buf_)) : 0;
+		size_type len = Serial.available() ? hardware_.readBytesUntil(EndOfMessageChar, buf_, sizeof(buf_)) : 0;
 
 		buf_[len] = '\0';
 
@@ -321,7 +324,7 @@ namespace pg
 
 #pragma endregion
 #pragma region EthernetConnection
-
+# if !defined __PG_NO_ETHERNET_CONNECTION
 	EthernetConnection::EthernetConnection(const char* params) : 
 		buf_(), is_open_(), local_ip_(), mac_(), port_()
 	{
@@ -342,9 +345,15 @@ namespace pg
 	void EthernetConnection::open(const char* params) 
 	{
 		parseParams(params);
+# if !defined __PG_NO_ETHERNET_DHCP 
+		if (local_ip_ == IPAddress())
+			Ethernet.begin(mac_.data());
+		else
+# endif
+			Ethernet.begin(mac_.data(), local_ip_);
 		if (!(Ethernet.hardwareStatus() == EthernetNoHardware) || Ethernet.linkStatus() == LinkOFF)
 		{
-			Ethernet.begin(mac_.data(), local_ip_);
+			local_ip_ = localIP();	// Save the actual ip assigned.
 			is_open_ = udp_.begin(port_);
 		}
 	}
@@ -365,27 +374,33 @@ namespace pg
 		udp_.flush();
 	}
 
-	std::size_t EthernetConnection::send(const char* message)
+	Connection::size_type EthernetConnection::send(const char* message)
 	{
+		size_type n = 0;
+
 		if (open())
 		{
-			udp_.beginPacket(remote_ip_, port_);
-			udp_.write(message);
-			udp_.endPacket();
+			if (udp_.beginPacket(remote_ip_, port_))
+			{
+				n = udp_.write(message);
+				n = udp_.endPacket() ? n : 0;
+			}
 		}
+
+		return n;
 	}
 
 	const char* EthernetConnection::receive()
 	{
-		std::size_t n = 0;
+		size_type n = 0;
 
 		if (open())
 		{
 			if (udp_.parsePacket())
 			{
 				n = udp_.read(buf_, sizeof(buf_));
+				n = udp_.endPacket() ? n : 0;
 				remote_ip_ = udp_.remoteIP();
-				udp_.endPacket();
 			}
 		}
 		buf_[n] = '\0';
@@ -411,9 +426,19 @@ namespace pg
 		return Ethernet;
 	}
 
+	const mac_type& EthernetConnection::mac() const
+	{
+		return mac_;
+	}
+
 	uint16_t EthernetConnection::port() const
 	{
 		return port_;
+	}
+
+	void EthernetConnection::remoteIP(IPAddress ip)
+	{
+		remote_ip_ = ip;
 	}
 
 	IPAddress EthernetConnection::remoteIP() const
@@ -428,29 +453,43 @@ namespace pg
 
 	void EthernetConnection::parseParams(const char* params)
 	{
-		char buf[size()] = { '\0' };
-		char* ip = nullptr;
-		char* mac = nullptr;
-		char* port = nullptr;
+		char buf[size()];
+		char* ptr = buf;
+		char* tok = pg::strtok(buf, params, ParamsDelimiterChar, sizeof(buf));
+		size_type n = 0;
 
-		if ((mac = pg::strtok(buf, params, ParamsDelimiterChar, sizeof(buf))))
+		if (tok)
 		{
-			std::size_t i = 0;
-
-			do
+			n = std::strlen(tok);
+			if ((tok = std::strtok(tok, MacDelimiterChar)))
 			{
-				mac_[i++] = static_cast<typename mac_type::value_type>(std::strtol(mac, nullptr, 16));
-			} while ((mac = std::strtok(nullptr, MacDelimiterChar)));
-		}
-		if ((ip = std::strtok(nullptr, MacDelimiterChar)))	// Might need to be comma.
-			local_ip_.fromString(ip);
-		if ((port = std::strtok(nullptr, ParamsDelimiterChar)))
-			port_ = std::atoi(port);
-	}
+				size_type i = 0;
 
+				do
+				{
+					mac_[i++] = std::strtol(tok, nullptr, 16);
+				} while ((tok = std::strtok(nullptr, MacDelimiterChar)));
+			}
+		}
+		ptr += ++n;
+		if ((tok = std::strtok(ptr, ParamsDelimiterChar)))
+		{
+			local_ip_.fromString(tok);
+		}
+		if (*ptr == ',')
+		{
+			++ptr;
+			tok = std::strtok(ptr, ParamsDelimiterChar);
+		}
+		else
+			tok = std::strtok(nullptr, ParamsDelimiterChar);
+		if (tok)
+			port_ = std::atoi(tok);
+	}
+# endif
 #pragma endregion
 #pragma region WiFiConnection
-
+# if !defined __PG_NO_WIFI_CONNECTION
 	WiFiConnection::WiFiConnection(const char* params) : 
 		ssid_(), pw_(), status_(WL_IDLE_STATUS), udp_(), remote_ip_(), port_(), buf_()
 	{
@@ -500,27 +539,33 @@ namespace pg
 		udp_.flush();
 	}
 
-	std::size_t WiFiConnection::send(const char* message)
+	Connection::size_type WiFiConnection::send(const char* message)
 	{
-		if (open()) 
+		size_type n = 0;
+
+		if (open())
 		{
-			udp_.beginPacket(remote_ip_, port_);
-			udp_.write(message);
-			udp_.endPacket();
+			if (udp_.beginPacket(remote_ip_, port_))
+			{
+				n = udp_.write(message);
+				n = udp_.endPacket() ? n : 0;
+			}
 		}
+
+		return n;
 	}
 
 	const char* WiFiConnection::receive()
 	{
-		std::size_t n = 0;
+		size_type n = 0;
 
 		if (open())
 		{
 			if (udp_.parsePacket())
 			{
 				n = udp_.read(buf_, sizeof(buf_));
+				n = udp_.endPacket() ? n : 0;
 				remote_ip_ = udp_.remoteIP();
-				udp_.endPacket();
 			}
 		}
 		buf_[n] = '\0';
@@ -580,7 +625,7 @@ namespace pg
 				if ((port = std::strtok(nullptr, ParamsDelimiterChar)))
 					port_ = std::atoi(port);
 	}
-
+# endif
 #pragma endregion
 
 } // namespace pg

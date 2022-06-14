@@ -31,19 +31,16 @@
 #if !defined __PG_INTERPRETER_H
 # define __PG_INTERPRETER_H 20220525L
 
-# include <cstdlib>
-# include <array>
-# include <tuple>
-# include <lib/strtok.h>
-# include <interfaces/icommand.h>
-# include <lib/imath.h>
+# include <cstdlib>					// atoi(), atol(), atof()
+# include <array>					// Fixed-size sequence containers.
+# include <tuple>					// Command args storage class.
+# include <lib/strtok.h>			// Non-mangling strtok().
+# include <lib/imath.h>				// isignof()
+# include <interfaces/icommand.h>	// Command pattern interface.
 
 namespace pg
 {
-	// Less than comparator for sorting arrays of c-strings.
-	bool strcomp(const char* s1, const char* s2) { return std::strcmp(s1, s2) < 0; }  
-
-	// Binary search algorithm.
+	// Binary search algorithm, returns iterator to matching object or nullptr if not found.
 	template<class RandomIt, class T, class BinaryPredicate>
 	RandomIt bsearch(RandomIt first, RandomIt last, T value, BinaryPredicate pred)
 	{
@@ -54,7 +51,7 @@ namespace pg
 		while (!found && first < last)
 		{
 			middle = first + std::distance(first, last) / 2;
-			switch (isignof(pred(*middle, value)))	// Constrain the result of pred() in [-1,1].
+			switch (isignof(pred(*middle, value)))	// pred must return <, = and > results, constrain result in [-1,1].
 			{
 			case 0:
 				result = middle;
@@ -67,7 +64,7 @@ namespace pg
 				first = middle + 1;
 				break;
 			default:
-				return nullptr;
+				return nullptr; // Invalid result from pred().
 				break;
 			}
 		}
@@ -310,12 +307,10 @@ namespace pg
 		Interpreter();
 
 	public:
-		inline static int compare(CommandBase*, CommandBase::key_type);
 		bool execute(CommandBase**, CommandBase**, const char*);
 		icommand* interpret(CommandBase**, CommandBase**, const char*);
 		template<class...Ts>
 		static size_type parse(char*, std::tuple<Ts...>&);
-		//inline char* strtok(char*, const char*, const char*, std::size_t);
 
 	private:
 		char buf_[MsgSizeMax];		// Temporary message buffer.
@@ -327,20 +322,6 @@ namespace pg
 
 	}
 
-	int Interpreter::compare(CommandBase* cmd, CommandBase::key_type key)
-	{
-		// C-string comparator for bsearch(). Function must able to return <, > and = results.
-		return std::strcmp(cmd->key(), key);
-	}
-
-	//char* Interpreter::strtok(char* buf, const char* line, const char* delim, std::size_t len)
-	//{
-	//	// Make a copy of line before strtok mangles it.
-	//	(void)std::strncpy(buf, line, len);
-
-	//	return  std::strtok(buf, delim);
-	//}
-
 	icommand* Interpreter::interpret(CommandBase** first, CommandBase** last, const char* line)
 	{
 		icommand* result = nullptr;
@@ -351,7 +332,8 @@ namespace pg
 			// Make a copy of the line and look for a command key.
 			if ((key = pg::strtok(buf_, line, CmdDelimChars, sizeof(buf_)))) 
 			{
-				CommandBase** it = bsearch(first, last, key, compare);
+				CommandBase** it = bsearch(first, last, key, 
+					[](CommandBase* c, CommandBase::key_type k) { return std::strcmp(c->key(), k); });
 
 				// If the line key matches one of the our command keys, ...
 				if (it)
