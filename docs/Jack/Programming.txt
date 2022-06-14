@@ -27,7 +27,7 @@ complete listing of program control commands, see section "Program Control" in d
 For example, to run a program that toggles a gpio output pin on and off every second:
 
 	pgm=1		; host sends "program begin load" command, followed by program text, 
-				; the program will toggle the output state of pin 13:
+			; the program will toggle the output state of pin 13:
 
 	spm=13,1	
 	mov ax,0 
