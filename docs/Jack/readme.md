@@ -14,4 +14,4 @@ Describes Jack remote messaging protocols.
 Describes the Jack command set and how it is used to operate devices.
 
 ### Programming.txt 
-Descripes remote device programming and the Jack programming language.
+Describes remote device programming and the Jack programming language.
