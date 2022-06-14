@@ -169,7 +169,10 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; Reply: pin=index,type,int,mode
 					;
 					; replies with type information for individual pins.
-					; see "pna" above for details.
+					;
+					; pin=13,3,0,3
+					; 	pin 13 is digital in/pwm out, no interrupts and set to pwm out mode, 
+					;	see "pna" above for details.
 
 
 	spa=b				; Pin Set Mode (All)
@@ -219,7 +222,7 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; 
 					; pmd=0 
 					;	request current mode of pin 0,
-					; see "spa" command for details.
+					; 	see "spa" command for details.
 
 
 	rda				; Pin Read (All)
@@ -244,7 +247,7 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					;
 					; rdp=0 
 					;	replies with current input state of pin 0,
-					; see "rda" command for details.
+					; 	see "rda" command for details.
 
 
 	rdl=b.b. ... .b			; Pin Read (List)
@@ -258,8 +261,8 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; pin0-pinN is a dot '.' separated list of pin numbers.
 					;
 					; rdl=1.2.3
-					;	 replies with the current input state of pins 1, 2 and 3, 
-					; see "rda" command for details.
+					;	replies with the current input state of pins 1, 2 and 3, 
+					; 	see "rda" command for details.
 
 
 	wrp=b,i				; Pin Write
@@ -428,6 +431,7 @@ are ignored.
 					;	   (not valid if new program is loading)
 					;	Reply: pgm=5,N - where N=character count 
 					; state 6: gets current program active state, 
+					;	   (not valid if new program is loading)
 					;	Reply: pgm=6,0|1 - where 0=inactive, 1=active
 					; state 7: checks program text for syntax errors, 
 					;	   (not valid if new program is loading)
@@ -439,7 +443,7 @@ are ignored.
 					;	       ...
 					;	       line N
 
-Programs must first be downloaded to the device before they can be oparated. This is initiated by 
+Programs must first be downloaded to the device before they can be operated. This is initiated by 
 sending the "program begin load" command, pgm=1. Once received, all subsequent messages are considered 
 as program text and stored until receipt of the "program end load" command, pgm=0. Once loaded, the 
 program can be operated as described above. New programs are downloaded by sending the program begin 
