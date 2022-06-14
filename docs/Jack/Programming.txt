@@ -3,8 +3,8 @@
 ***************************************
 
 Hosts can download programs to Jack devices that execute remotely on the device. Remote programs should 
-be used sparingly, for instance to ensure some minimum system performance specification. Typical use 
-cases include: 
+be used sparingly, for instance to ensure some minimum system performance level.Typical use cases 
+include: 
 
 	* Reducing Network Congestion, 
 	* Validating Message Transmission
@@ -65,11 +65,11 @@ typically used by assemblers. For instance:
 
 The special characters are "#%+*$", immediately followed by the numeric index of the value desired:
 
-	#n			; current input state of pin n,
-	%n			; current elapsed time of counter/timer n,
-	+n			; current count of counter/timer n, 
-	*n			; current state (active/inactive) of counter/timer n, 
-	$n			; current system time, where n = 0|1 and specifies the units returned.
+	#n		; current input state of pin n,
+	%n		; current elapsed time of counter/timer n,
+	+n		; current count of counter/timer n, 
+	*n		; current state (active/inactive) of counter/timer n, 
+	$n		; current system time, where n = 0|1 and specifies the units returned.
 
 System information is read-only, a separate instruction "wrr" is used to write program values to the 
 system, e.g. to set the output state of a pin. The first operand of arithmetic, logical and move 
@@ -92,72 +92,72 @@ executable form.
 ////////////////
 
 	add a,b		; add the values a and b, a is modified and result stored in register sr, 
-				; a and b can be literal values, registers or system values.
-				;
-				; add 42,2	; computes the arithmetic sum of 42 + 2, 
-				; add ax,2	; computes the arithmetic sum: ax = ax + 2, 
-				; add ax,bx	; computes the arithmetic sum: ax = ax + bx, 
-				; add ax,%1	; computes the arithmetic sum: ax = ax + current elapsed time of timer 1 
-							; (counter/timer state is not modified).
+			; a and b can be literal values, registers or system values.
+			;
+			; add 42,2	; computes the arithmetic sum of 42 + 2, 
+			; add ax,2	; computes the arithmetic sum: ax = ax + 2, 
+			; add ax,bx	; computes the arithmetic sum: ax = ax + bx, 
+			; add ax,%1	; computes the arithmetic sum: ax = ax + current elapsed time of timer 1 
+					; (counter/timer state is not modified).
 
 	dec a		; decrement the value of a by one, a is modified and result stored in register sr, 
-				; a can be a literal value, register or system value.
-				;
-				; dec 1		; decrements the literal value 1 by one, 1 - 1 
-				; dec ax	; decrements the contents of register ax by one: ax = ax - 1
-				; dec *2	; decrements the state of counter/timer 2 by one 
-							; (the counter/timer state is not modified). 
+			; a can be a literal value, register or system value.
+			;
+			; dec 1		; decrements the literal value 1 by one, 1 - 1 
+			; dec ax	; decrements the contents of register ax by one: ax = ax - 1
+			; dec *2	; decrements the state of counter/timer 2 by one 
+					; (the counter/timer state is not modified). 
 
 	div a,b		; divide the dividend a by divisor b, a is modified and quotient stored in register sr, 
-				; a and b can be literal values, registers or system values.
-				;
-				; div 42,2	; computes the arithmetic quotient of 42 / 2,
-				; div ax,2	; computes the arithmetic quotient: ax = ax / 2, 
-				; div ax,bx	; computes the arithmetic quotient: ax = ax / bx, 
-				; div ax,#9	; computes the arithmetic quotient: ax = ax / current input state of pin 9 
+			; a and b can be literal values, registers or system values.
+			;
+			; div 42,2	; computes the arithmetic quotient of 42 / 2,
+			; div ax,2	; computes the arithmetic quotient: ax = ax / 2, 
+			; div ax,bx	; computes the arithmetic quotient: ax = ax / bx, 
+			; div ax,#9	; computes the arithmetic quotient: ax = ax / current input state of pin 9 
 							; (pin state is not modified).
 
 	inc a		; increment the value of a by one, a is modified and result stored in register sr, 
-				; a can be a literal value, register or system value.
-				;
-				; inc 1		; increments the literal value 1, 1 + 1 
-				; inc ax	; increments the contents of register ax by one: ax = ax + 1
-				; inc *2	; increments the state of counter/timer 2 by one 
-							; (the counter/timer state is not modified). 
+			; a can be a literal value, register or system value.
+			;
+			; inc 1		; increments the literal value 1, 1 + 1 
+			; inc ax	; increments the contents of register ax by one: ax = ax + 1
+			; inc *2	; increments the state of counter/timer 2 by one 
+					; (the counter/timer state is not modified). 
 
 	mod a,b		; computes the remainder from division of the dividend a by divisor b, a is modified and remainder 
-				; stored in register sr, 
-				; a and b can be literal values, registers or system values.
-				;
-				; mod 42,2	; computes the remainder of 42 / 2,
-				; mod ax,2	; computes the remainder of: ax = ax / 2, 
-				; mod ax,bx	; computes the remainder of: ax = ax / bx, 
-				; mod ax,*2	; computes the remainder of: ax = ax / current state of counter/timer 2 (which is 0|1),
-							; (counter/timer state is not modified).
+			; stored in register sr, 
+			; a and b can be literal values, registers or system values.
+			;
+			; mod 42,2	; computes the remainder of 42 / 2,
+			; mod ax,2	; computes the remainder of: ax = ax / 2, 
+			; mod ax,bx	; computes the remainder of: ax = ax / bx, 
+			; mod ax,*2	; computes the remainder of: ax = ax / current state of counter/timer 2 (which is 0|1),
+					; (counter/timer state is not modified).
 
 	mul a,b		; multiplay the multiplicand a by multiplier b, a is modified and product stored in register sr, 
-				; a and b can be literal values, registers or system values.
-				;
-				; mul 42,2	; computes the arithmetic product of 42 * 2,
-				; mul ax,2	; computes the arithmetic product: ax = ax * 2, 
-				; mul ax,bx	; computes the arithmetic product: ax = ax * bx, 
-				; mul ax,$1	; computes the arithmetic product: ax = ax * current system time (ms). 
+			; a and b can be literal values, registers or system values.
+			;
+			; mul 42,2	; computes the arithmetic product of 42 * 2,
+			; mul ax,2	; computes the arithmetic product: ax = ax * 2, 
+			; mul ax,bx	; computes the arithmetic product: ax = ax * bx, 
+			; mul ax,$1	; computes the arithmetic product: ax = ax * current system time (ms). 
 
 	neg a		; negate (reverse sign of) the value of a, a is modified and result stored in register sr, 
-				; a can be a literal value, register or system value.
-				;
-				; neg 1		; negates the literal value 1, (-1), 
-				; neg ax	; negates the contents of register ax: ax = -ax,
-				; neg %2	; negates the elapsed time of counter/timer 2 
-							; (counter/timer state is not modified). 
+			; a can be a literal value, register or system value.
+			;
+			; neg 1		; negates the literal value 1, (-1), 
+			; neg ax	; negates the contents of register ax: ax = -ax,
+			; neg %2	; negates the elapsed time of counter/timer 2 
+					; (counter/timer state is not modified). 
 
 	sub a,b		; subtract the minuend a by subtrahend b, a is modified and difference stored in register sr, 
-				; a and b can be literal values, registers or system values.
-				;
-				; sub 42,2	; computes the arithmetic difference: 42 - 2,
-				; sub ax,2	; computes the arithmetic difference: ax = ax - 2, 
-				; sub ax,bx	; computes the arithmetic difference: ax = ax - bx, 
-				; sub ax,$0	; computes the arithmetic difference: ax = ax - current system time (us).
+			; a and b can be literal values, registers or system values.
+			;
+			; sub 42,2	; computes the arithmetic difference: 42 - 2,
+			; sub ax,2	; computes the arithmetic difference: ax = ax - 2, 
+			; sub ax,bx	; computes the arithmetic difference: ax = ax - bx, 
+			; sub ax,$0	; computes the arithmetic difference: ax = ax - current system time (us).
 				
 
 /////////////
@@ -165,39 +165,39 @@ executable form.
 /////////////
 
 	and a,b		; compute the bitwise and of a, b - a is modified and result stored in register sr, 
-				; a and b can be literal values, registers or system values.
-				;
-				; and 42,2	; computes the bitwise and: 42 & 2, 
-				; and ax,2	; computes the bitwise and: ax = ax & 2, 
-				; and ax,bx	; computes the bitwise and: ax = ax & bx, 
-				; and ax,+1	; computes the bitwise and: ax = ax & current count of counter/timer 1 
-				;			; (counter/timer state is not modified). 
+			; a and b can be literal values, registers or system values.
+			;
+			; and 42,2	; computes the bitwise and: 42 & 2, 
+			; and ax,2	; computes the bitwise and: ax = ax & 2, 
+			; and ax,bx	; computes the bitwise and: ax = ax & bx, 
+			; and ax,+1	; computes the bitwise and: ax = ax & current count of counter/timer 1 
+			;			; (counter/timer state is not modified). 
 
 	not a,b		; compute the bitwise complement of a - a is modified and result stored in register sr, 
-				; a can be a literal value, register or system value.
-				;
-				; not 42	; computes the bitwise complement: ~42, 
-				; not ax	; computes the bitwise complement: ax = ~ax, 
-				; not #54	; computes the bitwise complement: ~current value of pin 54 
-							; (pin state is not modified), 
+			; a can be a literal value, register or system value.
+			;
+			; not 42	; computes the bitwise complement: ~42, 
+			; not ax	; computes the bitwise complement: ax = ~ax, 
+			; not #54	; computes the bitwise complement: ~current value of pin 54 
+					; (pin state is not modified), 
 
 	or a,b		; compute the bitwise or of a, b - a is modified and result stored in register sr, 
-				; a and b can be literal values, registers or system values.
-				;
-				; or 42,2	; computes the bitwise or: 42 & 2, 
-				; or ax,2	; computes the bitwise or: ax = ax & 2, 
-				; or ax,bx	; computes the bitwise or: ax = ax & bx, 
-				; or ax,+1	; computes the bitwise or: ax = ax & current count of counter/timer 1 
-							; (counter/timer state is not modified).
+			; a and b can be literal values, registers or system values.
+			;
+			; or 42,2	; computes the bitwise or: 42 & 2, 
+			; or ax,2	; computes the bitwise or: ax = ax & 2, 
+			; or ax,bx	; computes the bitwise or: ax = ax & bx, 
+			; or ax,+1	; computes the bitwise or: ax = ax & current count of counter/timer 1 
+					; (counter/timer state is not modified).
 
 	xor a,b		; compute the bitwise exclusive or of a, b - a is modified and result stored in register sr, 
-				; a and b can be literal values, registers or system values.
-				;
-				; xor 42,2	; computes the bitwise exclusive or: 42 ^ 2, 
-				; xor ax,2	; computes the bitwise exclusive or: ax = ax ^ 2, 
-				; or ax,ax	; computes the bitwise exclusive or: ax = ax ^ ax, 
-				; or ax,#1	; computes the bitwise exclusive or: ax = ax & current input state of pin 1
-							; (pin state is not modified).
+			; a and b can be literal values, registers or system values.
+			;
+			; xor 42,2	; computes the bitwise exclusive or: 42 ^ 2, 
+			; xor ax,2	; computes the bitwise exclusive or: ax = ax ^ 2, 
+			; or ax,ax	; computes the bitwise exclusive or: ax = ax ^ ax, 
+			; or ax,#1	; computes the bitwise exclusive or: ax = ax & current input state of pin 1
+					; (pin state is not modified).
 
 
 ///////////////
@@ -205,44 +205,44 @@ executable form.
 ///////////////
 
 	cmp a,b		; compare values a and b, neither operand is modified, result is computed by taking the 
-				; arithmetic difference and storing the result in the status register: sr = a - b, 
-				; a and b can be literal values, registers or system values.
-				;
-				; cmp 42,2	; compare the arithmetic difference: 42 - 2,
-				; cmp ax,2	; compare the arithmetic difference: ax - 2,
-				; cmp ax,bx	; compare the arithmetic difference: ax - bx,
-				; cmp ax,#9	; compare the arithmetic difference: ax - current input state of pin 9 
-							; (pin state is not modified).
+			; arithmetic difference and storing the result in the status register: sr = a - b, 
+			; a and b can be literal values, registers or system values.
+			;
+			; cmp 42,2	; compare the arithmetic difference: 42 - 2,
+			; cmp ax,2	; compare the arithmetic difference: ax - 2,
+			; cmp ax,bx	; compare the arithmetic difference: ax - bx,
+			; cmp ax,#9	; compare the arithmetic difference: ax - current input state of pin 9 
+					; (pin state is not modified).
 
 	je n		; jump if equal, sets the program counter to n if the result of the last instruction was equal (sr = 0), 
-				; n is the zero-based index of the nth program instruction.
+			; n is the zero-based index of the nth program instruction.
 
 	jne n		; jump if not equal, sets the program counter to n if the result of the last instruction was not equal (sr != 0), 
-				; n is the zero-based index of the nth program instruction.
+			; n is the zero-based index of the nth program instruction.
 
 	jlt n		; jump if less than, sets the program counter to n if the result of the last instruction was less than (sr < 0), 
-				; n is the zero-based index of the nth program instruction.
+			; n is the zero-based index of the nth program instruction.
 
 	jge n		; jump if greater than, sets the program counter to n if the result of the last instruction was greater than (sr > 0), 
-				; n is the zero-based index of the nth program instruction. 
+			; n is the zero-based index of the nth program instruction. 
 
 	jle n		; jump if less than or equal, sets the program counter to n if the result of the last instruction was less than 
-				; or equal(sr <= 0), n is the zero-based index of the nth program instruction. 
+			; or equal(sr <= 0), n is the zero-based index of the nth program instruction. 
 
 	jge n		; jump if greater than or equal, sets the program counter to n if the result of the last instruction was greater than 
-				; or equal(sr >= 0), n is the zero-based index of the nth program instruction. 
+			; or equal(sr >= 0), n is the zero-based index of the nth program instruction. 
 
 	jz n		; jump if zero, sets the program counter to n if the result of the last instruction was zero (sr = 0), n is the 
-				; zero-based index of the nth program instruction. 
+			; zero-based index of the nth program instruction. 
 
 	jnz n		; jump if not zero, sets the program counter to n if the result of the last instruction was not zero (sr != 0), n is 
-				; the zero-based index of the nth program instruction. 
+			; the zero-based index of the nth program instruction. 
 
 	js n		; jump if sign, sets the program counter to n if the result of the last instruction was negative (sr < 0), n is the 
-				; zero-based index of the nth program instruction. 
+			; zero-based index of the nth program instruction. 
 
 	jns n		; jump if not sign, sets the program counter to n if the result of the last instruction was positive (sr >= 0), n is 
-				; the zero-based index of the nth program instruction. 
+			; the zero-based index of the nth program instruction. 
 
 	jmp n		; unconditional jump, sets the program counter to n, n is the zero-based index of the nth program instruction.
 
@@ -254,15 +254,15 @@ executable form.
 The cx register is used as the loop counter. Programs should set the loop count prior to executing the loop instruction.
 
 	loop n		; unconditional loop, set the program counter to n and decrement cx by one if the contents of cx are greater than zero, 
-				; equivalent to: 
-				;		cmp cx,0 
-				;		jgt n
-				;
-				; for example, assuming the first instruction is instruction 0, this code execute the "loop code" (indicated by 
-				; an elipsis) 10 times:
-				;	mov cx,10
-				;	... 
-				;	loop 0
+			; equivalent to: 
+			;	cmp cx,0 
+			;	jgt n
+			;
+			; for example, assuming the first instruction is instruction 0, this code execute the "loop code" (indicated by 
+			; an elipsis) 10 times:
+			;	mov cx,10
+			;	... 
+			;	loop 0
 
 
 //////////////////////
@@ -273,10 +273,10 @@ The internal stack has a capcity of 32 elements which can store any system or pr
 operates as a last in-first out (LIFO) queue.
 
 	push a		; stack push - pushes the value a on the stack,
-				; a can be a literal value, register or system value.
+			; a can be a literal value, register or system value.
 
 	pop r		; stack pop - pops the value at the top of the stack and moves it to r,
-				; r can be any register.
+			; r can be any register.
 
 
 /////////////////////
@@ -284,20 +284,20 @@ operates as a last in-first out (LIFO) queue.
 /////////////////////
 
 	mov r,a		; move a to register r
-				; r can be any register: 
-				; a can be a literal value, another register, or a system value.
-				;
-				; mov bx,1		; move literal value 1 to register bx,
-				; mov bx,ax		; move contents of register ax into register bx, 
-				; mov bx,#4		; move the current input state of pin 4 to register bx. 
+			; r can be any register: 
+			; a can be a literal value, another register, or a system value.
+			;
+			; mov bx,1	; move literal value 1 to register bx,
+			; mov bx,ax	; move contents of register ax into register bx, 
+			; mov bx,#4	; move the current input state of pin 4 to register bx. 
 
 	wrr p,a		; write the value of a to pin p
-				; p is the zero-based index (pin number) of the pin, 
-				; a can be a literal value, register or system value.
-				;
-				; wrr 13,1		; write literal value 1 to pin 13,
-				; wrr 13,ax		; write the contents of register ax to pin 13,
-				; wrr 13,#4		; write the current state of pin 4 to pin 13.
+			; p is the zero-based index (pin number) of the pin, 
+			; a can be a literal value, register or system value.
+			;
+			; wrr 13,1	; write literal value 1 to pin 13,
+			; wrr 13,ax	; write the contents of register ax to pin 13,
+			; wrr 13,#4	; write the current state of pin 4 to pin 13.
 
 
 /////////////////
@@ -305,14 +305,14 @@ operates as a last in-first out (LIFO) queue.
 ///////////////// 
 
 	call n		; call subroutine - current instruction index is saved and program 
-				; execution transfers to instruction n.
+			; execution transfers to instruction n.
 
-	ret			; return from subroutine - program execution returns to the instruction immediately following 
-				; the last "call" instruction.
+	ret		; return from subroutine - program execution returns to the instruction immediately following 
+			; the last "call" instruction.
 
 	rets a		; return value - a is pushed on to the stack and program execution returns to the instruction
-				; following the last "call" instruction, 
-				; a can be a literal value, register, or system value. 
+			; following the last "call" instruction, 
+			; a can be a literal value, register, or system value. 
 
 
 /////////////////////
@@ -320,7 +320,7 @@ operates as a last in-first out (LIFO) queue.
 /////////////////////
 
 	dly n		; delay - puts program execution to sleep for n milliseconds, 
-				; this is a blocking operation on program execution only, the Jack system continues operating normally.
+			; this is a blocking operation on program execution only, the Jack system continues operating normally.
 
 
 //////////////////////
@@ -335,6 +335,7 @@ For additional clarity, Jack commands have an equal sign "="
 separating the command key from the argument list. Program instructions 
 have a space " " separating the operator (mnemonic) from the operands.
 This is not strictly required and either character has the same effect.
+
 
 ////////////////////////////////////////////
 // Blink                                  //
@@ -369,7 +370,7 @@ This is not strictly required and either character has the same effect.
 ; loop
 4	mov ax,#4	; get current input state
 5	cmp ax,bx	; check current state to previous state
-6	je 4		; if same, go back to beginning
+6	je 4		; if same, go back to start of loop 
 8	mov bx,ax	; else save the current input state
 9	not ax		; invert it (output is opposite of input)
 10	wrr 13,ax	; set the output state
@@ -408,16 +409,16 @@ This is not strictly required and either character has the same effect.
 ///////////////////////////////////////////////////////////
 
 ; setup
-0	spm=2,2			; pin 2 is the input, set as digital in w/ pullup enabled
+0	spm=2,2		; pin 2 is the input, set as digital in w/ pullup enabled
 ; loop
 1	atc=0,2,1,3,0	; attach timer 0 to pin 2 and look for a CHANGE in state, which will stop the timer
 2	cmp %0,10000	; check if the interval has expired (10 seconds)
-3	jlt 6			; if not goto 6
-4	usr=3			; else execute "usr=3" command (i.e. do something)
-5	jmp 1			; go back to beginning
-6	cmp *0,1		; check if timer still active
-7	je 2			; if yes goto 2 (keep checking elapsed time)
-8	jmp 1			; else event occured, reset timer and go back to start of loop 
+3	jlt 6		; if not goto 6
+4	usr=3		; else execute "usr=3" command (i.e. do something)
+5	jmp 1		; go back to beginning
+6	cmp *0,1	; check if timer still active
+7	je 2		; if yes goto 2 (keep checking elapsed time)
+8	jmp 1		; else event occured, reset timer and go back to start of loop 
 
 
 ///////////////////////////////////////////////////////////
@@ -429,17 +430,17 @@ This is not strictly required and either character has the same effect.
 ///////////////////////////////////////////////////////////
 
 ; setup
-0	spm=2,2			; pin 2 is the input, set as digital in w/ pullup enabled
+0	spm=2,2		; pin 2 is the input, set as digital in w/ pullup enabled
 ; loop 
 1	atc=0,255,1,0,0	; set timer 0 to manual timer mode (255 defined as "no pin/not attached")
-2	stm=0,1			; set timer to active
-3	stm=0,3			; reset timer
-4	cmp #2,0		; check if input is LOW
-5	je 3			; if it is, event occured, go back to start of loop 
+2	stm=0,1		; set timer to active
+3	stm=0,3		; reset timer
+4	cmp #2,0	; check if input is LOW
+5	je 3		; if it is, event occured, go back to start of loop 
 6	cmp %0,10000	; else check if timer expired
-7	jlt 4			; if not, goto 4 (keep checking for event)
-8	usr=3			; else execute "usr=3" command (i.e. do something)
-9	jmp 3			; reset timer and go back to start of loop 
+7	jlt 4		; if not, goto 4 (keep checking for event)
+8	usr=3		; else execute "usr=3" command (i.e. do something)
+9	jmp 3		; reset timer and go back to start of loop 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
