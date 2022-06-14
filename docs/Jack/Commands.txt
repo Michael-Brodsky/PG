@@ -1,0 +1,502 @@
+***********************************
+*          Jack Commands          *
+***********************************
+
+Jack executes "commands" sent as "messages" over a network connection. Commands and messages are 
+synonymous, with the latter simply refering to a command transmitted over the network. Commands are 
+text strings having the general form:
+
+	key[=arg0,arg1,...,argN]
+
+where "key" is a unique character string identifying the command, optionally followed by a comma-
+separated list of arguments separated by an equal '=' character. Jack has a list of built-in commands 
+for executing most common microcontroller tasks, such as setting GPIO pin modes and states. This 
+list can be expanded with custom commands and functions.
+
+
+/////////////////////////////////
+//      Built-In Commands      // 
+/////////////////////////////////
+
+Command arguments are sent as text strings. Arguments are typed, where:
+
+	s - string (any valid alphanumeric character except special characters: ',' '=' ':', 
+	b - byte (8-bit unsigned integer in [0-255]), 
+	i - int (16-bit unsigned integer in [0-65535]), 
+	l - long (32-bit unsigned integer in [0-4294967295])
+	f - float (signed floating point decimal).
+
+
+/////////////////////////////////
+// Command Listing By Function //
+/////////////////////////////////
+
+
+/////////////
+// Network //
+/////////////
+
+	snt=b,s,s,s			; Device Set Connection  
+					; Arguments: type,arg0,arg1,arg2
+					; Reply: none
+
+					; all snt commands have the same format but the 
+					; arguments differ for each connection "type".
+					;
+					; type 0: USB/Serial, arg0: baud, arg1: frame, arg2: timeout
+					; type 1: Ethernet, arg0: mac, arg1: ipa, arg2: port
+					; type 2: WiFi, arg0: ssid, arg1: passphrase, arg2: port
+					;
+					; snt=0,9600,8N1,1000 - opens a serial connection using  
+					;	9600 baud, 8N1 framing, 1000 ms read/write timeout
+					; snt=1,DE EA BF CD AC FD,192.168.0.222,8888 - opens an ethernet connection using 
+					;	mac: DE EA BF CD AC FD, ipa: 192.168.0.222, port: 8888
+					;	the ip address can be omitted if using DHCP 
+					; snt=1,DE EA BF CD AC FD,,8888
+					; snt=2,my_network,my_password,5002 - opens a WiFi connection using 
+					;	ssid: my_network, passphrase: my_password, port: 5002.
+
+
+	net				; Device Get Connection 
+					; Arguments: none 
+					; Reply: net=type,arg0,arg1,arg2 (has same format as "snt" command (see above)).
+
+
+////////////////////
+// Device Control // 
+////////////////////
+
+	inf				; Device Information 
+					; Arguments: none 
+					; Reply: inf=id,name,mcu,speed,pins,timers
+					; 
+					; replies with the device hardware information.
+					;
+					; id: device id,
+					; name: device name/type,
+					; mcu: device mcu name/type,
+					; speed: mcu clock speed in MHz,
+					; pins: device GPIO pin count, 
+					; timers: device event timers count.
+					;
+					; inf=Arduino Uno,ATmega328P,16,20,4
+
+
+	rst				; Device Reset
+					; Arguments: none
+					; Reply: rst
+					;
+					; commands the device to reset, 
+					; device replies to inform hosts it is reseting, but no further messages are sent,
+					; hosts must query the device to determine if it is back online.
+
+
+	sck=b				; Device Set Acknowledge
+					; Arguments: 0|1
+					; Reply: ack=1 if enabled, else none
+					;
+					; enables/disables acknowledgment of "write" commands, 
+					; when enabled, device will reply to all commands, including ones marked 
+					; as Reply: none.
+						
+
+	ack				; Device Get Acknowledge
+					; Arguments: none
+					; Reply: ack=0|1
+					;
+					; replies with the current setting: 0 if disabled, 1 if enabled.  
+					; see "sck" command, above.
+
+
+	lda				; Device Load Configuration
+					; Arguments: none
+					; Reply: none
+					;
+					; loads a stored device configuration from EEPROM memory,  
+					; the device does not automatically load a stored configuration on initialization 
+					; and must be commanded to do so using the "lda" command.
+
+
+	sto				; Device Store Configuration
+					; Arguments: none
+					; Reply: none
+					;
+					; stores the current device configuration to EEPROM memory.
+
+
+	tim=b				; Device Get System Time
+					; Arguments: units: [0|1]
+					; Reply: tim=units,time
+					;
+					; gets the device elapsed system time 
+					; reply is device-specific 
+					; for example on Arduino reply is elapsed time since boot  
+					;
+					; units 0: microseconds
+					; units 1: milliseconds
+
+
+/////////////////
+// Pin Control //
+/////////////////
+
+	pna				; Pin Get Type (All)
+					; Arguments: none
+					; Reply: pin=0,type,int,mode
+					;	 pin=1,type,int,mode
+					;	 ...
+					;	 pin=N,type,int,mode
+					;
+					; replies with type information for all pins.
+					;
+					; pin: pin number (0 based),
+					; type: pin type [0-2], 
+					;	type 0: digital in/out
+					;	type 1: analog in/digital out
+					;	type 2: digital in/pwm out
+					; int 0|1
+					;	int 0: no interrupt
+					;	int 1: has interrupt
+					; mode: current pin mode [0-3],
+					;	mode 0: input
+					;	mode 1: output
+					;	mode 2: input w/ pullup enabled
+					;	mode 3: pwm out enabled
+
+
+	pin=b				; Pin Get Type (Individual)
+					; Arguments: none
+					; Reply: pin=index,type,int,mode
+					;
+					; replies with type information for individual pins.
+					; see "pna" above for details.
+
+
+	spa=b				; Pin Set Mode (All)
+					; Arguments: mode
+					; Reply: none
+					; 
+					; sets the operating mode of all pins to mode, where:
+					;
+					; mode 0: input,
+					; mode 1: output,
+					; mode 2: input w/ internal pullup resistor enabled, 
+					; mode 3: pwm out enabled
+					;
+					; spa=0
+					;	sets all gpio pins as inputs.
+
+
+	spm=b,b				; Pin Set Mode (Individual)
+					; Arguments: pin,mode
+					; Reply: none
+					; 
+					; sets the operating mode of pin to mode, where:
+					;
+					; pin: is the zero-based index of the pin (pin number)
+					; mode: [0-3], see "spa" command for details.
+					;
+					; spm=13,1
+					;	sets pin 13 as an output.
+
+
+	pma				; Pin Get Mode (All)
+					; Arguments: none
+					; Reply: pin=0,mode
+					;	 pin=1,mode
+					;	 ...
+					;	 pin=N,mode
+					;
+					; replies with current mode information for all pins, 
+					; see "spa" command for details.
+
+
+	pmd=b				; Pin Get Mode (Individual)
+					; Arguments: index
+					; Reply: pin=index,mode
+					;
+					; replies with current mode information for individual pins.
+					; 
+					; pmd=0 
+					;	request current mode of pin 0,
+					; see "spa" command for details.
+
+
+	rda				; Pin Read (All)
+					; Arguments: none
+					; Reply: pin=0,state
+					;	 pin=1,state
+					; 	 ... 
+					;	 pin=N,state
+					;
+					; replies with the current input state of all pins, 
+					; value of state is type-specific, with digital pins 
+					; having a value of 0|1 and analog input pins [0-adcmax], 
+					; where adcmax is the maximum output value of the device's 
+					; ADC hardware.
+
+	rdp=b				; Pin Read (Individual)
+					; Arguments: pin
+					; Reply: pin=index,state
+					;
+					; replies with the current input state of pin, where pin is 
+					; the zero-based index (pin number) of the pin.
+					;
+					; rdp=0 
+					;	replies with current input state of pin 0,
+					; see "rda" command for details.
+
+
+	rdl=b.b. ... .b			; Pin Read (List)
+					; Arguments: pin0.pin1. ... .pinN
+					; Reply: pin=pin0,state
+					;	 pin=pin1,state
+					; 	 ... 
+					;	 pin=pinN,state
+					;
+					; replies with the current input state of pin0-pinN, where
+					; pin0-pinN is a dot '.' separated list of pin numbers.
+					;
+					; rdl=1.2.3
+					;	 replies with the current input state of pins 1, 2 and 3, 
+					; see "rda" command for details.
+
+
+	wrp=b,i				; Pin Write
+					; Arguments: pin,state
+					; Reply: none
+					;
+					; sets the current output state of pin, where pin is the zero-based
+					; index (pin number) and state is the desired value, with digital pins 
+					; taking on states of 0|1 and PWM output pins a range in [0-pwmmax]. 
+					; State values are automatically constrained within valid ranges.
+					; 
+					; wrp=13,1
+					;	set the output state of pin 13 to 1.
+
+
+///////////////////////////
+// Counter/Timer Control //
+///////////////////////////
+
+	tma				; Timer Get Status (All)
+					; Arguments: none
+					; Reply: tms=0,state,value
+					;	 tms=1,state,value
+					;	 ...
+					;	 tms=N,state,value
+					;
+					; replies with the current state of all counter/timers, where 
+					; state is the current active state 0|1.
+					; 
+					; state 0: inactive
+					; state 1: active
+					;
+					; value: current count/elapsed time in milliseconds as a long integer.
+					;
+					; tms=0,1,6248
+					;	timer 0 is active with current value of 6248.
+
+
+	tms=b				; Timer Get Status (Individual)
+					; Arguments: timer
+					; Reply: tms=timer,state,value
+					;
+					; replies with the current state of timer, where timer is the 
+					; zero-based index (timer number) of the timer.
+					;
+					; see "tma" command for details.
+					
+
+	sta=b				; Timer Set Status (All)
+					; Arguments: action
+					; Reply: none
+					; 
+					; commands all timers to perform an action.  
+					;
+					; action 0: stop,
+					; action 1: start, 
+					; action 2: resume,
+					; action 3: reset.
+					;
+					; sta=3
+					; 	commands all timers to reset.
+
+
+	stm=b,b				; Timer Set Status (Individual)
+					; Arguments: timer,action
+					; Reply: none
+					;
+					; commands timer to perform an action, where timer is 
+					; is the zero-based index (timer number) of the timer and 
+					; action is in [0-3].
+					;
+					; see "sta" command for details.
+
+
+	atc=b,b,b,b,b			; Timer Attach 
+					; Arguments: timer,pin,mode,trigger,operation
+					; Reply: none
+					;
+					; attaches timer to pin and sets the timer configuration, where:
+					;
+					; mode 0: counter mode,
+					; mode 1: timer mode,
+					;
+					; trigger 0:
+					; trigger 1:
+					; trigger 2:
+					; trigger 3:
+					; trigger 4:
+					;
+					; operation 0: (Immediate) starts immediately when attached, stops when triggered
+					; operation 1: (One-Shot) starts when triggered, stops when triggered again, once
+					; operation 2: (Continuous) starts when triggered, stops when triggered again, continuously
+					;
+					; atc=0,2,1,2,0 
+					; 	attaches timer 0 to pin 2 and configures it as a timer, 
+					;	triggered on state change and immediate operation.
+
+
+	dta				; Timer Detach (All)
+					; Arguments: none
+					; Reply: none
+					; 
+					; detaches and resets all counter/timers.
+
+
+	dtc=b				; Timer Detach (Individual)
+					; Arguments: timer
+					; Reply: none
+					; 
+					; detaches and resets timer, where timer is the zero-based index 
+					; (timer number) of the timer.
+
+
+	tca				; Timer Get Attached (All)
+					; Arguments: none
+					; Reply: atc=0,pin,mode,trigger,operation
+					;	 atc=1,pin,mode,trigger,operation
+					;	 ...
+					;	 atc=N,pin,mode,trigger,operation 
+					; 
+					; replies with the attachment status of all timers, 
+					; replies have the same format as the "atc" command.
+
+
+	tcm=b				; Timer Get Attached (Individual)
+					; Arguments: timer
+					; Reply: atc=timer,pin,mode,trigger,operation 
+					;
+					; replies with the attachment status of timer, where:  
+					; timer is the zero-based index (timer number) of the timer.
+					; replies have the same format as the "atc" command.
+
+Counter/timer triggers do not automatically send replies. Hosts must query the device to get current 
+counter/timer states, or program the device to report states when triggered.
+
+
+/////////////////////
+// Program Control // 
+/////////////////////
+
+Program control commands are only available on devices that support remote programming, otherwise they 
+are ignored.
+
+	pgm=b				; Program State
+					; Arguments: [0-8]
+					; Reply: (see below)
+					;
+					; gets/sets the current program state
+					;
+					; state 0: ends loading program 
+					;	   (only valid if new program is loading)
+					;	Reply: none
+					; state 1: begins loading new program 
+					;	   (only valid if current program is inactive)
+					;	Reply: none
+					; state 2: marks program as active (run) 
+					;	   (not valid if new program is loading)
+					;	Reply: none
+					; state 3: marks program as inactive (halt) 
+					;	   (not valid if new program is loading)
+					;	Reply: none
+					; state 4: sets program execution to first instruction (reset) 
+					;	   (not valid if new program is loading)
+					;	Reply: none
+					; state 5: gets program size in characters,
+					;	   (not valid if new program is loading)
+					;	Reply: pgm=5,N - where N=character count 
+					; state 6: gets current program active state, 
+					;	Reply: pgm=6,0|1 - where 0=inactive, 1=active
+					; state 7: checks program text for syntax errors, 
+					;	   (not valid if new program is loading)
+					;	Reply: pgm=7,0|1 - where 0=has errors, 1=no errors 
+					; state 8: lists program text by line 
+					;	   (not valid if new program is loading)
+					;	Reply: line 0
+					;	       line 1
+					;	       ...
+					;	       line N
+
+Programs must first be downloaded to the device before they can be oparated. This is initiated by 
+sending the "program begin load" command, pgm=1. Once received, all subsequent messages are considered 
+as program text and stored until receipt of the "program end load" command, pgm=0. Once loaded, the 
+program can be operated as described above. New programs are downloaded by sending the program begin 
+load command again. The current program, if any, is erased and any new program text is stored on the 
+device. Programs can only be loaded while the current program is inactive (halted). Program operation 
+commands (2-8) are executed only if a new program is not currently loading. Device programming is 
+described in document <Programming.txt>
+
+
+////////////////////////////
+// Miscellaneous Commands //
+////////////////////////////
+
+Miscellaneous commands are only available on certain devices, otherwise they are ignored.
+
+	hlp				; Help
+					; Arguments: none
+					; Reply: key0
+					;	 key1
+					;	 ... 
+					;	 keyN
+					;
+					; replies with the list of currently avalable command keys.
+
+
+
+//////////////////////////////////
+// Command Listing Alphabetical //
+//////////////////////////////////
+
+	ack				; Device Get Acknowledge 
+	atc=t#,p#,m,tr,op		; Timer Attach 
+	dta				; Timer Detach (All) 
+	dtc=t#				; Timer Detach (Individual)
+	hlp				; Help 
+	inf				; Device Information 
+	lda				; Device Load Configuration
+	net				; Device Get Connection 
+	pgm=s				; Program State
+	pin=p#				; Pin Get Type (Individual) 
+	pma				; Pin Get Mode (All) 
+	pmd=p#				; Pin Get Mode (Individual)
+	pna				; Pin Get Type (All) 
+	rda				; Pin Read (All)
+	rdl=p#.p#.p#. ...		; Pin Read (List)
+	rdp=p#				; Pin Read (Individual)
+	rst				; Device Reset
+	sck=s				; Device Set Acknowledge
+	snt=ct,a0,a1,a2			; Device Set Connection 
+	spa=m				; Pin Set Mode (All) 
+	spm=p#,m			; Pin Set Mode (Individual)
+	sta=s				; Timer Set Status (All)
+	stm=t#,s			; Timer Set Status (Individual)
+	sto				; Device Store Configuration
+	tca				; Timer Get Attached (All)
+	tcm=t#				; Timer Get Attached (Individual)
+	tim=u				; Device Get System Time 
+	tma				; Timer Get Status (All)
+	tms=t#,s			; Timer Get Status (Individual)
+	wrp=p#,s			; Pin Write
