@@ -3,7 +3,7 @@
 ***************************************
 
 Hosts can download programs to Jack devices that execute remotely on the device. Remote programs should 
-be used sparingly, for instance to ensure some minimum system performance level.Typical use cases 
+be used sparingly, for instance to ensure some minimum system performance level. Typical use cases 
 include: 
 
 	* Reducing Network Congestion, 
