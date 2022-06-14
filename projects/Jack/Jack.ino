@@ -28,17 +28,16 @@
  *
  *	**************************************************************************/
 
+//#define __PG_NO_ETHERNET_CONNECTION 1	// Some boards, like Pro/Pro Mini, don't have enough program memory for both Ethernet and WiFi.
+//#define __PG_NO_WIFI_CONNECTION 1
+#define __PG_NO_ETHERNET_DHCP 1			// Uno doesn't have enough program memory for DHCP, WiFi Rev2 barely does.
 #if (defined FLASHEND)	
-# if ((FLASHEND) > 0x7FFF)		// Remote programs require boards with more than 32K program (flash) memory.
-#  define __PG_USE_PROGRAM 1 
-#  define __PG_USE_CHECKSUM 1 
+# if ((FLASHEND) > 0x7FFF)			
+#  define __PG_USE_PROGRAM 1	// Remote programmming requires boards with more than 32K program (flash) memory.
 # endif
-# if ((FLASHEND) > 0x77FF)	
-#  if !defined ARDUINO_AVR_PRO	// Checksum feature & user commands too big for Arduino Pro & Pro Mini.
-#   define __PG_USE_COMMANDS 1
-#  else 
-#   error device not supported	// Pro/Pro Mini devices not supported.
-#  endif 
+# if ((FLASHEND) > 0x77FF)
+#  define __PG_USE_CHECKSUM 1	// Message checksums can be excluded on boards with insufficient program memory.
+#  define __PG_USE_COMMANDS 1	// Client-defined commands can be excluded on boards with insufficient program memory.
 # else
 #  error device not supported	// ATmega168 devices not supported.
 # endif
@@ -55,7 +54,7 @@ void doSomething();
 // Jack devices can be booted into a known state by holding one of 
 // the pins LOW on power-up or reset. This allows communication with 
 // the device if a network connection becomes unusable or is unknown 
-// to the user. The default network connection is Serial 9600, 8N1.
+// to the user. The default network connection is Serial 9600,8N1,1000.
 constexpr pin_t PowerOnDefaultsPin = 4;
 
 // Clients must define "command" objects to execute client-defined
