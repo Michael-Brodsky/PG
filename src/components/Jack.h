@@ -1219,13 +1219,13 @@ namespace pg
 
 	bool Jack::powerOnDefaults(pin_t pin)
 	{
-		gpio_mode pin_mode =pins_[pin].mode_;
+		gpio_mode pin_mode =pins_[pin].mode_;	// Save current pin mode.
 		bool result = false;
 
 		pinMode(pin, gpio_mode::Pullup);
 		if (!digitalRead(pin))		// Check if pin state = LOW.
 			result = true;
-		pinMode(pin, pin_mode);
+		pinMode(pin, pin_mode);		// Return pin to its original mode.
 
 		return result;
 	}
@@ -1235,20 +1235,17 @@ namespace pg
 		GpioPin& pin = pins_[p];
 		value_type value = value_type();
 
-		if (pin.isInput())
+		switch (pin.type_)
 		{
-			switch (pin.type_)
-			{
-			case gpio_type::Analog:
-				value = analogRead(p);
-				break;
-			case gpio_type::Pwm:
-			case gpio_type::Digital:
-				value = digitalRead(p);
-				break;
-			default:
-				break;
-			}
+		case gpio_type::Analog:
+			value = analogRead(p);
+			break;
+		case gpio_type::Pwm:
+		case gpio_type::Digital:
+			value = digitalRead(p);
+			break;
+		default:
+			break;
 		}
 
 		return value;
@@ -1444,6 +1441,7 @@ namespace pg
 
 	void Jack::cmdWritePgm(pin_t p, const char* src)
 	{
+		// This is called by "wrr" instruction to set pin states.
 		writePin(p, program_.get(src));
 	}
 
