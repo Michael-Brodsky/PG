@@ -12,7 +12,7 @@ Pg requires named namespace support, which is available on the Arduino IDE v1.8 
 
 ## Installation:
 
-The entire Pg folder must be installed under your sketchbook/libraries folder (the same location all other user libraries go). A .zip file can be downloaded by clicking the green Code button above, and then extracted to the appropriate location on your machine, or by using the Arduino IDE's: Sketch -> Include Library -> Add .ZIP Library menu option. 
+The entire Pg folder must be installed under your sketchbook/libraries folder (the same location all other user libraries go). A zip or tarball file can be downloaded by clicking the latest release link in the Releases section of this page, and then extracted to the appropriate location on your machine, or by using the Arduino IDE's: Sketch -> Include Library -> Add .ZIP Library menu option and pointing it to the latest release. 
 
 NOTE: If you download a .zip file using the green "Code" button, Github will rename the file to "Pg-main.zip" and the root folder to "Pg-main" - some sort of feature, I guess. It is advised that these be renamed back to just "Pg".
 
