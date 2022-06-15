@@ -31,7 +31,7 @@ architectures. This includes Arduino, ST Micro, Teensy, Microchip and other boar
 *	Communication error detection.
 *	EEPROM storage of device settings.
 *	Remote programability.
-*	Expandability with client-defined messages.
+*	Expandability with client-defined commands.
 *	Wide range of hardware compatibility. 
 
 
@@ -39,8 +39,8 @@ architectures. This includes Arduino, ST Micro, Teensy, Microchip and other boar
 // Connectivity                        //
 /////////////////////////////////////////
 
-Jack supports connectivity over USB (Serial), Ethernet and WiFi networks and communicates using a 
-simple query language. Messages are sent and received as text strings having the general form: 
+Jack supports connectivity over USB (Serial), Ethernet and WiFi networks and communicates using 
+a simple set of commands. Messages are sent and received as text strings having the general form: 
 
 	key=value1,value2,...,valueN
 
