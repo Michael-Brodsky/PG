@@ -59,7 +59,7 @@ can be set or read at any time.
 
 Hosts can retrive information about the device hardware, status and set operating modes. The device 
 hardware information is retrieved with the "inf" command, which returns the device name/type, the 
-microcontroller (MCU) name/ type and clock speed, the GPIO pin count and the the event counter/timer 
+microcontroller (MCU) name/type and clock speed, the GPIO pin count and the the event counter/timer 
 count. The message acknowledge feature is set with the "sck" command and read with the "ack" command. 
 When enabled, the device will reply to all messages, including ones that normally do not return replies. 
 The device can be reset with the "rst" command. When commanded, the device will reply to indicate it is 
