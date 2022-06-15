@@ -1,5 +1,5 @@
 These documents describe the Jack library and applications. A simple, but fully functional application program, can be found in pg/projects/Jack. Jack 
-applications require the entire Pg Standard Library, which can be downloaded from pg/src.
+applications require the entire Pg Standard Library, which can be downloaded from the Releases section of the main page.
 
 ### Description.txt
 Provides an overview of Jack capabilities and use cases.
