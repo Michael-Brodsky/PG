@@ -4,5 +4,5 @@ Jack is open source software that emulates the commercial LabJack(tm) devices on
 
 Requirements:
 
-Arduino IDE v1.8 or later
-PG Standard Library
+<space><space><space><space>Arduino IDE v1.8 or later  
+<space><space><space><space>PG Standard Library
