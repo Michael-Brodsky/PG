@@ -51,7 +51,7 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					;	9600 baud, 8N1 framing, 1000 ms read/write timeout
 					; snt=1,DE EA BF CD AC FD,192.168.0.222,8888 - opens an ethernet connection using 
 					;	mac: DE EA BF CD AC FD, ipa: 192.168.0.222, port: 8888
-					;	the ip address can be omitted if using DHCP 
+					;	the ip address string can be omitted if using DHCP 
 					; snt=1,DE EA BF CD AC FD,,8888
 					; snt=2,my_network,my_password,5002 - opens a WiFi connection using 
 					;	ssid: my_network, passphrase: my_password, port: 5002.
@@ -169,10 +169,7 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; Reply: pin=index,type,int,mode
 					;
 					; replies with type information for individual pins.
-					;
-					; pin=13,3,0,3
-					; 	pin 13 is digital in/pwm out, no interrupts and set to pwm out mode, 
-					;	see "pna" above for details.
+					; see "pna" above for details.
 
 
 	spa=b				; Pin Set Mode (All)
@@ -222,7 +219,7 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; 
 					; pmd=0 
 					;	request current mode of pin 0,
-					; 	see "spa" command for details.
+					; see "spa" command for details.
 
 
 	rda				; Pin Read (All)
@@ -247,7 +244,7 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					;
 					; rdp=0 
 					;	replies with current input state of pin 0,
-					; 	see "rda" command for details.
+					; see "rda" command for details.
 
 
 	rdl=b.b. ... .b			; Pin Read (List)
@@ -261,8 +258,8 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; pin0-pinN is a dot '.' separated list of pin numbers.
 					;
 					; rdl=1.2.3
-					;	replies with the current input state of pins 1, 2 and 3, 
-					; 	see "rda" command for details.
+					;	 replies with the current input state of pins 1, 2 and 3, 
+					; see "rda" command for details.
 
 
 	wrp=b,i				; Pin Write
@@ -343,14 +340,19 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					;
 					; attaches timer to pin and sets the timer configuration, where:
 					;
+					; pin:  any valid pin number or 255, 
+					; 	pin 255 has special meaning: no pin/not attached 
+					;	and allows hosts to use timers manually without 
+					;	attaching them to a pin/hardware interrupt.
+					;
 					; mode 0: counter mode,
 					; mode 1: timer mode,
 					;
-					; trigger 0:
-					; trigger 1:
-					; trigger 2:
-					; trigger 3:
-					; trigger 4:
+					; trigger 0:	active LOW
+					; trigger 1:	state CHANGE
+					; trigger 2:	RISING edge
+					; trigger 3:	FALLING edge
+					; trigger 4:	avtive HIGH
 					;
 					; operation 0: (Immediate) starts immediately when attached, stops when triggered
 					; operation 1: (One-Shot) starts when triggered, stops when triggered again, once
@@ -358,7 +360,7 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					;
 					; atc=0,2,1,2,0 
 					; 	attaches timer 0 to pin 2 and configures it as a timer, 
-					;	triggered on state change and immediate operation.
+					;	triggered on rising edge and immediate operation.
 
 
 	dta				; Timer Detach (All)
@@ -443,7 +445,7 @@ are ignored.
 					;	       ...
 					;	       line N
 
-Programs must first be downloaded to the device before they can be operated. This is initiated by 
+Programs must first be downloaded to the device before they can be oparated. This is initiated by 
 sending the "program begin load" command, pgm=1. Once received, all subsequent messages are considered 
 as program text and stored until receipt of the "program end load" command, pgm=0. Once loaded, the 
 program can be operated as described above. New programs are downloaded by sending the program begin 

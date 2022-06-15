@@ -12,15 +12,15 @@ include:
 
 Jack uses a programming language, similar to assembly language, that includes its commands and an 
 instruction set for manipulating data, logical and arithmetic operations, branching, looping, stack 
-operations and subroutine calls. Hosts can also control the operation of and retrieve information about 
-the currently loaded program.
+operations and subroutine calls. Hosts control the operation of and retrieve information about the 
+currently loaded program using commands.
 
-One program can be downloaded to and executed on Jack devices at any given time. New programs will 
+One program can be downloaded to and executed by Jack devices at any given time. New programs will 
 overwrite any currently loaded program. Programs can have any number of command/instruction statements 
 but are limited to 1024 characters of total length. Programs are controlled using the "pgm" command, and 
 instructions are downloaded and retrieved as text strings. 
 
-To load a new program, hosts must first send the "program begin load" command, pgm=1. Once received by 
+To load a new program, hosts must first send the "program begin load" command, pgm=1. When received by 
 the device, all subsequent messages are considered as program text and cumulatively stored until receipt 
 of the "program end load" command, pgm=0. Once loaded, the program can be operated normally. For a 
 complete listing of program control commands, see section "Program Control" in document <Commands.txt>.
@@ -368,8 +368,8 @@ This is not strictly required and either character has the same effect.
 2	wrp=13,0	; turn output off
 3	mov bx,1	; assume input is HIGH and save it
 ; loop
-4	mov ax,#4	; get current input state
-5	cmp ax,bx	; check current state to previous state
+4	mov ax,#4	; get current input state and save it
+5	cmp ax,bx	; check current state against previous state
 6	je 4		; if same, go back to start of loop 
 8	mov bx,ax	; else save the current input state
 9	not ax		; invert it (output is opposite of input)
@@ -390,10 +390,10 @@ This is not strictly required and either character has the same effect.
 0	spa=0		; set all pins as digital in
 ; loop
 1	mov cx,2	; set loop counter to 2
-2	rdl=2.3.4	; *start of read* read first set of pins
+2	rdl=2.3.4	; read first set of pins
 3	dly 500		; wait half second
-4	loop 2		; goto start of read
-5	rdl=5.6.7	; read second set of pins
+4	loop 2		; if loop count not reached, continue
+5	rdl=5.6.7	; else read second set of pins
 6	jmp 1		; go back to start of loop 
 
 
@@ -411,14 +411,14 @@ This is not strictly required and either character has the same effect.
 ; setup
 0	spm=2,2		; pin 2 is the input, set as digital in w/ pullup enabled
 ; loop
-1	atc=0,2,1,3,0	; attach timer 0 to pin 2 and look for a CHANGE in state, which will stop the timer
+1	atc=0,2,1,3,0	; attach timer 0 to pin 2 and look for a CHANGE in state, which stops the timer
 2	cmp %0,10000	; check if the interval has expired (10 seconds)
 3	jlt 6		; if not goto 6
 4	usr=3		; else execute "usr=3" command (i.e. do something)
 5	jmp 1		; go back to beginning
 6	cmp *0,1	; check if timer still active
 7	je 2		; if yes goto 2 (keep checking elapsed time)
-8	jmp 1		; else event occured, reset timer and go back to start of loop 
+8	jmp 1		; else event occured, go back to start of loop (reset timer)
 
 
 ///////////////////////////////////////////////////////////
@@ -431,16 +431,16 @@ This is not strictly required and either character has the same effect.
 
 ; setup
 0	spm=2,2		; pin 2 is the input, set as digital in w/ pullup enabled
-; loop 
 1	atc=0,255,1,0,0	; set timer 0 to manual timer mode (255 defined as "no pin/not attached")
 2	stm=0,1		; set timer to active
+; loop 
 3	stm=0,3		; reset timer
 4	cmp #2,0	; check if input is LOW
 5	je 3		; if it is, event occured, go back to start of loop 
 6	cmp %0,10000	; else check if timer expired
-7	jlt 4		; if not, goto 4 (keep checking for event)
+7	jlt 4		; if not, keep checking for event
 8	usr=3		; else execute "usr=3" command (i.e. do something)
-9	jmp 3		; reset timer and go back to start of loop 
+9	jmp 3		; and go back to start of loop
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 

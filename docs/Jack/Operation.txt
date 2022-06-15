@@ -82,10 +82,10 @@ with the "pmd" and "pma" commands. Pin modes can be set or read at any time.
 
 5) Reading Input Pin States
 
-Pin states are read with the "rdp", "rda" and "rdl" commands. Pin states can be read at any time. The value 
-returned will depend on the pin type. Digital pins will return 0 or 1, analog pins will return a value 
-in [0-adcmax], where adcmax is the maximum possible output value from the device's analog to digital 
-converters (ADC). The value of adcmax is device-specific.
+Pin states are read with the "rdp", "rda" and "rdl" commands. Pin states can be read at any time. The 
+value returned will depend on the pin type. Digital pins will return 0 or 1, analog pins will return a 
+value in [0-adcmax], where adcmax is the maximum possible output value from the device's analog to 
+digital converters (ADC). The value of adcmax is device-specific.
 
 
 6) Writing Output Pin States
