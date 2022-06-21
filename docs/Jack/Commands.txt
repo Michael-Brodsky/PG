@@ -37,15 +37,29 @@ Command arguments are sent as text strings. Arguments are typed, where:
 /////////////
 
 	snt=b,s,s,s			; Device Set Connection  
-					; Arguments: type,arg0,arg1,arg2
+					; Arguments: type,param0,param1,param2
 					; Reply: none
 
 					; all snt commands have the same format but the 
-					; arguments differ for each connection "type".
+					; "param" arguments differ for each connection "type".
 					;
-					; type 0: USB/Serial, arg0: baud, arg1: frame, arg2: timeout
-					; type 1: Ethernet, arg0: mac, arg1: ipa, arg2: port
-					; type 2: WiFi, arg0: ssid, arg1: passphrase, arg2: port
+					; type 0: USB/Serial, 
+					; 	param0: baud 
+					;	param1: frame 
+					;	param2: timeout
+					;
+					; type 1: Ethernet, 
+					;	param0: mac 
+					;	param1: ipa 
+					;	param2: port
+					;
+					; type 2: WiFi, 
+					;	param0: ssid
+					;	param1: passphrase 
+					;	param2: port
+					;
+					; commands with invalid type arguments are ignored, invalid param 
+					; arguments may fail to open the connection.
 					;
 					; snt=0,9600,8N1,1000 - opens a serial connection using  
 					;	9600 baud, 8N1 framing, 1000 ms read/write timeout
@@ -77,7 +91,7 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; mcu: device mcu name/type,
 					; speed: mcu clock speed in MHz,
 					; pins: device GPIO pin count, 
-					; timers: device event timers count.
+					; timers: device event counter/timers count.
 					;
 					; inf=Arduino Uno,ATmega328P,16,20,4
 
@@ -86,7 +100,8 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; Arguments: none
 					; Reply: rst
 					;
-					; commands the device to reset, 
+					; commands the device to reset.
+					; 
 					; device replies to inform hosts it is reseting, but no further messages are sent,
 					; hosts must query the device to determine if it is back online.
 
@@ -98,6 +113,13 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; enables/disables acknowledgment of "write" commands, 
 					; when enabled, device will reply to all commands, including ones marked 
 					; as Reply: none.
+					;
+					; Arguments are converted to boolean values.
+					;
+					; NOTE: Invalid messages are ignored and will not send a reply. Hosts can 
+					; use this to check if a message sent was valid. Invalid messages include 
+					; invalid command key, invalid number of command arguments, out of range 
+					; arguments, invalid characters.
 						
 
 	ack				; Device Get Acknowledge
@@ -130,10 +152,12 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					;
 					; gets the device elapsed system time 
 					; reply is device-specific 
-					; for example on Arduino reply is elapsed time since boot  
+					; for example on Arduino reply is elapsed time since boot, 
 					;
 					; units 0: microseconds
 					; units 1: milliseconds
+					;
+					; commands with invalid unit arguments return 0.
 
 
 /////////////////
@@ -165,8 +189,12 @@ Command arguments are sent as text strings. Arguments are typed, where:
 
 
 	pin=b				; Pin Get Type (Individual)
-					; Arguments: none
-					; Reply: pin=index,type,int,mode
+					; Arguments: pin number
+					; Reply: pin=number,type,int,mode
+					;
+					; pin number arguments must be within the range of 
+					; available gpio pins, out of range arguments are invalid 
+					; and the command is ignored.
 					;
 					; replies with type information for individual pins.
 					; see "pna" above for details.
@@ -185,6 +213,9 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					;
 					; spa=0
 					;	sets all gpio pins as inputs.
+					;
+					; mode arguments must be valid [0-3], commands with 
+					; invalid modes are ignored.
 
 
 	spm=b,b				; Pin Set Mode (Individual)
@@ -195,6 +226,8 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					;
 					; pin: is the zero-based index of the pin (pin number)
 					; mode: [0-3], see "spa" command for details.
+					;
+					; commands with invalid pin/mode arguments are ignored.
 					;
 					; spm=13,1
 					;	sets pin 13 as an output.
@@ -212,10 +245,12 @@ Command arguments are sent as text strings. Arguments are typed, where:
 
 
 	pmd=b				; Pin Get Mode (Individual)
-					; Arguments: index
+					; Arguments: pin index
 					; Reply: pin=index,mode
 					;
 					; replies with current mode information for individual pins.
+					;
+					; commands with invalid pins are ignored.
 					; 
 					; pmd=0 
 					;	request current mode of pin 0,
@@ -257,6 +292,9 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; replies with the current input state of pin0-pinN, where
 					; pin0-pinN is a dot '.' separated list of pin numbers.
 					;
+					; invalid pins in the list are ignored, if the entire list is 
+					; invalid the command is ignored.
+					;
 					; rdl=1.2.3
 					;	 replies with the current input state of pins 1, 2 and 3, 
 					; see "rda" command for details.
@@ -269,7 +307,9 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; sets the current output state of pin, where pin is the zero-based
 					; index (pin number) and state is the desired value, with digital pins 
 					; taking on states of 0|1 and PWM output pins a range in [0-pwmmax]. 
-					; State values are automatically constrained within valid ranges.
+					;
+					; commands with invalid pins are ignored, out of range states may 
+					; cause unexpected behavior.
 					; 
 					; wrp=13,1
 					;	set the output state of pin 13 to 1.
@@ -305,6 +345,8 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; replies with the current state of timer, where timer is the 
 					; zero-based index (timer number) of the timer.
 					;
+					; commands with invalid timers are ignored. 
+					;
 					; see "tma" command for details.
 					
 
@@ -319,6 +361,8 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; action 2: resume,
 					; action 3: reset.
 					;
+					; commands with invalid actions are ignored.
+					;
 					; sta=3
 					; 	commands all timers to reset.
 
@@ -330,6 +374,8 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; commands timer to perform an action, where timer is 
 					; is the zero-based index (timer number) of the timer and 
 					; action is in [0-3].
+					;
+					; commands with invalid timers or actions are ignored.
 					;
 					; see "sta" command for details.
 
@@ -358,9 +404,17 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; operation 1: (One-Shot) starts when triggered, stops when triggered again, once
 					; operation 2: (Continuous) starts when triggered, stops when triggered again, continuously
 					;
+					; commands with invalid arguments are ignored.
+					;
 					; atc=0,2,1,2,0 
 					; 	attaches timer 0 to pin 2 and configures it as a timer, 
 					;	triggered on rising edge and immediate operation.
+					;
+					; atc=0,255,1,x,x 
+					;	sets timer 0 to manual mode (any pin attached to the 
+					;	timer is detached). The last two arguments are not used,
+					;	but must be sent, else the message is invalid. Hosts 
+					; 	control the timer with the sta/stm commands (see above).
 
 
 	dta				; Timer Detach (All)
@@ -376,6 +430,11 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; 
 					; detaches and resets timer, where timer is the zero-based index 
 					; (timer number) of the timer.
+					;
+					; commands with invalid timers are ignored.
+					;
+					; dtc=0
+					;	detaches timer 0.
 
 
 	tca				; Timer Get Attached (All)
@@ -395,10 +454,13 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					;
 					; replies with the attachment status of timer, where:  
 					; timer is the zero-based index (timer number) of the timer.
+					;
+					; commands with invalid timers are ignored.
+					;
 					; replies have the same format as the "atc" command.
 
-Counter/timer triggers do not automatically send replies. Hosts must query the device to get current 
-counter/timer states, or program the device to report states when triggered.
+Attached counter/timers do not automatically send replies when triggered. Hosts must query the device 
+to get the current states, or program the device to report states when triggered.
 
 
 /////////////////////
@@ -444,8 +506,10 @@ are ignored.
 					;	       line 1
 					;	       ...
 					;	       line N
+					;
+					; commands with invalid arguments are ignored.
 
-Programs must first be downloaded to the device before they can be oparated. This is initiated by 
+Programs must first be downloaded to the device before they can be operated. This is initiated by 
 sending the "program begin load" command, pgm=1. Once received, all subsequent messages are considered 
 as program text and stored until receipt of the "program end load" command, pgm=0. Once loaded, the 
 program can be operated as described above. New programs are downloaded by sending the program begin 
@@ -453,23 +517,6 @@ load command again. The current program, if any, is erased and any new program t
 device. Programs can only be loaded while the current program is inactive (halted). Program operation 
 commands (2-8) are executed only if a new program is not currently loading. Device programming is 
 described in document <Programming.txt>
-
-
-////////////////////////////
-// Miscellaneous Commands //
-////////////////////////////
-
-Miscellaneous commands are only available on certain devices, otherwise they are ignored.
-
-	hlp				; Help
-					; Arguments: none
-					; Reply: key0
-					;	 key1
-					;	 ... 
-					;	 keyN
-					;
-					; replies with the list of currently avalable command keys.
-
 
 
 //////////////////////////////////
@@ -480,7 +527,6 @@ Miscellaneous commands are only available on certain devices, otherwise they are
 	atc=t#,p#,m,tr,op		; Timer Attach 
 	dta				; Timer Detach (All) 
 	dtc=t#				; Timer Detach (Individual)
-	hlp				; Help 
 	inf				; Device Information 
 	lda				; Device Load Configuration
 	net				; Device Get Connection 

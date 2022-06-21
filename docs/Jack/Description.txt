@@ -39,8 +39,8 @@ architectures. This includes Arduino, ST Micro, Teensy, Microchip and other boar
 // Connectivity                        //
 /////////////////////////////////////////
 
-Jack supports connectivity over USB (Serial), Ethernet and WiFi networks and communicates using a 
-simple query language. Messages are sent and received as text strings having the general form: 
+Jack supports connectivity over USB (Serial), Ethernet and WiFi networks and communicates using  
+simple commands. Messages are sent and received as text strings having the general form: 
 
 	key=value1,value2,...,valueN
 
@@ -70,17 +70,7 @@ a client-defined function on the device and optionally returns a reply.
 
 Jack provides a programming language for devices that support remote programming. The language 
 syntax is very similar to assembly language and includes instructions for saving and moving data, 
-logical and arithmetic operations, branching, looping, stack operations and subroutine calls. For 
-example, the following program will blink an LED connected to device pin 13 every second:
-
-	; setup
-	0	spm=13,1	; set led pin as digital out
-	1	mov ax,0	; ax holds led state, start with led off
-	; loop
-	2	wrr 13,ax	; write led state to pin
-	3	dly 1000	; sleep one second
-	4	not ax		; flip led state
-	5	jmp 2		; goto start of loop.
+logical and arithmetic operations, branching, looping, stack operations and subroutine calls. 
 
 
 /////////////////////////////////////////

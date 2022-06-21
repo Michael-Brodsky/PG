@@ -30,7 +30,8 @@ The default connection type is USB (Serial), baud rate=9600, frame=8N1, timeout=
 start-up pin checked is pin 4. Once initialized, the start-up pin can be used normally. Jack indicates 
 a successful connection by lighting the device's built-in LED. Connections over WiFi or wide area 
 networks (WAN) can take several seconds to establish. If the built-in LED does not light within the 
-expected amount of time, the connection was unsuccessful and cannot be used.
+expected amount of time, the connection was unsuccessful and cannot be used. Round-trip message times 
+are dependant on network speed.
 
 
 //////////////////////
@@ -44,15 +45,16 @@ network as text. Messages encode "commands" which are simple character strings h
 
 where `key' is a unique string identifying the command, optionally followed by a comma-separated list 
 of values (arguments) and terminated by a newline character '\n'. Jack reply messages have the same 
-format. Messages have a strict format. Descriptions can be found in document <Messages.txt>. Command  
-listings and descriptions are documented in <Commands.txt>.
+format. Messages have a strict format that hosts must follow. Descriptions can be found in document 
+<Messages.txt>. Command listings and descriptions are documented in <Commands.txt>.
 
 
 1) Network Connection
 
 The network connection is set with the "snt" command and read with the "net" command. In order to 
-communicate, hosts must use the same connection type and parameters as the Jack device. Connections  
-can be set or read at any time.
+communicate, hosts must use the same connection type and parameters as the Jack device. Any time the 
+connection is changed, the device's built-in LED is extinguished until the connection is established. 
+Connections can be set or read at any time.
 
 
 2) Device Capabilities and Status
@@ -107,8 +109,8 @@ is not associated with any pins and completely under host control. Counter/Timer
 using the "atc" command and detached using the "dtc" and "dta" commands. Timer attachment information 
 is retrived with the "tcm" and "tca" commands. Timer status is retrieved using the "tms" and "tma" 
 commands. Timers can be commanded to start, stop, resume or reset using the "stm" and "sta" commands. 
-Jack supports upto 16 counter/timers. The actual count is limited to the number of 
-pins supporting interrupts, but no less than 4. Counter/timers can be commanded at any time.
+Jack supports upto 16 counter/timers. The actual count is limited to the number of pins supporting 
+interrupts. Counter/timers can be commanded at any time.
 
 
 8) Storing and Loading Device Configuration 
@@ -116,7 +118,8 @@ pins supporting interrupts, but no less than 4. Counter/timers can be commanded 
 Jack can store and recall its current configuration using the device's EEPROM memory. The configuration 
 is stored in memory using the "sto" command and retrieved using the "lda" command. Information 
 maintained includes the network connection, GPIO pin modes and event counter/timer states. 
-Configurations can be stored or retrieved at any time.
+Configurations can be stored or retrieved at any time. NOTE: The device does not automatically load the 
+stored configuration after power-up or reset, and must be commanded or programmed to do so.
  
 
 ////////////////////////

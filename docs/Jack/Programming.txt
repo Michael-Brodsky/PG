@@ -2,9 +2,10 @@
 *       Jack Remote Programming       *
 ***************************************
 
-Hosts can download programs to Jack devices that execute remotely on the device. Remote programs should 
-be used sparingly, for instance to ensure some minimum system performance level. Typical use cases 
-include: 
+Hosts can download programs to Jack devices that execute remotely on the device. Users should already 
+be familiar with Jack's operation and command set, and have an understanding of assembly language 
+before moving on to programming. Remote programs should be used sparingly, for instance to ensure some 
+minimum system performance level. Typical use cases include: 
 
 	* Reducing Network Congestion, 
 	* Validating Message Transmission
@@ -12,8 +13,7 @@ include:
 
 Jack uses a programming language, similar to assembly language, that includes its commands and an 
 instruction set for manipulating data, logical and arithmetic operations, branching, looping, stack 
-operations and subroutine calls. Hosts control the operation of and retrieve information about the 
-currently loaded program using commands.
+operations and subroutine calls. Hosts load and control the operation of programs using commands.
 
 One program can be downloaded to and executed by Jack devices at any given time. New programs will 
 overwrite any currently loaded program. Programs can have any number of command/instruction statements 
@@ -21,17 +21,17 @@ but are limited to 1024 characters of total length. Programs are controlled usin
 instructions are downloaded and retrieved as text strings. 
 
 To load a new program, hosts must first send the "program begin load" command, pgm=1. When received by 
-the device, all subsequent messages are considered as program text and cumulatively stored until receipt 
-of the "program end load" command, pgm=0. Once loaded, the program can be operated normally. For a 
-complete listing of program control commands, see section "Program Control" in document <Commands.txt>.
-For example, to run a program that toggles a gpio output pin on and off every second:
+the device, all subsequent messages are considered as lines of program text and cumulatively stored 
+until receipt of the "program end load" command, pgm=0. Once loaded, the program can be operated 
+normally. For a complete listing of program control commands, see section "Program Control" in document 
+<Commands.txt>. For example, to run a program that toggles an output pin on and off every second:
 
 	pgm=1		; host sends "program begin load" command, followed by program text, 
-			; the program will toggle the output state of pin 13:
+			; which will toggle the output state of pin 13:
 
 	spm=13,1	
 	mov ax,0 
-	wrr 13,ax 
+	wrr #13,ax 
 	dly 1000
 	not ax
 	jmp 2
@@ -49,37 +49,49 @@ For example, to run a program that toggles a gpio output pin on and off every se
 	pgm=8		; get current program text (list).
 
 Jack programs are interpreted and execute in a virtual machine environment that emulates a 
-microprocessor. The environment includes four temporary registers ax, bx, cx and dx, a 
-status register (sr), program counter (pc) and 32-element LIFO stack.
+microprocessor. The environment includes four temporary registers ax, bx, cx and dx, a status register 
+(sr), program counter (pc) and 32-element LIFO stack.
+
+When started, or after a reset, all internal registers and the stack are cleared and the program 
+counter is set to the first instruction. Instructions are executed sequentially, line by line, and the 
+program counter advanced after each instruction. Instructions are counted (indexed) by line, with the 
+first line being instruction 0. Program execution halts after the last instruction unless the program 
+counter is modified by one of the branching, looping or subroutine call instructions.
 
 Jack programs can contain any combination of commands, built-in or client-defined, and instructions. 
 Commands use the standard format of key[=arg0,arg1, ... argN]. Program instructions are essentially 
 identical to common assembly language operators (mnemonics). Operators are not required to be separated 
 from operands by the equal '=' character, although they can be. Operands can be registers, literals or 
-"system variables". Literal values are represented in base 10 notation. To simplify language syntax, 
-programs obtain system information by using special characters, rather than the "system call" convention 
-typically used by assemblers. For instance:
+"system variables" (see below). Literal numeric values are represented in base 10 notation. Registers 
+are accessed by name: ax, bx, cx or dx. The results of arithmetic, logical and move instructions are 
+stored in the status register (sr). The first operand of arithmetic, logical and move instructions is 
+modified if it is a modifiable lvalue (a register). 
+
+To simplify language syntax, programs access Jack (system) data by using special characters, rather than 
+the "system call" convention typically used by assemblers. The special characters can modify one or both 
+operands. For instance:
 
 	cmp ax,4	; compare the contents of register ax with literal value 4,
-	cmp ax,#4	; compare the contents of register ax with the current input state of pin 4.
+	cmp ax,#4	; compare the contents of register ax with the current state of pin 4.
 
 The special characters are "#%+*$", immediately followed by the numeric index of the value desired:
 
-	#n		; current input state of pin n,
-	%n		; current elapsed time of counter/timer n,
-	+n		; current count of counter/timer n, 
+	#n		; current state of pin n,
+	%n		; current elapsed time of timer n,
+	+n		; current count of counter n, 
 	*n		; current state (active/inactive) of counter/timer n, 
 	$n		; current system time, where n = 0|1 and specifies the units returned.
 
-System information is read-only, a separate instruction "wrr" is used to write program values to the 
-system, e.g. to set the output state of a pin. The first operand of arithmetic, logical and move 
-operations is modified if it is a modifiable lvalue.
+Only the "wrr" instruction can write data to Jack, all other instructions are read-only: 
+
+	wrr #13,1	; set the state of pin 13 to 1, 
+	wrr #13,#4	; set the state of pin 13 to the state of pin 4.
 
 To minimize memory requirements, Jack does not provide a native preprocessor or support the use of 
-symbols (constants, labels, comments, etc.). All commands and instructions must be written in executable 
-form as described below. However, Jack's desktop counterpart "View", which has an identical programming 
-structure and syntax, does provide a preprocessor that can be used to translate symbolic code into its  
-executable form.
+symbols (constants, labels, comments, etc.). All commands and instructions must be downloaded in 
+executable form as described below. However, Jack's desktop counterpart "View", which has an identical 
+programming structure and syntax, does provide a preprocessor that can be used to translate symbolic  
+code into its executable form.
 
 
 ///////////////////////////
@@ -91,16 +103,16 @@ executable form.
 // Arithmetic //
 ////////////////
 
-	add a,b		; add the values a and b, a is modified and result stored in register sr, 
+	add a,b		; add the values a and b, a is modified and result stored in sr, 
 			; a and b can be literal values, registers or system values.
 			;
-			; add 42,2	; computes the arithmetic sum of 42 + 2, 
+			; add 42,2	; computes the arithmetic sum: 42 + 2, 
 			; add ax,2	; computes the arithmetic sum: ax = ax + 2, 
 			; add ax,bx	; computes the arithmetic sum: ax = ax + bx, 
-			; add ax,%1	; computes the arithmetic sum: ax = ax + current elapsed time of timer 1 
+			; add ax,%1	; computes the arithmetic sum: ax = ax + current time of timer 1 
 					; (counter/timer state is not modified).
 
-	dec a		; decrement the value of a by one, a is modified and result stored in register sr, 
+	dec a		; decrement the value of a by one, a is modified and result stored in sr, 
 			; a can be a literal value, register or system value.
 			;
 			; dec 1		; decrements the literal value 1 by one, 1 - 1 
@@ -108,95 +120,95 @@ executable form.
 			; dec *2	; decrements the state of counter/timer 2 by one 
 					; (the counter/timer state is not modified). 
 
-	div a,b		; divide the dividend a by divisor b, a is modified and quotient stored in register sr, 
+	div a,b		; divide the dividend a by divisor b, a is modified and quotient stored in sr, 
 			; a and b can be literal values, registers or system values.
 			;
-			; div 42,2	; computes the arithmetic quotient of 42 / 2,
+			; div 42,2	; computes the arithmetic quotient: 42 / 2,
 			; div ax,2	; computes the arithmetic quotient: ax = ax / 2, 
 			; div ax,bx	; computes the arithmetic quotient: ax = ax / bx, 
-			; div ax,#9	; computes the arithmetic quotient: ax = ax / current input state of pin 9 
-							; (pin state is not modified).
+			; div ax,#9	; computes the arithmetic quotient: ax = ax / current state of pin 9 
+					; (pin state is not modified).
 
-	inc a		; increment the value of a by one, a is modified and result stored in register sr, 
+	inc a		; increment the value of a by one, a is modified and result stored in sr, 
 			; a can be a literal value, register or system value.
 			;
-			; inc 1		; increments the literal value 1, 1 + 1 
+			; inc 1		; increments the literal value 1 by one, 1 + 1 
 			; inc ax	; increments the contents of register ax by one: ax = ax + 1
 			; inc *2	; increments the state of counter/timer 2 by one 
 					; (the counter/timer state is not modified). 
 
-	mod a,b		; computes the remainder from division of the dividend a by divisor b, a is modified and remainder 
-			; stored in register sr, 
+	mod a,b		; computes the remainder from division of the dividend a by divisor b, 
+			; a is modified and remainder stored in register sr, 
 			; a and b can be literal values, registers or system values.
 			;
-			; mod 42,2	; computes the remainder of 42 / 2,
-			; mod ax,2	; computes the remainder of: ax = ax / 2, 
-			; mod ax,bx	; computes the remainder of: ax = ax / bx, 
-			; mod ax,*2	; computes the remainder of: ax = ax / current state of counter/timer 2 (which is 0|1),
+			; mod 42,2	; computes the remainder of: 42 % 2,
+			; mod ax,2	; computes the remainder of: ax = ax % 2, 
+			; mod ax,bx	; computes the remainder of: ax = ax % bx, 
+			; mod ax,*2	; computes the remainder of: ax = ax % current state of timer 2,
 					; (counter/timer state is not modified).
 
-	mul a,b		; multiplay the multiplicand a by multiplier b, a is modified and product stored in register sr, 
+	mul a,b		; multiply the multiplicand a by multiplier b, a is modified and product stored in sr, 
 			; a and b can be literal values, registers or system values.
 			;
-			; mul 42,2	; computes the arithmetic product of 42 * 2,
+			; mul 42,2	; computes the arithmetic product: 42 * 2,
 			; mul ax,2	; computes the arithmetic product: ax = ax * 2, 
 			; mul ax,bx	; computes the arithmetic product: ax = ax * bx, 
-			; mul ax,$1	; computes the arithmetic product: ax = ax * current system time (ms). 
+			; mul ax,$1	; computes the arithmetic product: ax = ax * current system time. 
 
-	neg a		; negate (reverse sign of) the value of a, a is modified and result stored in register sr, 
+	neg a		; negate (reverse sign of) the value of a, a is modified and result stored in sr, 
 			; a can be a literal value, register or system value.
 			;
 			; neg 1		; negates the literal value 1, (-1), 
 			; neg ax	; negates the contents of register ax: ax = -ax,
-			; neg %2	; negates the elapsed time of counter/timer 2 
+			; neg %2	; negates the elapsed time of timer 2 
 					; (counter/timer state is not modified). 
 
-	sub a,b		; subtract the minuend a by subtrahend b, a is modified and difference stored in register sr, 
+	sub a,b		; subtract the minuend a by subtrahend b, a is modified and difference stored in sr, 
 			; a and b can be literal values, registers or system values.
 			;
 			; sub 42,2	; computes the arithmetic difference: 42 - 2,
 			; sub ax,2	; computes the arithmetic difference: ax = ax - 2, 
 			; sub ax,bx	; computes the arithmetic difference: ax = ax - bx, 
-			; sub ax,$0	; computes the arithmetic difference: ax = ax - current system time (us).
+			; sub ax,$0	; computes the arithmetic difference: ax = ax - current system time.
 				
 
 /////////////
 // Logical // 
 /////////////
 
-	and a,b		; compute the bitwise and of a, b - a is modified and result stored in register sr, 
+	and a,b		; compute the bitwise and of a & b, a is modified and result stored in sr, 
 			; a and b can be literal values, registers or system values.
 			;
 			; and 42,2	; computes the bitwise and: 42 & 2, 
 			; and ax,2	; computes the bitwise and: ax = ax & 2, 
 			; and ax,bx	; computes the bitwise and: ax = ax & bx, 
-			; and ax,+1	; computes the bitwise and: ax = ax & current count of counter/timer 1 
-			;			; (counter/timer state is not modified). 
+			; and ax,+1	; computes the bitwise and: ax = ax & current count of counter 1 
+			;		; (counter/timer state is not modified). 
 
-	not a,b		; compute the bitwise complement of a - a is modified and result stored in register sr, 
+	not a,b		; compute the bitwise complement of a, a is modified and result stored in sr, 
 			; a can be a literal value, register or system value.
 			;
 			; not 42	; computes the bitwise complement: ~42, 
 			; not ax	; computes the bitwise complement: ax = ~ax, 
 			; not #54	; computes the bitwise complement: ~current value of pin 54 
-					; (pin state is not modified), 
+					; (pin state is not modified). 
 
-	or a,b		; compute the bitwise or of a, b - a is modified and result stored in register sr, 
+	or a,b		; compute the bitwise or of a | b, a is modified and result stored in sr, 
 			; a and b can be literal values, registers or system values.
 			;
 			; or 42,2	; computes the bitwise or: 42 & 2, 
 			; or ax,2	; computes the bitwise or: ax = ax & 2, 
 			; or ax,bx	; computes the bitwise or: ax = ax & bx, 
-			; or ax,+1	; computes the bitwise or: ax = ax & current count of counter/timer 1 
+			; or ax,+1	; computes the bitwise or: ax = ax & current count of counter 1 
 					; (counter/timer state is not modified).
 
-	xor a,b		; compute the bitwise exclusive or of a, b - a is modified and result stored in register sr, 
+	xor a,b		; compute the bitwise exclusive or of a ^ b, a is modified and result stored in sr, 
 			; a and b can be literal values, registers or system values.
 			;
 			; xor 42,2	; computes the bitwise exclusive or: 42 ^ 2, 
 			; xor ax,2	; computes the bitwise exclusive or: ax = ax ^ 2, 
 			; or ax,ax	; computes the bitwise exclusive or: ax = ax ^ ax, 
-			; or ax,#1	; computes the bitwise exclusive or: ax = ax & current input state of pin 1
+			; or ax,#1	; computes the bitwise exclusive or: ax = ax ^ current state of pin 1
 					; (pin state is not modified).
 
 
@@ -204,65 +216,73 @@ executable form.
 // Branching // 
 ///////////////
 
-	cmp a,b		; compare values a and b, neither operand is modified, result is computed by taking the 
-			; arithmetic difference and storing the result in the status register: sr = a - b, 
+	cmp a,b		; compare values a and b, neither operand is modified, result is computed by taking
+			; the arithmetic difference and storing the result in sr: sr = a - b, 
 			; a and b can be literal values, registers or system values.
 			;
 			; cmp 42,2	; compare the arithmetic difference: 42 - 2,
 			; cmp ax,2	; compare the arithmetic difference: ax - 2,
 			; cmp ax,bx	; compare the arithmetic difference: ax - bx,
-			; cmp ax,#9	; compare the arithmetic difference: ax - current input state of pin 9 
+			; cmp ax,#9	; compare the arithmetic difference: ax - current state of pin 9 
 					; (pin state is not modified).
 
-	je n		; jump if equal, sets the program counter to n if the result of the last instruction was equal (sr = 0), 
-			; n is the zero-based index of the nth program instruction.
+In the following section, `n' represents the zero-based index (line number) of the instruction. 
 
-	jne n		; jump if not equal, sets the program counter to n if the result of the last instruction was not equal (sr != 0), 
-			; n is the zero-based index of the nth program instruction.
 
-	jlt n		; jump if less than, sets the program counter to n if the result of the last instruction was less than (sr < 0), 
-			; n is the zero-based index of the nth program instruction.
+	je n		; jump if equal, sets the program counter to n if the result of 
+			; the last instruction was equal (sr = 0).
 
-	jge n		; jump if greater than, sets the program counter to n if the result of the last instruction was greater than (sr > 0), 
-			; n is the zero-based index of the nth program instruction. 
+	jne n		; jump if not equal, sets the program counter to n if the result of 
+			; the last instruction was not equal (sr != 0). 
 
-	jle n		; jump if less than or equal, sets the program counter to n if the result of the last instruction was less than 
-			; or equal(sr <= 0), n is the zero-based index of the nth program instruction. 
+	jlt n		; jump if less than, sets the program counter to n if the result of 
+			; the last instruction was less than (sr < 0). 
 
-	jge n		; jump if greater than or equal, sets the program counter to n if the result of the last instruction was greater than 
-			; or equal(sr >= 0), n is the zero-based index of the nth program instruction. 
+	jge n		; jump if greater than, sets the program counter to n if the result of 
+			; the last instruction was greater than (sr > 0). 
 
-	jz n		; jump if zero, sets the program counter to n if the result of the last instruction was zero (sr = 0), n is the 
-			; zero-based index of the nth program instruction. 
+	jle n		; jump if less than or equal, sets the program counter to n if the result of 
+			; the last instruction was less than or equal (sr <= 0). 
 
-	jnz n		; jump if not zero, sets the program counter to n if the result of the last instruction was not zero (sr != 0), n is 
-			; the zero-based index of the nth program instruction. 
+	jge n		; jump if greater than or equal, sets the program counter to n if the result of 
+			; the last instruction was greater than or equal (sr >= 0). 
 
-	js n		; jump if sign, sets the program counter to n if the result of the last instruction was negative (sr < 0), n is the 
-			; zero-based index of the nth program instruction. 
+	jz n		; jump if zero, sets the program counter to n if the result of 
+			; the last instruction was zero (sr = 0). 
 
-	jns n		; jump if not sign, sets the program counter to n if the result of the last instruction was positive (sr >= 0), n is 
-			; the zero-based index of the nth program instruction. 
+	jnz n		; jump if not zero, sets the program counter to n if the result of 
+			; the last instruction was not zero (sr != 0).
 
-	jmp n		; unconditional jump, sets the program counter to n, n is the zero-based index of the nth program instruction.
+	js n		; jump if sign, sets the program counter to n if the result of 
+			; the last instruction was negative (sr < 0).
+
+	jns n		; jump if not sign, sets the program counter to n if the result of 
+			; the last instruction was positive (sr >= 0).
+
+	jmp n		; unconditional jump, sets the program counter to n.
 
 
 /////////////
 // Looping // 
 /////////////
 
-The cx register is used as the loop counter. Programs should set the loop count prior to executing the loop instruction.
+The cx register is used as the loop counter. Programs should set the loop count prior to executing the 
+loop instruction.
 
-	loop n		; unconditional loop, set the program counter to n and decrement cx by one if the contents of cx are greater than zero, 
-			; equivalent to: 
+	loop n		; unconditional loop, set the program counter to n and decrement cx by one 
+			; if the current contents of cx are greater than zero, equivalent to: 
+			; 
+			;	dec cx
 			;	cmp cx,0 
 			;	jgt n
 			;
-			; for example, assuming the first instruction is instruction 0, this code execute the "loop code" (indicated by 
-			; an elipsis) 10 times:
+			; for example, assuming that instruction 1 is the instruction immediately 
+			; following "mov cx,10", this code will execute the "loop code" (indicated by 
+			; the elipsis) 10 times:
+			;
 			;	mov cx,10
 			;	... 
-			;	loop 0
+			;	loop 1
 
 
 //////////////////////
@@ -275,7 +295,7 @@ operates as a last in-first out (LIFO) queue.
 	push a		; stack push - pushes the value a on the stack,
 			; a can be a literal value, register or system value.
 
-	pop r		; stack pop - pops the value at the top of the stack and moves it to r,
+	pop r		; stack pop - pops the value from the top of the stack and moves it to r,
 			; r can be any register.
 
 
@@ -289,29 +309,36 @@ operates as a last in-first out (LIFO) queue.
 			;
 			; mov bx,1	; move literal value 1 to register bx,
 			; mov bx,ax	; move contents of register ax into register bx, 
-			; mov bx,#4	; move the current input state of pin 4 to register bx. 
+			; mov bx,#4	; move the current state of pin 4 to register bx. 
 
-	wrr p,a		; write the value of a to pin p
-			; p is the zero-based index (pin number) of the pin, 
-			; a can be a literal value, register or system value.
+	wrr s,v		; write the value v to system object s
+			; s is one of the special characters "#%+*$" followed by the object's numeric index:
+			;	#	; pin state, #13 is pin 13
+			;	+	; counter preset, +0 is counter 0
+			;	*	; counter/timer state, *1 is counter/timer 1 
+			; v can be a literal value, register or system value,
+			; values must valid for the target object (see <Commands.txt>).
 			;
-			; wrr 13,1	; write literal value 1 to pin 13,
-			; wrr 13,ax	; write the contents of register ax to pin 13,
-			; wrr 13,#4	; write the current state of pin 4 to pin 13.
+			; wrr #13,1	; write literal value 1 to pin 13,
+			; wrr #13,ax	; write the contents of register ax to pin 13,
+			; wrr #13,#4	; write the current state of pin 4 to pin 13,
+			; wrr +0,1000	; preset counter 0 to 1000
+			; wrr *1,0	; stop counter/timer 1.
 
 
 /////////////////
 // Subroutines // 
 ///////////////// 
 
-	call n		; call subroutine - current instruction index is saved and program 
+	call n		; call subroutine - contents of pc and sr are saved and program 
 			; execution transfers to instruction n.
 
-	ret		; return from subroutine - program execution returns to the instruction immediately following 
-			; the last "call" instruction.
+	ret		; return from subroutine - state of pc and sr prior to the last "call" 
+			; instruction, program execution returns to the instruction immediately 
+			; following the last "call" instruction .
 
-	rets a		; return value - a is pushed on to the stack and program execution returns to the instruction
-			; following the last "call" instruction, 
+	rets a		; return value - behaves identically to "ret" instruction except that a is 
+			; pushed on to the stack prior to returning from the last "call" instruction.
 			; a can be a literal value, register, or system value. 
 
 
@@ -320,7 +347,8 @@ operates as a last in-first out (LIFO) queue.
 /////////////////////
 
 	dly n		; delay - puts program execution to sleep for n milliseconds, 
-			; this is a blocking operation on program execution only, the Jack system continues operating normally.
+			; this is a blocking operation on program execution only, 
+			; the Jack system continues operating normally.
 
 
 //////////////////////
@@ -331,10 +359,17 @@ NOTE: The examples contain comments and line numbers for clarity.
 These must be removed prior to downloading to Jack. Listings 
 without line numbers and comments appear at the end of this document.
 
-For additional clarity, Jack commands have an equal sign "="  
-separating the command key from the argument list. Program instructions 
-have a space " " separating the operator (mnemonic) from the operands.
-This is not strictly required and either character has the same effect.
+The examples intermix Jack commands and program instructions. Jack 
+commands behave as if they were received as messages, e.g. they 
+cannot access program data. Program instructions can access Jack 
+using "system values", where the operands contain one of the special 
+"system call" characters (see above). Command format and syntax is 
+identical to that of a message (see <Commands.txt> for details).
+
+For additional clarity, Jack commands have an equal sign "=" separating 
+the command key from the argument list. Program instructions have a 
+space " " separating the operator (mnemonic) from the operands. This 
+is not strictly required and either character has the same effect. 
 
 
 ////////////////////////////////////////////
@@ -347,7 +382,7 @@ This is not strictly required and either character has the same effect.
 0	spm=13,1	; set led pin as digital out
 1	mov ax,0	; ax holds led state, start with led off
 ; loop
-2	wrr 13,ax	; set led state
+2	wrr #13,ax	; set led state
 3	dly 1000	; sleep one second
 4	not ax		; flip led state
 5	jmp 2		; goto start of loop.
@@ -373,7 +408,7 @@ This is not strictly required and either character has the same effect.
 6	je 4		; if same, go back to start of loop 
 8	mov bx,ax	; else save the current input state
 9	not ax		; invert it (output is opposite of input)
-10	wrr 13,ax	; set the output state
+10	wrr #13,ax	; set the output state
 11	jmp 4		; go back to start of loop 
 
 
@@ -452,7 +487,7 @@ Listings with comments and line numbers removed:
 
 spm=13,1
 mov ax,0
-wrr 13,ax
+wrr #13,ax
 dly 1000
 not ax
 jmp 2
@@ -471,7 +506,7 @@ cmp ax,bx
 je 4
 mov bx,ax
 not ax
-wrr 13,ax
+wrr #13,ax
 jmp 4
 
 
