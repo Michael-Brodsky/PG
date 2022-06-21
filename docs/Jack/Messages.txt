@@ -3,7 +3,7 @@
 ***********************************
 
 
-Hosts communicate with Jack devices over a network connection using "messages" Messages encode 
+Hosts communicate with Jack devices over a network connection using "messages". Messages encode 
 "commands" that the device can execute. Commands are character strings with the general form: 
 
 	key=value1,value2,...,valueN
@@ -51,17 +51,17 @@ For example:
 	rdl=1.2.3	; OK, rdl expects list argument, reads input pins 1,2 and 3,
 	rdp=1.2.3	; Incorrect, rdp expects unsigned byte, resulting in rdp=1.
 
-Messages can be sent at network speeds and are interpreted and executed on receipt. Commands are non-
+Messages can be sent at network speeds, and are interpreted and executed on receipt. Commands are non-
 blocking and optimized for immediate execution. However, Jack does not use any special message buffering 
 or queueing. Message queues are limited to the size of the device's built-in hardware buffers. Messages 
 transmitted when the buffers are full will be dropped. Hosts can avoid message overruns by using Jack's 
 "acknowledge" feature or by inserting small delays between consecutive messages (e.g. 25 ms).
 
-Messages can be checked for transmission errors using checksums. Hosts append check values to the 
-message text separated by a colon ':' character. Jack validates any messages containing check values and 
-replies with the same. Messages without check values are processed normally. Messages with invalid check 
-values are ignored. Jack calculates check values using an "inverted sum" algorithm that has possible 
-values in the range [0-255]. Check values are transmitted in string format. Hosts must use the same. 
+Checksums can be used to check for transmission errors. Check values must be appended to the message 
+text separated by a colon ':' character. Jack validates any messages containing check values and replies 
+with the same. Messages without check values are processed normally. Messages with invalid check values 
+are ignored. Jack calculates check values using an "inverted sum" algorithm that has possible values in 
+the range [0-255]. Check values are transmitted in base 10 as strings. Hosts must use the same. 
 
 	rdp=4		; plain message to read input pin 4
 	rdp=4:72	; same message with appended check value
