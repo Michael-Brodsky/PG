@@ -68,7 +68,16 @@
 # include <system/types.h>
 
 	//
-	// These declare the type of the attacInterrupt() mode parameter.
+	// Define RAMSIZE constant.
+	//
+#if (defined RAMSTART && defined RAMEND)
+# if !defined RAMSIZE 
+#  define RAMSIZE ((RAMEND) - (RAMSTART))
+# endif
+#endif
+
+	//
+	// These declare the type of the attachInterrupt() mode parameter.
 	//
 # if defined ARDUINO_ARCH_AVR
 	using PinStatus = int;
@@ -116,6 +125,14 @@
 #  error LED_BUILTIN undefined
 # endif
 
+# if !defined FLASHEND
+#  error FLASHEND undefined
+# endif
+
+# if !defined RAMSIZE
+#  error RAMSIZE undefined
+# endif
+
 # if defined __PG_HAS_NAMESPACES
 
 namespace pg
@@ -126,6 +143,8 @@ namespace pg
 	constexpr uint8_t GpioCount = NUM_DIGITAL_PINS;			// Total number of gpio pins of any type.
 	constexpr uint8_t AnalogInCount = NUM_ANALOG_INPUTS;	// Total number of gpio pins with analog input capability.
 	constexpr pin_t LedPinNumber = LED_BUILTIN;				// Built-in LED pin number.
+	constexpr uint32_t RamSize = RAMSIZE;					// Total random access memory capacity.
+	constexpr uint32_t RomSize = FLASHEND;					// Total flash (program memory) capacity.
 
 	constexpr bool isAnalogPin(pin_t n)
 	{
@@ -140,7 +159,7 @@ namespace pg
 		//
 		static_assert (GpioCount > AnalogInCount, "Invalid values");
 
-		return n >= (GpioCount - AnalogInCount) && n < GpioCount;
+		return n >= (GpioCount - AnalogInCount) && getAnalogPins(GpioCount - n - 1) != -1;
 	}
 
 	// Checks if pin n is hardware interrupt capable.
@@ -167,7 +186,7 @@ namespace pg
 	// Primary template - 
 	// Returns the number of attachable hardware interrupts, parameter N is the total number of gpio pins.
 	template<std::size_t N, std::size_t I = 0>
-	constexpr typename std::enable_if <I < N, std::size_t>::type
+	constexpr typename std::enable_if<I < N, std::size_t>::type
 		countInterrupts(std::size_t n = 0)
 	{
 		return countInterrupts<N, I + 1>(n + isInterruptPin(I));

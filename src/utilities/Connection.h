@@ -36,8 +36,12 @@
 # include <lib/strtok.h>
 # include <system/boards.h>
 # include <utilities/ValueWrappers.h>
-# include <system/ethernet.h>
-# include <system/wifi.h>
+# if !defined __PG_NO_ETHERNET_CONNECTION
+#  include <system/ethernet.h>
+# endif
+# if !defined __PG_NO_WIFI_CONNECTION
+#  include <system/wifi.h>
+# endif
 
 namespace pg
 {
@@ -129,7 +133,7 @@ namespace pg
 	}
 
 	const std::ArrayWrapper<SerialConnection::frame_map_type> SerialConnection::SupportedFrames(detail::supported_frames);
-# if !defined __PG_NO_ETHERNET_CONNECTION
+# if defined __PG_ETHERNET_H
 	class EthernetConnection : public Connection
 	{
 	public:
@@ -170,7 +174,7 @@ namespace pg
 		IPAddress		remote_ip_;		// The current remote address.
 	};
 # endif
-# if !defined __PG_NO_WIFI_CONNECTION
+# if defined __PG_WIFI_H
 	// Creates a WiFi network connection.
 	class WiFiConnection : public Connection
 	{
@@ -324,7 +328,7 @@ namespace pg
 
 #pragma endregion
 #pragma region EthernetConnection
-# if !defined __PG_NO_ETHERNET_CONNECTION
+# if defined __PG_ETHERNET_H
 	EthernetConnection::EthernetConnection(const char* params) : 
 		buf_(), is_open_(), local_ip_(), mac_(), port_()
 	{
@@ -345,11 +349,11 @@ namespace pg
 	void EthernetConnection::open(const char* params) 
 	{
 		parseParams(params);
-# if !defined __PG_NO_ETHERNET_DHCP 
+#  if !defined __PG_NO_ETHERNET_DHCP 
 		if (local_ip_ == IPAddress())
 			Ethernet.begin(mac_.data());
 		else
-# endif
+#  endif
 			Ethernet.begin(mac_.data(), local_ip_);
 		if (!(Ethernet.hardwareStatus() == EthernetNoHardware) || Ethernet.linkStatus() == LinkOFF)
 		{
@@ -489,7 +493,7 @@ namespace pg
 # endif
 #pragma endregion
 #pragma region WiFiConnection
-# if !defined __PG_NO_WIFI_CONNECTION
+# if defined __PG_WIFI_H
 	WiFiConnection::WiFiConnection(const char* params) : 
 		ssid_(), pw_(), status_(WL_IDLE_STATUS), udp_(), remote_ip_(), port_(), buf_()
 	{

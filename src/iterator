@@ -226,6 +226,13 @@ namespace std
 		return c.begin();
 	}
 
+	// Returns an iterator to the first element of container `c'.
+	template<class C>
+	auto begin(const C& c) -> decltype(c.begin())
+	{
+		return c.begin();
+	}
+
 	// Returns a pointer to the first element of array `arr'.
 	template<class T, std::size_t Size>
 	inline T* begin(T(&arr)[Size])
@@ -236,6 +243,13 @@ namespace std
 	// Returns an iterator to one past the last element of container `c'.
 	template<class C>
 	auto end(C& c) -> decltype(c.end())
+	{
+		return c.end();
+	}
+
+	// Returns an iterator to one past the last element of container `c'.
+	template<class C>
+	auto end(const C& c) -> decltype(c.end())
 	{
 		return c.end();
 	}
@@ -314,7 +328,7 @@ namespace std
 		template<class Other> 
 		move_iterator(const move_iterator<Other>& it) : it_(it.base()) {}
 		template<class Other>
-		move_iterator& operator=(const move_iterator<Other>& it) { it_ = it.base(); }
+		move_iterator& operator=(const move_iterator<Other>& it) { it_ = it.base(); return *this; }
 
 	public:
 		iterator_type base() const { return it_; }
@@ -350,7 +364,7 @@ namespace std
 		template<class Other>
 		reverse_iterator(const reverse_iterator<Other>& it) : it_(it.base()) {}
 		template<class Other>
-		reverse_iterator& operator=(const reverse_iterator<Other>& it) { it_ = it.base(); }
+		reverse_iterator& operator=(const reverse_iterator<Other>& it) { it_ = it.base();  return *this; }
 
 	public:
 		iterator_type base() const { return it_; }
@@ -506,7 +520,7 @@ namespace std
 			reference operator*() { return *(c_ + __wrap(i_, std::bool_constant<is_pow2(__size())>())); }
 			pointer operator->() const { return c_ + __wrap(i_, std::bool_constant<is_pow2(__size())>()); }
 			reference operator[](difference_type n) const 
-			{ return *(c_ + __wrap(i_ + n, std::bool_constant<is_pow2(__size())>())); }
+				{ return *(c_ + __wrap(i_ + n, std::bool_constant<is_pow2(__size())>())); }
 			self_type& operator++() { ++i_; return *this; }
 			self_type& operator--() { --i_; return *this; }
 			self_type operator++(int) { self_type it = *this; ++i_; return it; }
@@ -516,6 +530,7 @@ namespace std
 			self_type& operator+=(difference_type n) { i_ += n; return *this; }
 			self_type& operator-=(difference_type n) { i_ -= n; return *this; }
 			constexpr std::size_t size() { return __size(); }
+			pointer index() const { return c_ + i_; }
 
 		public:
 			friend bool operator==(const circular_iterator& lhs, const circular_iterator& rhs)

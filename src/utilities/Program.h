@@ -34,11 +34,19 @@
 # include <cstring>
 # include <cstdlib>
 # include <stack>
-# include <interfaces/isystem.h>
 # include <utilities/Timer.h>
+# include <utilities/Interpreter.h>
 
 namespace pg
 {
+	struct iprogram
+	{
+		using value_type = int32_t;
+
+		virtual value_type sys_get(const char*) = 0;
+		virtual void sys_set(const char*, value_type) = 0;
+	};
+
 	// Type that manages a set of executable instructions.
 	class Program
 	{
@@ -57,12 +65,18 @@ namespace pg
 			List = 8,	// Lists the current program text.
 		};
 		using size_type = uint16_t;	// Type that can hold the size of any program object.
-		using value_type = isystem::value_type;	// Type that can hold the value of any program object. 
+		using value_type = iprogram::value_type;	// Type that can hold the value of any program object. 
 		using timer_type = Timer<std::chrono::milliseconds>; // Program sleep timer type.
 		using key_type = const char*;
+		using command_type = Interpreter::CommandBase;
+		template<class... Ts>
+		using Instruction = typename Interpreter::Command<void, Program, Ts...>;
 
 		static constexpr size_type CharsMax = 1024;	// Maximum size of program text in characters.
 		static constexpr size_type StackSize = 32;	// Maximum size of program stack.
+		static constexpr size_type InstructionSetMaxCount = 32;	// Maximum size of built-in instruction set.
+
+		using InstructionSet = typename std::array<command_type*, InstructionSetMaxCount>;
 
 		static constexpr key_type KeyAdd = "add";				// Add two values.
 		static constexpr key_type KeyCall = "call";				// Call subroutine.
@@ -97,35 +111,38 @@ namespace pg
 		static constexpr key_type KeyReturnValue = "rets";		// Return from subroutine call with value on stack.
 		static constexpr key_type KeySleep = "dly";				// Sleep.
 		static constexpr key_type KeySubtract = "sub";			// Subtract two values.
+		static constexpr key_type KeySystemSet = "wrr";			// Write a value to the system.
 
 		static constexpr const char* const SystemCallChars = "#%+*$";
 
 		using stack_type = std::stack<value_type, StackSize>; // Program stack.
 
 	public:
-		Program(isystem&);
+		Program(iprogram&);
 
 	public: /* Program control methods. */
 		bool active() const;					// Checks whether the program is currently running.
 		void begin();							// Begins loading a new program.
 		void end();								// Ends loading a new program.
-		value_type get(const char*);			// Returns the value of a register.
 		void halt();							// Stops a running program.
 		void instruction(const char*);			// Adds an instruction to a new program.
 		const char* instruction();				// Returns the current program instruction and advances to the next one.
+		InstructionSet& instructions();			// Returns a reference to the current instruction set.
 		bool loading() const;					// Checks whether a new program is currently loading.
+		size_type next(const char*);			// Returns a pointer to the next instruction.
 		void reset();							// Resets the program to the first instruction.		
 		void run();								// Marks the current program as active.
 		size_type size() const;					// Returns the current program size in characters.
 		void sleep(std::time_t);				// Puts the program execution to sleep for a given interval.
 		const char* text() const;				// Returns a pointer to the beginning of the program text.
 
-	public:	/* Program execution methods. */
+	private:	/* Program instrucution methods. */
 		void add(const char*, const char*);
 		void call(size_type);
 		void compare(const char*, const char*);	
 		void decrement(const char*);
 		void divide(const char*, const char*);
+		value_type get(const char*);			
 		void increment(const char*);
 		void jump(size_type);
 		void jumpEqual(size_type);
@@ -140,7 +157,7 @@ namespace pg
 		void jumpZero(size_type);
 		void logicalAnd(const char*, const char*);
 		void logicalOr(const char*, const char*);
-		void logicalTest(const char*, const char*);
+		void logicalTest(const char*, const char*);	// Missing instruction def.
 		void logicalXor(const char*, const char*);
 		void logicalNot(const char*);
 		void loop(size_type);
@@ -153,37 +170,73 @@ namespace pg
 		void ret();
 		void ret(const char*);
 		void subtract(const char*, const char*);
-
-	private:
 		value_type* getDest(const char*);
 		bool isSysCall(const char*);
 		void moveValue(const char*, value_type);
-		size_type next() const;		
 		bool sleeping();			
+		void sysSet(const char*, const char*);
 
-	private:
-		bool		loading_;			// Flag indicating whether a new program is loading.
-		bool		active_;			// Flag indicating whether the current program is active.
-		char		text_[CharsMax];	// Program text buffer.
-		char*		ptr_;				// Pointer to the current program instruction.
-		char*		end_;				// Pointer to one past the last program instruction.
-		timer_type	sleep_;				// Program sleep timer.
-		value_type	ax_;				
-		value_type	bx_;
-		value_type	cx_;
-		value_type	dx_;
-		value_type	sr_;
-		stack_type	stack_;
-		isystem&	system_;
+	private:	/* Built-in instruction commands */
+		Instruction<const char*, const char*> ins_sysset_{ Program::KeySystemSet, *this, &Program::sysSet };
+		Instruction<const char*, const char*> ins_add_{ Program::KeyAdd, *this, &Program::add };
+		Instruction<const char*, const char*> ins_subtract_{ Program::KeySubtract, *this, &Program::subtract };
+		Instruction<const char*, const char*> ins_multiply_{ Program::KeyMultiply, *this, &Program::multiply };
+		Instruction<const char*, const char*> ins_divide_{ Program::KeyDivide, *this, &Program::divide };
+		Instruction<const char*, const char*> ins_modulo_{ Program::KeyModulo, *this, &Program::modulo };
+		Instruction<const char*, const char*> ins_and_{ Program::KeyLogicalAnd, *this, &Program::logicalAnd };
+		Instruction<const char*, const char*> ins_or_{ Program::KeyLogicalOr, *this, &Program::logicalOr };
+		Instruction<const char*, const char*> ins_test_{ Program::KeyLogicalTest, *this, &Program::logicalTest };
+		Instruction<const char*, const char*> ins_xor_{ Program::KeyLogicalXor, *this, &Program::logicalXor };
+		Instruction<const char*, const char*> ins_compare_{ Program::KeyCompare, *this, &Program::compare };
+		Instruction<const char*, const char*> ins_move_{ Program::KeyMove, *this, &Program::move };
+		Instruction<const char*> ins_not_{ Program::KeyLogicalNot, *this, &Program::logicalNot };
+		Instruction<const char*> ins_decrement_{ Program::KeyDecrement, *this, &Program::decrement };
+		Instruction<const char*> ins_increment_{ Program::KeyIncrement, *this, &Program::increment };
+		Instruction<const char*> ins_negate_{ Program::KeyNegate, *this, &Program::negate };
+		Instruction<std::time_t> ins_sleep_{ Program::KeySleep, *this, &Program::sleep };
+		Instruction<size_type> ins_jump_{ Program::KeyJump, *this, &Program::jump };
+		Instruction<size_type> ins_jumpequal_{ Program::KeyJumpEqual, *this, &Program::jumpEqual };
+		Instruction<size_type> ins_jumpnotequal_{ Program::KeyJumpNotEqual, *this, &Program::jumpNotEqual };
+		Instruction<size_type> ins_jumpgreater_{ Program::KeyJumpGreater, *this, &Program::jumpGreater };
+		Instruction<size_type> ins_jumpgreaterequal_{ Program::KeyJumpGreaterEqual, *this, &Program::jumpGreaterEqual };
+		Instruction<size_type> ins_jumpless_{ Program::KeyJumpLess, *this, &Program::jumpLess };
+		Instruction<size_type> ins_jumplessequal_{ Program::KeyJumpLess, *this, &Program::jumpLessEqual };
+		Instruction<size_type> ins_loop_{ Program::KeyLoop, *this, &Program::loop };
+		Instruction<size_type> ins_call_{ Program::KeyCall, *this, &Program::call };
+		Instruction<void> ins_return_{ Program::KeyReturn, *this, &Program::ret };
+		Instruction<const char*> ins_returnvalue_{ Program::KeyReturn, *this, &Program::ret };
+		Instruction<const char*> ins_push_{ Program::KeyPush, *this, &Program::push };
+		Instruction<const char*> ins_pop_{ Program::KeyPop, *this, &Program::pop };
+
+	private:	/* Private class members */
+		bool			loading_;			// Flag indicating whether a new program is loading.
+		bool			active_;			// Flag indicating whether the current program is active.
+		char			text_[CharsMax];	// Program text buffer. Instructions stored as consecutive null-terminated strings.
+		char*			ptr_;				// Pointer to the current program instruction.
+		char*			end_;				// Pointer to one past the last program instruction.
+		timer_type		sleep_;				// Program sleep timer.
+		value_type		ax_;				
+		value_type		bx_;
+		value_type		cx_;
+		value_type		dx_;
+		value_type		sr_;
+		stack_type		stack_;
+		iprogram&		system_;			// Reference to the "system" object.
+		InstructionSet	instructions_;		// The current instruction set.
 	};
 
 #pragma region public program control methods
 
-	Program::Program(isystem& system) :
+	Program::Program(iprogram& system) :
 		loading_(), active_(), text_{}, ptr_(text_), end_(ptr_), sleep_(),
-		ax_(), bx_(), cx_(), dx_(), sr_(), stack_(), system_(system) 
+		ax_(), bx_(), cx_(), dx_(), sr_(), stack_(), system_(system), 
+		instructions_({ &ins_compare_, &ins_move_, &ins_negate_, &ins_not_, &ins_sleep_, &ins_jump_, &ins_jumpequal_,
+			&ins_jumpnotequal_, &ins_jumpless_, &ins_jumplessequal_, &ins_jumpgreater_, &ins_jumpgreaterequal_,
+			&ins_loop_, &ins_decrement_, &ins_increment_, &ins_add_, &ins_subtract_, &ins_multiply_,
+			&ins_divide_, &ins_modulo_, &ins_and_, &ins_or_, &ins_test_, &ins_xor_, &ins_call_, &ins_return_,
+			&ins_returnvalue_, &ins_push_, &ins_pop_, &ins_sysset_ })
 	{
-
+		std::sort(std::begin(instructions_), std::end(instructions_), cbcomp);
 	}
 
 	bool Program::active() const
@@ -197,7 +250,7 @@ namespace pg
 		{
 			loading_ = true;
 			ptr_ = end_ = text_;
-			*ptr_ = '\0';
+			*ptr_ = '\0';	// Start of text marked with NULL.
 		}
 	}
 
@@ -206,7 +259,7 @@ namespace pg
 		if (loading_)
 		{
 			loading_ = false;
-			*ptr_ = '\0';	// Mark one past the last instruction.
+			*ptr_ = '\0';	// End of text marked with NULL one past the last instruction.
 			ptr_ = text_;
 		}
 	}
@@ -243,12 +296,17 @@ namespace pg
 
 	const char* Program::instruction()
 	{
-		const char* cmd = ((active_ &= ptr_ < end_) && !sleeping()) ? ptr_ : nullptr;
+		const char* ins = ((active_ &= ptr_ < end_) && !sleeping()) ? ptr_ : nullptr;
 
-		if (cmd)
-			ptr_ += next();
+		if (ins)
+			ptr_ += next(ptr_);
 
-		return cmd;
+		return ins;
+	}
+
+	Program::InstructionSet& Program::instructions()
+	{
+		return instructions_;
 	}
 
 	bool Program::loading() const
@@ -333,9 +391,9 @@ namespace pg
 			*dest = value;
 	}
 
-	Program::size_type Program::next() const
+	Program::size_type Program::next(const char* ptr)
 	{
-		return std::strlen(ptr_) + sizeof(char);
+		return std::strlen(ptr) + sizeof(char);
 	}
 
 	bool Program::sleeping()
@@ -384,7 +442,7 @@ namespace pg
 		// This could be slow in large programs.
 		ptr_ = text_;
 		while (n--)
-			ptr_ += next();
+			ptr_ += next(ptr_);
 	}
 
 	void Program::jumpEqual(size_type address)
@@ -528,6 +586,11 @@ namespace pg
 	void Program::subtract(const char* arg1, const char* arg2)
 	{
 		moveValue(arg1, (sr_ = get(arg1) - get(arg2)));
+	}
+
+	void Program::sysSet(const char* arg1, const char* arg2)
+	{
+		system_.sys_set(arg1, get(arg2));
 	}
 
 #pragma endregion

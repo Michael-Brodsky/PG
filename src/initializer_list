@@ -90,21 +90,22 @@ namespace std
 
 	public:
 		// Constructs an empty initializer list.
-		inline constexpr initializer_list() noexcept : data_(), size_() {}
+		initializer_list() noexcept : data_(), size_() {}
 
 	public:
 		// Returns the number of elements in the initializer list.
-		inline constexpr size_t size() const noexcept { return size_; }
+		size_type size() const noexcept { return size_; }
 		// Returns a pointer to the first element.
-		inline constexpr const T* begin() const noexcept { return data_; }
+		const T* begin() const noexcept { return data_; }
 		// Returns a pointer to one past the last element.
-		inline constexpr const T* end() const noexcept { return data_ + size_; }
+		const T* end() const noexcept { return data_ + size_; }
 
 	private:
 		// Constructs an initializer list of size from the array pointed to by data.
-		inline constexpr initializer_list(const T* data, size_t size) noexcept : 
+		initializer_list(const T* data, size_t size) noexcept :
 			data_(data), size_(size)
 		{}
+
 
 	private:
 		const T*	data_;	// Pointer to the underlying array.
@@ -113,17 +114,18 @@ namespace std
 
 	// Overload of std::begin for std::initializer_list, returns a pointer to the first element of list.
 	template<class T>
-	inline constexpr const T* begin(initializer_list<T> list) noexcept
+	const T* begin(initializer_list<T> list) noexcept
 	{
 		return list.begin();
 	}
 
 	// Overload of std::end for std::initializer_list, returns a pointer to one past the last element of list.
 	template<class T>
-	inline constexpr const T* end(initializer_list<T> list) noexcept
+	const T* end(initializer_list<T> list) noexcept
 	{
 		return list.end();
 	}
+
 }
 
 # else // !defined __PG_HAS_NAMESPACES

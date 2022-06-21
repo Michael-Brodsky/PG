@@ -177,32 +177,32 @@ namespace pg
 		CounterTimer&		operator-=(V);
 		template<class V>
 		CounterTimer&		operator=(V);
-		bool				active() const;			// Checks if a counter/timer is currently active.
+		bool				active() const;				// Checks if a counter/timer is currently active.
 		bool				active(counter_tag) const;	// Checks if a counter is currently active.
 		bool				active(timer_tag) const;	// Checks if a timer is currently active.
-		count_type&			count() const;			// Returns an immutable reference to the current count.
-		count_type&			count();				// Returns a mutable reference to the current count.	
-		time_type			elapsed() const;		// Returns the currently elapsed time.
-		bool				reached() const;		// Checks if a counter has reached its limit.
-		bool				expired() const;		// Checks if a timer interval has expired.
-		void				interval(time_type);	// Resets a timer and assigns a new interval.
-		time_type			interval() const;		// Returns the timer interval. 
-		void				limit(count_type);		// Resets a counter and assigns a new limit.
-		count_type			limit() const;			// Returns the current count limit.
-		void				reset();				// Resets a counter/timer.
-		void				reset(counter_tag);				// Resets a counter/timer.
-		void				reset(timer_tag);				// Resets a counter/timer.
-		void				resume();				// Resumes a counter/timer.
-		void				resume(counter_tag);				// Resumes a counter/timer.
-		void				resume(timer_tag);				// Resumes a counter/timer.
-		void				start();				// Starts a counter/timer.
-		void				start(counter_tag);				// Starts a counter/timer.
-		void				start(timer_tag);				// Starts a counter/timer.
-		void				start(time_type);		// Restarts a timer with a new interval.
-		void				start(count_type);		// Restarts a counter with a new limit.
-		void				stop();					// Stops a counter/timer.
-		void				stop(counter_tag);					// Stops a counter/timer.
-		void				stop(timer_tag);					// Stops a counter/timer.
+		count_type&			count() const;				// Returns an immutable reference to the current count.
+		count_type&			count();					// Returns a mutable reference to the current count.	
+		time_type			elapsed() const;			// Returns the currently elapsed time.
+		bool				reached() const;			// Checks if a counter has reached its limit.
+		bool				expired() const;			// Checks if a timer interval has expired.
+		void				interval(time_type);		// Resets a timer and assigns a new interval.
+		time_type			interval() const;			// Returns the timer interval. 
+		void				limit(count_type);			// Resets a counter and assigns a new limit.
+		count_type			limit() const;				// Returns the current count limit.
+		void				reset();					// Resets a counter/timer.
+		void				reset(counter_tag);			// Resets a counter/timer.
+		void				reset(timer_tag);			// Resets a counter/timer.
+		void				resume();					// Resumes a counter/timer.
+		void				resume(counter_tag);		// Resumes a counter/timer.
+		void				resume(timer_tag);			// Resumes a counter/timer.
+		void				start();					// Starts a counter/timer.
+		void				start(counter_tag);			// Starts a counter/timer.
+		void				start(timer_tag);			// Starts a counter/timer.
+		void				start(time_type);			// Restarts a timer with a new interval.
+		void				start(count_type);			// Restarts a counter with a new limit.
+		void				stop();						// Stops a counter/timer.
+		void				stop(counter_tag);			// Stops a counter/timer.
+		void				stop(timer_tag);			// Stops a counter/timer.
 
 	private:
 		time_point			begin_;			// Time point when timer started.

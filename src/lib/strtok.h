@@ -36,7 +36,7 @@
 namespace pg
 {
 	// Makes a copy of the original string and parses the copy, preserving the original.
-	char* strtok(char* cpy, const char* orig, const char* delim, std::size_t len)
+	char* strtok(char* cpy, const char* orig, const char* delim, size_t len)
 	{
 		(void)std::strncpy(cpy, orig, len);
 
