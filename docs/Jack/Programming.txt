@@ -333,9 +333,9 @@ operates as a last in-first out (LIFO) queue.
 	call n		; call subroutine - contents of pc and sr are saved and program 
 			; execution transfers to instruction n.
 
-	ret		; return from subroutine - state of pc and sr prior to the last "call" 
-			; instruction, program execution returns to the instruction immediately 
-			; following the last "call" instruction .
+	ret		; return from subroutine - state of pc and sr are restored to their values 
+			; prior to the last "call" instruction, program execution returns to the 
+			; instruction immediately following the last "call" instruction .
 
 	rets a		; return value - behaves identically to "ret" instruction except that a is 
 			; pushed on to the stack prior to returning from the last "call" instruction.
