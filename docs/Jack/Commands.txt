@@ -398,7 +398,7 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; trigger 1:	state CHANGE
 					; trigger 2:	RISING edge
 					; trigger 3:	FALLING edge
-					; trigger 4:	avtive HIGH
+					; trigger 4:	active HIGH
 					;
 					; operation 0: (Immediate) starts immediately when attached, stops when triggered
 					; operation 1: (One-Shot) starts when triggered, stops when triggered again, once
