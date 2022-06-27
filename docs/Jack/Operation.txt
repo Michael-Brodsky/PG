@@ -27,7 +27,7 @@ or the default connection. The default connection is automatically selected on f
 of the device input pins is held LOW during start-up.
 
 The default connection type is USB (Serial), baud rate=9600, frame=8N1, timeout=1000 ms. The default 
-start-up pin checked is pin 4. Once initialized, the start-up pin can be used normally. Jack indicates 
+start-up pin checked is pin 2. Once initialized, the start-up pin can be used normally. Jack indicates 
 a successful connection by lighting the device's built-in LED. Connections over WiFi or wide area 
 networks (WAN) can take several seconds to establish. If the built-in LED does not light within the 
 expected amount of time, the connection was unsuccessful and cannot be used. Round-trip message times 
