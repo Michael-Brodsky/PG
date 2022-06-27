@@ -4,7 +4,7 @@
  *	***************************************************************************
  *
  *	File: Jack.h
- *	Date: June 17, 2022
+ *	Date: June 26, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -83,11 +83,26 @@
  *	Once intitialized, the program should be recompiled and uploaded with the 
  *	conditional disabled. If not, the eeprom memory will be overwritten each 
  *	time the device is reset or	power-cycled and lose any saved information.
+ * 
+ *****************************************************************************
+ * 
+ *	UPDATES:
+ * 
+ *	Added public exec() method: executes client command.
+ *	Added private maintainConnection() method: maintains DHCP Ethernet.
+ * 
+ *	TODO:
+ * 
+ *	Explore pin mapping:
+ *	A0, D0, etc., to pin number.
+ *	List arguments:
+ *	1,2,6-10,11,54-
+ *	Make devid settable and use crc for EEPROM validation.
  *
- *	**************************************************************************/
+ *****************************************************************************/
 
 #if !defined __PG_JACK_H
-# define __PG_JACK_H 20220617L
+# define __PG_JACK_H 20220626L
 
 # include <cassert>
 # include <cstdio>
@@ -384,6 +399,7 @@ namespace pg
 		void cmdWritePin(pin_t, value_type);
 		Commands commands() const;
 		Connection* connection() const;
+		bool exec(const char*);
 		void initialize(pin_t = PowerOnDefaultsPin);
 		void isrHandler(timer_t);
 
@@ -399,6 +415,7 @@ namespace pg
 		bool eepromValid(EEStream&, devid_type);
 		template<class... Ts>
 		size_type fmtMessage(char*, const char*, Ts...);
+		void processMessages();
 		inline isr_type getIsr(timer_t);
 		void initialize(cmdlist_type&);
 		template<size_type>
@@ -409,6 +426,7 @@ namespace pg
 		void invalidateEeprom(EEStream&);
 		void loadConfig(EEStream&, Jack::Pins&, Jack::Timers&);
 		Connection* loadConnection(EEStream&, char*);
+		void maintainConnection();
 		Connection* openConnection(connection_type, const char*);
 		bool powerOnDefaults(pin_t);
 		value_type readPin(pin_t);
@@ -534,7 +552,15 @@ namespace pg
 # else 
 					interp_.execute(std::begin(commands_), std::end(commands_), msg);
 # endif
+# if !defined __PG_NO_ETHERNET_DHCP
+			maintainConnection();
+# endif
 		}
+	}
+
+	bool Jack::exec(const char* command)
+	{
+		return interp_.execute(std::begin(commands_), std::end(commands_), command);
 	}
 
 	void Jack::cmdAckGet()
@@ -1097,8 +1123,33 @@ namespace pg
 		eeprom.address() = ConnectionEepromAddress;
 		eeprom >> type;
 		eeprom >> params;
-
 		return openConnection(static_cast<connection_type>(type), params);
+	}
+
+	void Jack::maintainConnection()
+	{
+		if (connection_->type() == Connection::Type::Ethernet)
+		{
+			char buf[Connection::size()] = { '\0' };
+
+			switch (static_cast<EthernetConnection*>(connection_)->hardware().maintain())
+			{
+			case EthernetConnection::Maintain::NothingHappened:
+				break;
+			case EthernetConnection::Maintain::RenewFailed:
+			case EthernetConnection::Maintain::RebindFailed:	// Try reopening using original params.
+				connection_->close();
+				connection_->open(connection_->params(buf));
+				break;
+			case EthernetConnection::Maintain::RenewSuccess:
+				break;
+			case EthernetConnection::Maintain::RebindSuccess:	// Notify host of new ip.
+				cmdConnectionGet();
+				break;
+			default:
+				break;
+			}
+		}
 	}
 
 	Connection* Jack::openConnection(connection_type type, const char* params)
