@@ -1,6 +1,6 @@
 # Pg (Pretty Good)
 
-Pg is a development library (SDK) for the Arduino (avr/megaavr/sam/samd) architectures that includes a subset of the C++ Standard Library that uses only static memory, interfaces for implementing common C++ design patterns, components for common system tasks such as scanning a keypad or writing formatted output to an lcd, and a set of utilities including timers, schedulers, eeprom data streaming, fast math algorithms and engineering functions.
+Pg is a development library (SDK) for the Arduino (avr/megaavr/sam/samd) and other low-cost architectures that includes a subset of the C++ Standard Library that uses only static memory, interfaces for implementing common C++ design patterns, components for common system tasks such as scanning keypads, writing formatted output to displays, driving servos, reading sensors and network communications, and a set of utilities including timers, schedulers, language interpreters, data streaming, fast math algorithms and engineering functions. There's also an application library of Remote Data Acquisition, HMI, SCADA and IoT projects.
 
 The libraries support rapid development of industrial automation and similar applications on inexpensive hardware. They provide solutions to common application tasks such as data acquisition and display, process control, user interfaces, alarms, timers and network communications. See the /projects folder for examples.
 
