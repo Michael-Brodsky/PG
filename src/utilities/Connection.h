@@ -25,6 +25,18 @@
  *
  *  You should have received a copy of the GNU General Public License
  *	along with this file. If not, see <http://www.gnu.org/licenses/>. 
+ * 
+ *	**************************************************************************
+ * 
+ *	UPDATES:
+ * 
+ *	Fixed bugs in WiFiConnection & EthernetConnection: removed 
+ *	udp_.endPacket() in receive() methods, which only apply to sending.
+ * 
+ *	TODO:
+ * 
+ *	Make async/concurrent version `AsyncConnection' with buffered i/o, clock()
+ *	method.
  *
  *	**************************************************************************/
 
@@ -137,6 +149,14 @@ namespace pg
 	class EthernetConnection : public Connection
 	{
 	public:
+		enum Maintain : uint8_t
+		{
+			NothingHappened = 0, 
+			RenewFailed = 1, 
+			RenewSuccess = 2, 
+			RebindFailed = 3, 
+			RebindSuccess = 4
+		};
 		static constexpr uint32_t WaitConnect = 2000;
 		static constexpr uint32_t MaxWaitTime = 10000;
 		static constexpr const char* MacDelimiterChar = " ";
@@ -271,7 +291,7 @@ namespace pg
 
 	const char* SerialConnection::receive()
 	{
-		size_type len = Serial.available() ? hardware_.readBytesUntil(EndOfMessageChar, buf_, sizeof(buf_)) : 0;
+		size_type len = Serial.available() ? hardware_.readBytesUntil(EndOfMessageChar, buf_, size()) : 0;
 
 		buf_[len] = '\0';
 
@@ -290,7 +310,7 @@ namespace pg
 		char buf[size()] = { '\0' };
 		char* tok = nullptr;
 
-		if ((tok = pg::strtok(buf, params, ParamsDelimiterChar, sizeof(buf))))
+		if ((tok = pg::strtok(buf, params, ParamsDelimiterChar, size()))) // Parse a copy of params.
 		{
 			baud_ = std::atol(tok);
 			if ((tok = std::strtok(nullptr, ParamsDelimiterChar)))
@@ -355,6 +375,7 @@ namespace pg
 		else
 #  endif
 			Ethernet.begin(mac_.data(), local_ip_);
+		// hardwareStatus() valid only after begin() called.
 		if (!(Ethernet.hardwareStatus() == EthernetNoHardware) || Ethernet.linkStatus() == LinkOFF)
 		{
 			local_ip_ = localIP();	// Save the actual ip assigned.
@@ -402,8 +423,7 @@ namespace pg
 		{
 			if (udp_.parsePacket())
 			{
-				n = udp_.read(buf_, sizeof(buf_));
-				n = udp_.endPacket() ? n : 0;
+				n = udp_.read(buf_, size());
 				remote_ip_ = udp_.remoteIP();
 			}
 		}
@@ -459,7 +479,7 @@ namespace pg
 	{
 		char buf[size()];
 		char* ptr = buf;
-		char* tok = pg::strtok(buf, params, ParamsDelimiterChar, sizeof(buf));
+		char* tok = pg::strtok(buf, params, ParamsDelimiterChar, sizeof(buf)); // Parse a copy of params.
 		size_type n = 0;
 
 		if (tok)
@@ -567,8 +587,7 @@ namespace pg
 		{
 			if (udp_.parsePacket())
 			{
-				n = udp_.read(buf_, sizeof(buf_));
-				n = udp_.endPacket() ? n : 0;
+				n = udp_.read(buf_, size());
 				remote_ip_ = udp_.remoteIP();
 			}
 		}
@@ -624,7 +643,7 @@ namespace pg
 		char buf[size()] = { '\0' };
 		char* port = nullptr;
 
-		if ((ssid_ = pg::strtok(buf, params, ParamsDelimiterChar, sizeof(buf))))
+		if ((ssid_ = pg::strtok(buf, params, ParamsDelimiterChar, size()))) // Parse a copy of params.
 			if ((pw_ = std::strtok(nullptr, ParamsDelimiterChar)))
 				if ((port = std::strtok(nullptr, ParamsDelimiterChar)))
 					port_ = std::atoi(port);
