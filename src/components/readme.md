@@ -14,7 +14,7 @@ Asynchronous GPIO digital input polling.
 Facilitates asynchronous execution of code as a timed sequence.
 
 ### Jack.h
-Turns an Arduino into a remotely controllable data acquisition (DAQ) device.
+Turns an Arduino into a remotely controllable data acquisition (DAQ) or IoT device.
 
 ### LCDDisplay.h 
 Facilitates configuration and asynchronous operation of an LCD display including formatted printing.
