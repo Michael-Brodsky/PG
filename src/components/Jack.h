@@ -153,7 +153,7 @@ namespace pg
 		using cmdlist_type = std::initializer_list<command_type*>;		// Remote command interface list type.
 		using key_type = typename command_type::key_type;				// Command key storage type.
 		using size_type = uint8_t;										// Type that can hold the size of any Jack object.
-		using value_type = uint16_t;									// Type that can hold any pin input/output value.
+		using value_type = uint16_t;									// Type that can hold any pin state.
 		using ct_type = CounterTimer<milliseconds, value_type>;			// Event counter/timer type.
 		using counter_tag = ct_type::counter_tag;						// Tag type for dispatching counter methods.
 		using timer_tag = ct_type::timer_tag;							// Tag type for dispatching timer methods.
@@ -162,7 +162,7 @@ namespace pg
 # if defined __PG_PROGRAM_H
 		static constexpr size_type CommandsMaxCount = 64;				// Maximum number of storable remote commands.
 # elif defined __PG_NO_USR_COMMANDS 
-		static constexpr size_type CommandsMaxCount = 28;				// Maximum number of storable remote commands.
+		static constexpr size_type CommandsMaxCount = 31;				// Maximum number of storable remote commands.
 # else
 		static constexpr size_type CommandsMaxCount = 40;				// Maximum number of storable remote commands.
 # endif
@@ -181,14 +181,15 @@ namespace pg
 		static constexpr const char* CheckSumDelimiterChars = ":";		// Delimiter char for check values appended to messages.
 
 		struct GpioPin;													// Forward decl (see below).
-		struct JackTimer;												// Forward decl (see below).
+		struct TimerCounter;											// Forward decl (see below).
 		using Commands = typename std::valarray<command_type*, CommandsMaxCount>;	// Remote commands collection type.
-		using Timers = typename std::array<JackTimer, TimersCount>;		// Event counters/timers collection type.
+		using Timers = typename std::array<TimerCounter, TimersCount>;	// Event counters/timers collection type.
 		using Pins = std::array<GpioPin, GpioCount>;					// GpioPins collection type.
 		using Isrs = std::array<isr_type, TimersCount>;					// ISRs collection type.
+		using List = std::valarray<uint8_t, GpioCount>;					// Type that holds Command argument lists.
 
 		// Aggregates information about an event counter/timer. 
-		struct JackTimer
+		struct TimerCounter
 		{
 			// Enumerates valid counter/timer operating modes.
 			enum Mode : uint8_t
@@ -223,9 +224,9 @@ namespace pg
 			bool isAttached() const { return pin_ != InvalidPin; }
 		};
 
-		using timer_action = JackTimer::Action;
-		using timer_mode = JackTimer::Mode;
-		using timing_mode = JackTimer::Timing;
+		using timer_action = TimerCounter::Action;
+		using timer_mode = TimerCounter::Mode;
+		using timing_mode = TimerCounter::Timing;
 
 		// Aggregates information about a gpio pin.
 		struct GpioPin
@@ -280,10 +281,10 @@ namespace pg
 		static constexpr address_type ConnectionEepromAddress =							// B
 			ConfigurationEepromAddress +
 			(GpioCount * sizeof(decltype(GpioPin::mode_))) +							// Pins Config saves mode_
-			Jack::TimersCount * (sizeof(decltype(JackTimer::pin_)) +					// Timers Config saves pin_
-				sizeof(decltype(JackTimer::mode_)) +									// mode_
-				sizeof(decltype(JackTimer::trigger_)) +									// trigger_ and 
-				sizeof(decltype(JackTimer::timing_)));									// timing_
+			Jack::TimersCount * (sizeof(decltype(TimerCounter::pin_)) +					// Timers Config saves pin_
+				sizeof(decltype(TimerCounter::mode_)) +									// mode_
+				sizeof(decltype(TimerCounter::trigger_)) +								// trigger_ and 
+				sizeof(decltype(TimerCounter::timing_)));								// timing_
 
 #pragma region strings
 
@@ -299,6 +300,7 @@ namespace pg
 		static constexpr key_type KeyGetPinInfoAll = "pna";		// Get all pins info:				pna
 		static constexpr key_type KeyGetPinMode = "pmd";		// Get pin mode:					pmd=p
 		static constexpr key_type KeyGetPinModeAll = "pma";		// Get all pins mode:				pma
+		static constexpr key_type KeyGetPinModeList = "pml";	// Get pin list mode:				pml=p0[.p1. ... .pN]
 		static constexpr key_type KeySetPinMode = "spm";		// Set pin mode:					spm=p,m
 		static constexpr key_type KeySetPinModeAll = "spa";		// Set all pins mode:				spa=m
 		static constexpr key_type KeyGetElapsedTime = "tim";	// Get system elapsed time:			tim=0|1
@@ -308,10 +310,12 @@ namespace pg
 		static constexpr key_type KeyWritePin = "wrp";			// Write pin:						wrp=p,v
 		static constexpr key_type KeyGetTimerStatus = "tms";	// Get timer state:					tms=t
 		static constexpr key_type KeyGetTimerStatusAll = "tma";	// Get all timers state:			tma
+		static constexpr key_type KeyGetTimerStatusList = "tml";// Get timer list state:			tml=t0[.t1. ... .tN]
 		static constexpr key_type KeySetTimerStatus = "stm";	// Set timer state:					stm=t,s
 		static constexpr key_type KeyTimerDetach = "dtc";		// Detach timer:					dtc=t
 		static constexpr key_type KeyTimerGetAttach = "tcm";	// Get timer attach info:			tcm=t
 		static constexpr key_type KeyTimerGetAttachAll = "tca";	// Get all timers attach info:		tca
+		static constexpr key_type KeyTimerGetAttachList = "tcl";// Get timer list attach info:		tcl=t0[.t1. ... .tN]
 		static constexpr key_type KeyTimerAttach = "atc";		// Attach timer to pin.				atc=t,p,m,e,n
 		static constexpr key_type KeyGetConnection = "net";		// Get network connection:			net
 		static constexpr key_type KeySetConnection = "snt";		// Set network connection:			snt=c,arg0,arg1,arg2
@@ -330,6 +334,7 @@ namespace pg
 		static constexpr fmt_type FmtReadPin = "%u=%u";					// p#=value
 		static constexpr fmt_type FmtTimerAttach = "%s=%u,%u,%u,%u,%u";	// atc=t#,p#,mode,trigger,timing
 		static constexpr fmt_type FmtTimerStatus = "%s=%u,%u,%lu";		// tms=t#,active,value
+		static constexpr fmt_type FmtChecksum = ":%u";					// Message check value. 
 # if defined __PG_PROGRAM_H
 		static constexpr key_type KeyProgram = "pgm";					// Get/set program state:	pgm=a
 		static constexpr fmt_type FmtProgramStatus = "%s=%u,%u";		// pgm=action,status
@@ -381,6 +386,7 @@ namespace pg
 		void cmdPinInfoGetAll();
 		void cmdPinModeGet(pin_t);
 		void cmdPinModeGetAll();
+		void cmdPinModeGetList(char*);
 		void cmdPinModeSet(pin_t, uint8_t);
 		void cmdPinModeSetAll(uint8_t);
 		void cmdReadPin(pin_t);
@@ -389,11 +395,13 @@ namespace pg
 		void cmdStoreConfig();
 		void cmdTimerAttachGet(timer_t);
 		void cmdTimerAttachGetAll();
+		void cmdTimerAttachGetList(char*);
 		void cmdTimerAttachSet(timer_t, pin_t, uint8_t, uint8_t, uint8_t);
 		void cmdTimerDetach(timer_t);
 		void cmdTimerDetachAll();
 		void cmdTimerStatusGet(timer_t);
 		void cmdTimerStatusGetAll();
+		void cmdTimerStatusGetList(char*);
 		void cmdTimerStatusSet(timer_t, uint8_t);
 		void cmdTimerStatusSetAll(uint8_t);
 		void cmdWritePin(pin_t, value_type);
@@ -406,7 +414,7 @@ namespace pg
 	private:
 		template<class ForwardIt>
 		void addCommands(Commands&, ForwardIt, ForwardIt);
-		void attachTimer(timer_t, pin_t, uint8_t, uint8_t, uint8_t);
+		void attachTimer(timer_t, pin_t, uint8_t, uint8_t, uint8_t, bool = true);
 		bool check(char*);
 		void closeConnection(Connection*&);
 		void detachTimer(timer_t, bool = true);
@@ -415,7 +423,6 @@ namespace pg
 		bool eepromValid(EEStream&, devid_type);
 		template<class... Ts>
 		size_type fmtMessage(char*, const char*, Ts...);
-		void processMessages();
 		inline isr_type getIsr(timer_t);
 		void initialize(cmdlist_type&);
 		template<size_type>
@@ -426,7 +433,10 @@ namespace pg
 		void invalidateEeprom(EEStream&);
 		void loadConfig(EEStream&, Jack::Pins&, Jack::Timers&);
 		Connection* loadConnection(EEStream&, char*);
+# if !defined __PG_NO_ETHERNET_DHCP
 		void maintainConnection();
+# endif
+		void makeList(char*);
 		Connection* openConnection(connection_type, const char*);
 		bool powerOnDefaults(pin_t);
 		value_type readPin(pin_t);
@@ -439,7 +449,7 @@ namespace pg
 		void sendTimerStatus(timer_t);
 		void setConnection(Connection*);
 		void setPinMode(pin_t, uint8_t);
-		void setTimerStatus(timer_t, JackTimer::Action);
+		void setTimerStatus(timer_t, TimerCounter::Action);
 		void storeConfig(EEStream&, const Pins&, const Timers&);
 		void storeConnection(EEStream&, connection_type, const char*);
 		void writePin(pin_t, value_type);
@@ -462,16 +472,19 @@ namespace pg
 		Command<void> cmd_pininfogetall_{ KeyGetPinInfoAll, *this, &Jack::cmdPinInfoGetAll };	// pna
 		Command<pin_t> cmd_pinmodeget_{ KeyGetPinMode, *this, &Jack::cmdPinModeGet };	// pmd=p
 		Command<void> cmd_pinmodegetall_{ KeyGetPinModeAll, *this, &Jack::cmdPinModeGetAll };	// pma
+		Command<char*> cmd_pinmodegetlist_{ KeyGetPinModeList, *this, &Jack::cmdPinModeGetList };	// pml
 		Command<pin_t, uint8_t> cmd_pinmodeset_{ KeySetPinMode, *this, &Jack::cmdPinModeSet };	// spm=p,m
 		Command<uint8_t> cmd_pinmodesetall_{ KeySetPinModeAll, *this, &Jack::cmdPinModeSetAll };	// spa=m
 		Command<timer_t> cmd_timerstatusget_{ KeyGetTimerStatus, *this, &Jack::cmdTimerStatusGet };	// tms=t
 		Command<void> cmd_timerstatusgetall_{ KeyGetTimerStatusAll, *this, &Jack::cmdTimerStatusGetAll }; // tma
+		Command<char*> cmd_timerstatusgetlist_{ KeyGetTimerStatusList, *this, &Jack::cmdTimerStatusGetList }; // tml
 		Command<timer_t, uint8_t> cmd_timerstatusset_{ KeySetTimerStatus, *this, &Jack::cmdTimerStatusSet }; // stm=t,a
 		Command<pin_t> cmd_readpin_{ KeyReadPin, *this, &Jack::cmdReadPin };	// rdp=p
 		Command<void> cmd_readpinall_{ KeyReadPinAll, *this, &Jack::cmdReadPinAll };	// rda
 		Command<char*> cmd_readpinlist_{ KeyReadPinList, *this, &Jack::cmdReadPinList };	// rdl="p0.p1.p2. ... .pN"
 		Command<timer_t> cmd_timerattachget_{ KeyTimerGetAttach, *this, &Jack::cmdTimerAttachGet };	// tcm=t
 		Command<void> cmd_timerattachgetall_{ KeyTimerGetAttachAll, *this, &Jack::cmdTimerAttachGetAll };	// tca
+		Command<char*> cmd_timerattachgetlist_{ KeyTimerGetAttachList, *this, &Jack::cmdTimerAttachGetList };	// tcl
 		Command<timer_t, pin_t, uint8_t, uint8_t, uint8_t> cmd_timerattachset_{ KeyTimerAttach, *this, &Jack::cmdTimerAttachSet };	// atc=t,p,m,s,i
 		Command<timer_t> cmd_timerdetach_{ KeyTimerDetach, *this, &Jack::cmdTimerDetach };	// dtc=t
 		Command<pin_t, value_type> cmd_writepin_{ KeyWritePin, *this, &Jack::cmdWritePin };	// wrp=p,v
@@ -483,13 +496,14 @@ namespace pg
 		Command<uint8_t> cmd_timerstatussetall_{ KeySetTimerStatusAll, *this, &Jack::cmdTimerStatusSetAll }; // sta=t,a
 
 		Connection*		connection_;	// Current network connection.
-		Interpreter		interp_;		// Language interpreter.
+		Interpreter		interp_;		// Command interpreter.
 		EEStream		eeprom_;		// EEPROM streaming object.
 		Pins			pins_;			// Gpio pins collection.
 		Timers			timers_;		// Event counters/timers collection.
 		Commands		commands_;		// Remote commands collection.
 		Isrs			isrs_;			// Interrupt service routines collection.
-		bool			ack_;			// Write command acknowledge flag.
+		bool			ack_;			// Command acknowledge flag.
+		List			list_;			// Command argument list buffer.
 # if defined __PG_PROGRAM_H
 		Command<uint8_t> cmd_program_{ KeyProgram, *this, &Jack::program };
 		Program			program_;		// Program manager/executor.
@@ -506,22 +520,23 @@ namespace pg
 
 # if defined __PG_PROGRAM_H
 	Jack::Jack(cmdlist_type commands) :
-		connection_(), interp_(), eeprom_(), pins_(), timers_(), isrs_(), ack_(), program_(*this), 
+		connection_(), interp_(), eeprom_(), pins_(), timers_(), isrs_(), ack_(), program_(*this), list_(), 
 		commands_({ & cmd_devinfo_ , & cmd_devreset_, & cmd_ackget_, & cmd_ackset_, & cmd_pininfoget_, & cmd_pininfogetall_,
 			& cmd_pinmodeget_, & cmd_pinmodegetall_, & cmd_pinmodeset_, & cmd_pinmodesetall_, & cmd_timerstatusget_,
 			& cmd_timerstatusgetall_, & cmd_timerstatusset_, & cmd_timerstatussetall_, & cmd_readpin_, & cmd_readpinall_, 
 			& cmd_readpinlist_, & cmd_timerattachget_, & cmd_timerattachgetall_, & cmd_timerattachset_, & cmd_timerdetach_,
 			& cmd_timerdetachall_, & cmd_connectionget_, & cmd_connectionset_, & cmd_ldaconfig_, & cmd_stoconfig_, 
-			& cmd_elapsed_,& cmd_writepin_, & cmd_program_ })
+			& cmd_elapsed_,& cmd_writepin_, & cmd_program_, & cmd_pinmodegetlist_, & cmd_timerstatusgetlist_, 
+			& cmd_timerattachgetlist_ })
 # else
 	Jack::Jack(cmdlist_type commands) :
-		connection_(), interp_(), eeprom_(), pins_(), timers_(), isrs_(), ack_(),
+		connection_(), interp_(), eeprom_(), pins_(), timers_(), isrs_(), ack_(), list_(), 
 		commands_({ &cmd_devinfo_ , &cmd_devreset_, &cmd_ackget_, &cmd_ackset_, &cmd_pininfoget_, &cmd_pininfogetall_,
 			&cmd_pinmodeget_, &cmd_pinmodegetall_, &cmd_pinmodeset_, &cmd_pinmodesetall_, &cmd_timerstatusget_,
 			&cmd_timerstatusgetall_, &cmd_timerstatusset_, &cmd_timerstatussetall_, &cmd_readpin_, &cmd_readpinall_,
 			&cmd_readpinlist_, &cmd_timerattachget_, &cmd_timerattachgetall_, &cmd_timerattachset_, &cmd_timerdetach_,
 			&cmd_timerdetachall_, &cmd_connectionget_, &cmd_connectionset_, &cmd_ldaconfig_, &cmd_stoconfig_,
-			&cmd_elapsed_, & cmd_writepin_ })
+			&cmd_elapsed_, & cmd_writepin_,& cmd_pinmodegetlist_,& cmd_timerstatusgetlist_,	& cmd_timerattachgetlist_ })
 # endif
 	{
 		initialize(pins_);
@@ -541,7 +556,7 @@ namespace pg
 				if(check(const_cast<char*>(msg))) // Look for trailing check value and compare to checksum.
 # endif
 # if defined __PG_PROGRAM_H
-					process(msg);	// Check for program control messages before executing command.
+					process(msg);		// Check for program control messages before executing command.
 				if (program_.active())	// If current program is active, execute next instruction.
 				{
 					const char* instruction = program_.instruction();
@@ -553,7 +568,7 @@ namespace pg
 					interp_.execute(std::begin(commands_), std::end(commands_), msg);
 # endif
 # if !defined __PG_NO_ETHERNET_DHCP
-			maintainConnection();
+			maintainConnection();		// Maintain ethernet dhcp lease.
 # endif
 		}
 	}
@@ -650,6 +665,14 @@ namespace pg
 			sendPinMode(p);
 	}
 
+	void Jack::cmdPinModeGetList(char* list)
+	{
+		makeList(list);
+		for (auto p : list_)
+			if (p < TimersCount)
+				sendPinMode(p);
+	}
+
 	void Jack::cmdPinModeSet(pin_t p, uint8_t mode)
 	{
 		if (p < GpioCount && mode < gpio_mode::Reserved)
@@ -677,16 +700,10 @@ namespace pg
 
 	void Jack::cmdReadPinList(char* list)
 	{
-		char* p = std::strtok(list, ListDelimiterChars);
-
-		while (p)
-		{
-			pin_t pin = std::atoi(p);
-
-			if (pin < GpioCount)
-				sendPinValue(pin, readPin(pin));
-			p = std::strtok(nullptr, ListDelimiterChars);
-		}
+		makeList(list);
+		for (auto p : list_)
+			if (p < GpioCount)
+				sendPinValue(p, readPin(p));
 	}
 
 	void Jack::cmdTimerAttachGet(timer_t t)
@@ -701,8 +718,19 @@ namespace pg
 			sendTimerInfo(t);
 	}
 
+	void Jack::cmdTimerAttachGetList(char* list)
+	{
+		makeList(list);
+		for (auto t : list_)
+			if (t < TimersCount)
+				sendTimerInfo(t);
+	}
+
 	void Jack::cmdTimerAttachSet(timer_t t, pin_t p, uint8_t mode, uint8_t trigger, uint8_t timing = timing_mode::Immediate)
 	{
+		// Hardware interrupts have frequency limits. Triggering interrupts faster than they can be 
+		// handled will cause them to become unresponsive.
+		
 		// If t & p are valid, ...
 		if (t < TimersCount && ((p < GpioCount && pins_[p].isAvailable() && pins_[p].hasInterrupt()) || p == InvalidPin))
 		{
@@ -738,6 +766,14 @@ namespace pg
 	{
 		if (t < TimersCount)
 			sendTimerStatus(t);
+	}
+
+	void Jack::cmdTimerStatusGetList(char* list)
+	{
+		makeList(list);
+		for (auto t : list_)
+			if (t < TimersCount)
+				sendTimerStatus(t);
 	}
 
 	void Jack::cmdTimerStatusGetAll()
@@ -799,7 +835,7 @@ namespace pg
 		// This method updates the attached event counter/timer 
 		// in response to hardware interrupts.
 
-		JackTimer& timer = timers_[t];
+		TimerCounter& timer = timers_[t];
 
 		switch (timer.mode_)
 		{
@@ -844,36 +880,39 @@ namespace pg
 		std::copy(first, last, end);
 	}
 
-	void Jack::attachTimer(timer_t t, pin_t p, uint8_t mode, uint8_t trigger, uint8_t timing)
+	void Jack::attachTimer(timer_t t, pin_t p, uint8_t mode, uint8_t trigger, uint8_t timing, bool start)
 	{
-		JackTimer& timer = timers_[t];
+		TimerCounter& timer = timers_[t];
 
 		timer.pin_ = p;
 		timer.mode_ = static_cast<timer_mode>(mode);
 		timer.trigger_ = static_cast<PinStatus>(trigger);
 		timer.timing_ = static_cast<timing_mode>(timing);
-		switch (timer.mode_)
+		if (start)
 		{
-		case timer_mode::Counter:
-			timer.object_.start(counter_tag{});
-			break;
-		case timer_mode::Timer:
-			switch (timer.timing_)
+			switch (timer.mode_)
 			{
-			case timing_mode::Immediate:
-				timer.object_.start(timer_tag{});
+			case timer_mode::Counter:
+				timer.object_.start(counter_tag{});
 				break;
-			case timing_mode::OneShot:
-			case timing_mode::Continuous:
-				timer.object_.stop(timer_tag{});
-				timer.object_.reset(timer_tag{});
+			case timer_mode::Timer:
+				switch (timer.timing_)
+				{
+				case timing_mode::Immediate:
+					timer.object_.start(timer_tag{});
+					break;
+				case timing_mode::OneShot:
+				case timing_mode::Continuous:
+					timer.object_.stop(timer_tag{});
+					timer.object_.reset(timer_tag{});
+					break;
+				default:
+					break;
+				}
 				break;
 			default:
 				break;
 			}
-			break;
-		default:
-			break;
 		}
 		if (ack_)
 			sendTimerInfo(t);
@@ -892,7 +931,7 @@ namespace pg
 
 	void Jack::detachTimer(timer_t t, bool ack)
 	{
-		JackTimer& timer = timers_[t];
+		TimerCounter& timer = timers_[t];
 
 		timer.object_.stop();
 		detachInterrupt(digitalPinToInterrupt(timer.pin_));
@@ -1058,6 +1097,7 @@ namespace pg
 				else if (isAnalogPin(i))
 					pin.type_ = gpio_type::Analog;
 				pin.int_ = isInterruptPin(i);
+				// Set LED pin as output, all others as inputs.
 				pin.mode_ = i != LedPinNumber ? gpio_mode::Input : isPwmPin(i) ? gpio_mode::PwmOut : gpio_mode::Output;
 				//pinMode(i, static_cast<int>(pin.mode_)); // doesn't work on megaavr boards
 			}
@@ -1068,7 +1108,7 @@ namespace pg
 	{
 		for (size_type i = 0; i < timers.size(); ++i)
 		{
-			JackTimer& timer = timers[i];
+			TimerCounter& timer = timers[i];
 
 			timer.pin_ = InvalidPin;
 			timer.mode_ = timer_mode::Counter;
@@ -1111,8 +1151,11 @@ namespace pg
 			eeprom >> pin;
 			eeprom >> mode;
 			eeprom >> trigger;
-			eeprom >> timing;
-			cmdTimerAttachSet(i, pin, mode, trigger, timing);
+			eeprom >> timing; 
+			if (pin == InvalidPin)
+				attachTimer(i, pin, mode, trigger, timing, false);
+			else
+				cmdTimerAttachSet(i, pin, mode, trigger, timing);
 		}
 	}
 
@@ -1125,7 +1168,7 @@ namespace pg
 		eeprom >> params;
 		return openConnection(static_cast<connection_type>(type), params);
 	}
-
+# if !defined __PG_NO_ETHERNET_DHCP
 	void Jack::maintainConnection()
 	{
 		if (connection_->type() == Connection::Type::Ethernet)
@@ -1150,6 +1193,21 @@ namespace pg
 				break;
 			}
 		}
+	}
+# endif
+	void Jack::makeList(char* list)
+	{
+		// Convert dot-separated list into array of args.
+
+		size_type n = 0;
+		char* p = std::strtok(list, ListDelimiterChars);
+
+		while (p)
+		{
+			list_[n++] = std::atoi(p);
+			p = std::strtok(nullptr, ListDelimiterChars);
+		}
+		list_.resize(n);
 	}
 
 	Connection* Jack::openConnection(connection_type type, const char* params)
@@ -1223,7 +1281,7 @@ namespace pg
 		(void)fmtMessage(msg, fmt, args...);
 # if defined __PG_CRC_H
 		if (checksum_)	// If we received a msg with a checksum then append one to the reply.
-			(void)fmtMessage(msg + std::strlen(msg), ":%u", checksum(static_cast<char*>(msg)));
+			(void)fmtMessage(msg + std::strlen(msg), FmtChecksum, checksum(static_cast<char*>(msg)));
 # endif
 		connection_->send(msg);
 	}
@@ -1249,14 +1307,14 @@ namespace pg
 
 	void Jack::sendTimerInfo(timer_t n)
 	{
-		const JackTimer& timer = timers_[n];
+		const TimerCounter& timer = timers_[n];
 
 		sendMessage(FmtTimerAttach, KeyTimerAttach, n, timer.pin_, timer.mode_, timer.trigger_, timer.timing_);
 	}
 
 	void Jack::sendTimerStatus(timer_t n)
 	{
-		JackTimer& timer = timers_[n];
+		TimerCounter& timer = timers_[n];
 		bool active = false;
 		unsigned long value = 0;
 
@@ -1296,9 +1354,9 @@ namespace pg
 		}
 	}
 
-	void Jack::setTimerStatus(timer_t t, JackTimer::Action action)
+	void Jack::setTimerStatus(timer_t t, TimerCounter::Action action)
 	{
-		JackTimer& timer = timers_[t];
+		TimerCounter& timer = timers_[t];
 
 		switch (timer.mode_)
 		{
@@ -1412,6 +1470,7 @@ namespace pg
 # if defined __PG_PROGRAM_H
 	void Jack::list()
 	{
+		// Send current program loisting.
 		const char* text = program_.text();
 
 		while (*text)
