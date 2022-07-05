@@ -243,6 +243,19 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; replies with current mode information for all pins, 
 					; see "spa" command for details.
 
+	pml=b.b. ... .b			; Pin Get Mode (List)
+					; Arguments: pin0.pin1. ... .pinN
+					; Reply: pin=pin0,mode
+					;	 pin=pin1,mode
+					; 	 ... 
+					;	 pin=pinN,mode
+					;
+					; replies with the current operating mode of pin0-pinN, where
+					; pin0-pinN is a dot '.' separated list of pin numbers.
+					;
+					; pml=0.9.13.22
+					;	returns the current operating mode of pins 0, 9, 13 and 22.
+
 
 	pmd=b				; Pin Get Mode (Individual)
 					; Arguments: pin index
@@ -336,6 +349,20 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					;
 					; tms=0,1,6248
 					;	timer 0 is active with current value of 6248.
+
+
+	tml=b.b. ... .b			; Timer Get Status (List)
+					; Arguments: timer0.timer1. ... .timerN
+					; Reply: tms=timer0,status,value
+					;	 tms=timer1,status,value
+					; 	 ... 
+					;	 tms=timerN,status,value
+					;
+					; replies with the current active status of timer0-timerN, where
+					; timer0-timerN is a dot '.' separated list of timer numbers.
+					;
+					; tml=0.2.4
+					;	returns the current active status of timers 0, 2 and 4.
 
 
 	tms=b				; Timer Get Status (Individual)
@@ -446,6 +473,20 @@ Command arguments are sent as text strings. Arguments are typed, where:
 					; 
 					; replies with the attachment status of all timers, 
 					; replies have the same format as the "atc" command.
+
+
+	tcl=b.b. ... .b			; Timer Get Attached (List)
+					; Arguments: timer0.timer1. ... .timerN
+					; Reply: atc=timer0,pin,mode,trigger,operation
+					;	 atc=timer1,pin,mode,trigger,operation
+					; 	 ... 
+					;	 atc=timerN,pin,mode,trigger,operation
+					;
+					; replies with the current attachment status of timer0-timerN, 
+					; where timer0-timerN is a dot '.' separated list of timer numbers.
+					;
+					; tcl=1.4.6
+					;	returns the current attachment status of timers 1, 4 and 6.
 
 
 	tcm=b				; Timer Get Attached (Individual)

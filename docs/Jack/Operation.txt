@@ -131,3 +131,16 @@ execute on the device and control program status. Programs can be loaded, starte
 verified and listed using the "pgm" command at any time. Jack uses a programming language very similar 
 to common assembly language that can be intermixed with its normal commands. For a complete description, 
 see document <Programming.txt>
+
+
+////////////////////////////////
+// Network Traffic Management //
+////////////////////////////////
+
+Jack executes commands sequentially, as they are received. No special message buffering or queueing is 
+used. Jack cannot process a new command until the current one is completed, including sending replies. 
+Overall performance is limited by network speeds, with slow connections taking longer to return replies. 
+Commands that return a large number of replies, such as those that read all gpio pin or timer states at 
+once, may prevent new commands from executing in a timely manner or result in dropped messages. This can 
+cause significant performance bottlenecks, especially if the device is repeatedly polled. Users are 
+advised to test network performance and tune host/device operation to meet overall performance needs.
