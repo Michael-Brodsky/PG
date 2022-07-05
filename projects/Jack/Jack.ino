@@ -31,7 +31,7 @@
 /* Compilation conditionals used to exclude certain features. */
 
 //#define __PG_FORMAT_EEPROM 1			// Define this to format EEPROM memory, undefine & reupload for normal operation.
-#define __PG_RESERVE_SPI_PINS			// Define this to set SPI pin modes to Reserved, e.g when using shields.
+//#define __PG_RESERVE_SPI_PINS			// Define this to set SPI pin modes to Reserved, e.g when using shields.
 //#define __PG_NO_ETHERNET_CONNECTION 1	// Define this to exclude Ethernet connectivity.
 //#define __PG_NO_WIFI_CONNECTION 1		// Define this to exclude WiFi connectivity.
 //#define __PG_NO_ETHERNET_DHCP 1		// Define this to exclude Ethernet DHCP. 
@@ -67,19 +67,21 @@ void doSomething();
 constexpr pin_t PowerOnDefaultsPin = 2;
 
 // Clients must define "command" objects to execute client-defined
-// functions. Command types are templates that take three parameters: 
-// the return type, object type (or void for free-standing functions) 
-// and a parameter list of argument type(s) (or void for functions 
-// taking no arguments). Commands constructors require the command 
+// functions. Command templates define the function signature: the 
+// return type, object type (or void for free-standing functions) 
+// and a parameter list of function arguments (or void for functions 
+// taking no arguments). Command constructors require the command 
 // "key" (a unique string that identifies the command), an object  
 // reference (ommitted for commands that execute free-standing functions) 
 // and the function address. Whenever Jack receives a message over the  
-// network, it executes the command object with a matching key.
+// network, it executes the command object with a matching key. Here, 
+// "usr" will execute the free-standing function doSomething() which is 
+// of type void taking no arguments:
 Jack::UsrCommand<void, void, void> usr_cmd{ "usr",&doSomething };
 
-// Clients must pass a list of any client-defined commands to Jack's 
-// constructor, or use the default constructor if no client commands 
-// are defined.
+// Clients must pass a list of addresses to client-defined commands in 
+// Jack's constructor, or use the default constructor if no client 
+// commands are defined.
 Jack jack({ &usr_cmd });
 
 void setup()
