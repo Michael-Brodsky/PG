@@ -138,9 +138,9 @@ see document <Programming.txt>
 ////////////////////////////////
 
 Jack executes commands sequentially, as they are received. No special message buffering or queueing is 
-used. Jack cannot process a new command until the current one is completed, including sending replies. 
-Overall performance is limited by network speeds, with slow connections taking longer to return replies. 
-Commands that return a large number of replies, such as those that read all gpio pin or timer states at 
-once, may prevent new commands from executing in a timely manner or result in dropped messages. This can 
-cause significant performance bottlenecks, especially if the device is repeatedly polled. Users are 
-advised to test network performance and tune host/device operation to meet overall performance needs.
+used. Jack can only process a new command after the current one completes, including sending any replies. 
+Overall performance is limited by network speeds, with slow connections requiring longer processing time. 
+Commands that return a large number of replies, such as those that read all gpio pins or timers at once, 
+may prevent new commands from executing in a timely manner or result in dropped messages. This can cause 
+significant performance bottlenecks, especially if the device is repeatedly polled. Users are advised to  
+test network performance and tune host/device operation to meet overall performance needs.
