@@ -5,7 +5,7 @@
  *	***************************************************************************
  *
  *	File: Connection.h
- *	Date: May 4, 2022
+ *	Date: July 25, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -41,12 +41,13 @@
  *	**************************************************************************/
 
 #if !defined __PG_CONNECTION_H
-# define __PG_CONNECTION_H 20220504L
+# define __PG_CONNECTION_H 20220625L
 
 # include <cstdio>
 # include <cstdlib>
 # include <lib/strtok.h>
 # include <system/boards.h>
+# include <interfaces/iclockable.h>
 # include <utilities/ValueWrappers.h>
 # if !defined __PG_NO_ETHERNET_CONNECTION
 #  include <system/ethernet.h>
@@ -58,9 +59,9 @@
 namespace pg
 {
 	// Network connection abstract interface class.
-	struct Connection
+	class Connection : public iclockable
 	{
-		// Enumerates valid connection types.
+	public:
 		enum class Type
 		{
 			 Serial = 0,
@@ -78,16 +79,38 @@ namespace pg
 				: SERIAL_TX_BUFFER_SIZE; 
 		}
 
+	public:
 		virtual ~Connection() = default;
 
-		virtual Type type() const = 0;
+	public:
 		virtual void open(const char*) = 0;
 		virtual bool open() = 0;
 		virtual void close() = 0;
 		virtual void flush() = 0;
 		virtual size_type send(const char*) = 0;
-		virtual const char* receive() = 0;
 		virtual const char* params(char*) = 0;
+		Type type() const { return type_; }
+		const char* receive()
+		{
+			char* msg = next_;
+
+			if (*msg)
+				next_ += (strlen(next_) + 1);
+
+			return msg;
+		}
+
+	protected:
+		explicit Connection(Type type) : type_(type) {}
+
+	protected:
+		size_type remaining(char* ptr, char* buf) { return size() - (ptr - buf); }
+
+	protected:
+		char* next_;
+
+	private:
+		Type type_;
 	};
 
 	// Creates a serial network connection.
@@ -110,18 +133,17 @@ namespace pg
 		~SerialConnection() override;
 	
 	public:
-		Type type() const override;
 		void open(const char*) override;
 		bool open() override;
 		void close() override;
 		void flush() override;
 		size_type send(const char*) override;
-		const char* receive() override;
 		const char* params(char*) override;
 		HardwareSerial& hardware();
 		baud_type baud() const;
 		frame_type frame() const;
 		timeout_type timeout() const;
+		void clock() override;
 
 	private:
 		void parseParams(const char* params);
@@ -172,7 +194,6 @@ namespace pg
 		void close() override;
 		void flush() override;
 		size_type send(const char*) override;
-		const char* receive() override;
 		const char* params(char*) override;
 		EthernetClass& hardware();
 		const mac_type& mac() const;
@@ -180,6 +201,7 @@ namespace pg
 		void remoteIP(IPAddress);
 		IPAddress remoteIP() const;
 		IPAddress localIP() const;
+		void clock() override;
 
 	private:
 		void parseParams(const char* params);
@@ -213,7 +235,6 @@ namespace pg
 		void close() override;
 		void flush() override;
 		size_type send(const char*) override;
-		const char* receive() override;
 		const char* params(char*) override;
 		WiFiClass& hardware();
 		const char* ssid() const;
@@ -221,6 +242,7 @@ namespace pg
 		void remoteIP(IPAddress);
 		IPAddress remoteIP() const;
 		IPAddress localIP() const;
+		void clock() override;
 
 	private:
 		void parseParams(const char* params);
@@ -239,7 +261,7 @@ namespace pg
 #pragma region SerialConnection
 
 	SerialConnection::SerialConnection(HardwareSerial& hs, const char* params) : 
-		hardware_(hs), baud_(), frame_(DefaultFrame), 
+		Connection(Type::Serial), hardware_(hs), baud_(), frame_(DefaultFrame),
 		timeout_(DefaultTimeout), is_open_(), buf_() 
 	{
 		if (params)
@@ -249,11 +271,6 @@ namespace pg
 	SerialConnection::~SerialConnection()
 	{
 		close();
-	}
-
-	Connection::Type SerialConnection::type() const
-	{
-		return Type::Serial;
 	}
 
 	void SerialConnection::open(const char* params)
@@ -287,15 +304,6 @@ namespace pg
 	Connection::size_type SerialConnection::send(const char* message)
 	{
 		return hardware_.println(message);
-	}
-
-	const char* SerialConnection::receive()
-	{
-		size_type len = Serial.available() ? hardware_.readBytesUntil(EndOfMessageChar, buf_, size()) : 0;
-
-		buf_[len] = '\0';
-
-		return buf_;
 	}
 
 	const char* SerialConnection::params(char* buf)
@@ -346,11 +354,27 @@ namespace pg
 		return timeout_; 
 	}
 
+	void SerialConnection::clock()
+	{
+		char* p = buf_;
+
+		if (Serial.available())
+		{
+			do
+			{
+				p += Serial.readBytesUntil('\n', p, remaining(p, buf_));
+				*p++ = '\0';
+			} while (Serial.available());
+			*p = '\0';
+			next_ = buf_;
+		}
+	}
+
 #pragma endregion
 #pragma region EthernetConnection
 # if defined __PG_ETHERNET_H
 	EthernetConnection::EthernetConnection(const char* params) : 
-		buf_(), is_open_(), local_ip_(), mac_(), port_()
+		Connection(Type::Ethernet), buf_(), is_open_(), local_ip_(), mac_(), port_()
 	{
 		if (params)
 			open(params);
@@ -361,11 +385,6 @@ namespace pg
 		close();
 	}
 
-	Connection::Type EthernetConnection::type() const
-	{
-		return Type::Ethernet;
-	}
-
 	void EthernetConnection::open(const char* params) 
 	{
 		parseParams(params);
@@ -374,7 +393,7 @@ namespace pg
 			Ethernet.begin(mac_.data());
 		else
 #  endif
-			Ethernet.begin(mac_.data(), local_ip_);
+		Ethernet.begin(mac_.data(), local_ip_);
 		// hardwareStatus() valid only after begin() called.
 		if (!(Ethernet.hardwareStatus() == EthernetNoHardware) || Ethernet.linkStatus() == LinkOFF)
 		{
@@ -413,23 +432,6 @@ namespace pg
 		}
 
 		return n;
-	}
-
-	const char* EthernetConnection::receive()
-	{
-		size_type n = 0;
-
-		if (open())
-		{
-			if (udp_.parsePacket())
-			{
-				n = udp_.read(buf_, size());
-				remote_ip_ = udp_.remoteIP();
-			}
-		}
-		buf_[n] = '\0';
-
-		return buf_;
 	}
 
 	const char* EthernetConnection::params(char* buf)
@@ -510,12 +512,30 @@ namespace pg
 		if (tok)
 			port_ = std::atoi(tok);
 	}
+
+	void EthernetConnection::clock()
+	{
+		char* p = buf_;
+
+		if (udp_.parsePacket())
+		{
+			do
+			{
+				p += udp_.read(p, remaining(p, buf_));
+				*p++ = '\0';
+			} while (udp_.parsePacket());
+			*p = '\0';
+			next_ = buf_;
+			remote_ip_ = udp_.remoteIP();
+		}
+	}
+
 # endif
 #pragma endregion
 #pragma region WiFiConnection
 # if defined __PG_WIFI_H
 	WiFiConnection::WiFiConnection(const char* params) : 
-		ssid_(), pw_(), status_(WL_IDLE_STATUS), udp_(), remote_ip_(), port_(), buf_()
+		Connection(Type::WiFi), ssid_(), pw_(), status_(WL_IDLE_STATUS), udp_(), remote_ip_(), port_(), buf_()
 	{
 		if (params)
 			open(params);
@@ -524,11 +544,6 @@ namespace pg
 	WiFiConnection::~WiFiConnection()
 	{
 		close();
-	}
-
-	Connection::Type WiFiConnection::type() const
-	{
-		return Type::WiFi;
 	}
 
 	void WiFiConnection::open(const char* params)
@@ -577,23 +592,6 @@ namespace pg
 		}
 
 		return n;
-	}
-
-	const char* WiFiConnection::receive()
-	{
-		size_type n = 0;
-
-		if (open())
-		{
-			if (udp_.parsePacket())
-			{
-				n = udp_.read(buf_, size());
-				remote_ip_ = udp_.remoteIP();
-			}
-		}
-		buf_[n] = '\0';
-
-		return buf_;
 	}
 
 	const char* WiFiConnection::params(char* buf)
@@ -648,9 +646,30 @@ namespace pg
 				if ((port = std::strtok(nullptr, ParamsDelimiterChar)))
 					port_ = std::atoi(port);
 	}
+
+	void WiFiConnection::clock()
+	{
+		char* p = buf_;
+
+		if (udp_.parsePacket())
+		{
+			do
+			{
+				p += udp_.read(p, remaining(p, buf_));
+				*p++ = '\0';
+			} while (udp_.parsePacket());
+			*p = '\0';
+			next_ = buf_;
+			remote_ip_ = udp_.remoteIP();
+		}
+	} 
+
 # endif
 #pragma endregion
 
 } // namespace pg
 
 #endif // __PG_CONNECTION_H
+/*
+
+*/
