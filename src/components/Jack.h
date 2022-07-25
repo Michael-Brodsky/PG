@@ -4,7 +4,7 @@
  *	***************************************************************************
  *
  *	File: Jack.h
- *	Date: June 26, 2022
+ *	Date: July 25, 2022
  *	Version: 1.0
  *	Author: Michael Brodsky
  *	Email: mbrodskiis@gmail.com
@@ -84,25 +84,10 @@
  *	conditional disabled. If not, the eeprom memory will be overwritten each 
  *	time the device is reset or	power-cycled and lose any saved information.
  * 
- *****************************************************************************
- * 
- *	UPDATES:
- * 
- *	Added public exec() method: executes client command.
- *	Added private maintainConnection() method: maintains DHCP Ethernet.
- * 
- *	TODO:
- * 
- *	Explore pin mapping:
- *	A0, D0, etc., to pin number.
- *	List arguments:
- *	1,2,6-10,11,54-
- *	Make devid settable and use crc for EEPROM validation.
- *
  *****************************************************************************/
 
 #if !defined __PG_JACK_H
-# define __PG_JACK_H 20220626L
+# define __PG_JACK_H 20220725L
 
 # include <cassert>
 # include <cstdio>
@@ -179,6 +164,9 @@ namespace pg
 		static constexpr const char* DefaultConnectionParams = "9600,8N1";
 		static constexpr const char* ListDelimiterChars = ".";			// Delimiter char for lists encoded as a single Command arg.
 		static constexpr const char* CheckSumDelimiterChars = ":";		// Delimiter char for check values appended to messages.
+		static constexpr size_type ListSize = GpioCount > TimersCount
+			? GpioCount
+			: TimersCount;
 
 		struct GpioPin;													// Forward decl (see below).
 		struct TimerCounter;											// Forward decl (see below).
@@ -186,7 +174,7 @@ namespace pg
 		using Timers = typename std::array<TimerCounter, TimersCount>;	// Event counters/timers collection type.
 		using Pins = std::array<GpioPin, GpioCount>;					// GpioPins collection type.
 		using Isrs = std::array<isr_type, TimersCount>;					// ISRs collection type.
-		using List = std::valarray<uint8_t, GpioCount>;					// Type that holds Command argument lists.
+		using List = std::valarray<uint8_t, ListSize>;					// Type that holds Command argument lists.
 
 		// Aggregates information about an event counter/timer. 
 		struct TimerCounter
@@ -210,15 +198,17 @@ namespace pg
 			// Enumerates counter/timer timing modes. 
 			enum Timing : uint8_t
 			{
-				Immediate = 0,	// Timer starts when attached, stops when triggered.
+				Continuous = 0,	// Timer is toggled on each trigger event.
 				OneShot = 1,	// Timer starts then stops when triggered once.
-				Continuous = 2	// Timer is toggled on each trigger event.
 			};
 
 			pin_t			pin_;		// The currently attached pin, if any.
 			Mode			mode_;		// The current operating mode.
 			PinStatus		trigger_;	// The current event trigger.
 			Timing			timing_;	// The current timing mode.
+			bool			enabled_;	// Flag used to disable one-shot timer after trigger.
+			bool			instant_;	// Flag indicating whether to report the instantaneous or triggered value;
+			uint32_t		value_;		// The current timer reporting value.
 			ct_type			object_;	// The counter/timer object.
 
 			bool isAttached() const { return pin_ != InvalidPin; }
@@ -284,7 +274,8 @@ namespace pg
 			Jack::TimersCount * (sizeof(decltype(TimerCounter::pin_)) +					// Timers Config saves pin_
 				sizeof(decltype(TimerCounter::mode_)) +									// mode_
 				sizeof(decltype(TimerCounter::trigger_)) +								// trigger_ and 
-				sizeof(decltype(TimerCounter::timing_)));								// timing_
+				sizeof(decltype(TimerCounter::timing_)) +								// operation
+				sizeof(decltype(TimerCounter::instant_)));								// instant
 
 #pragma region strings
 
@@ -332,7 +323,7 @@ namespace pg
 		static constexpr fmt_type FmtPinInfo = "%s=%u,%u,%u,%u";		// pin=p#,type,int,mode
 		static constexpr fmt_type FmtPinMode = "%s=%u,%u";				// pmd=p#,mode
 		static constexpr fmt_type FmtReadPin = "%u=%u";					// p#=value
-		static constexpr fmt_type FmtTimerAttach = "%s=%u,%u,%u,%u,%u";	// atc=t#,p#,mode,trigger,timing
+		static constexpr fmt_type FmtTimerAttach = "%s=%u,%u,%u,%u,%u,%u";	// atc=t#,p#,mode,trigger,timing
 		static constexpr fmt_type FmtTimerStatus = "%s=%u,%u,%lu";		// tms=t#,active,value
 		static constexpr fmt_type FmtChecksum = ":%u";					// Message check value. 
 # if defined __PG_PROGRAM_H
@@ -396,7 +387,7 @@ namespace pg
 		void cmdTimerAttachGet(timer_t);
 		void cmdTimerAttachGetAll();
 		void cmdTimerAttachGetList(char*);
-		void cmdTimerAttachSet(timer_t, pin_t, uint8_t, uint8_t, uint8_t);
+		void cmdTimerAttachSet(timer_t, pin_t, uint8_t, uint8_t, uint8_t, bool);
 		void cmdTimerDetach(timer_t);
 		void cmdTimerDetachAll();
 		void cmdTimerStatusGet(timer_t);
@@ -414,7 +405,7 @@ namespace pg
 	private:
 		template<class ForwardIt>
 		void addCommands(Commands&, ForwardIt, ForwardIt);
-		void attachTimer(timer_t, pin_t, uint8_t, uint8_t, uint8_t, bool = true);
+		void attachTimer(timer_t, pin_t, uint8_t, uint8_t, uint8_t, bool);
 		bool check(char*);
 		void closeConnection(Connection*&);
 		void detachTimer(timer_t, bool = true);
@@ -436,7 +427,7 @@ namespace pg
 # if !defined __PG_NO_ETHERNET_DHCP
 		void maintainConnection();
 # endif
-		void makeList(char*);
+		void makeList(char*, uint8_t);
 		Connection* openConnection(connection_type, const char*);
 		bool powerOnDefaults(pin_t);
 		value_type readPin(pin_t);
@@ -485,7 +476,7 @@ namespace pg
 		Command<timer_t> cmd_timerattachget_{ KeyTimerGetAttach, *this, &Jack::cmdTimerAttachGet };	// tcm=t
 		Command<void> cmd_timerattachgetall_{ KeyTimerGetAttachAll, *this, &Jack::cmdTimerAttachGetAll };	// tca
 		Command<char*> cmd_timerattachgetlist_{ KeyTimerGetAttachList, *this, &Jack::cmdTimerAttachGetList };	// tcl
-		Command<timer_t, pin_t, uint8_t, uint8_t, uint8_t> cmd_timerattachset_{ KeyTimerAttach, *this, &Jack::cmdTimerAttachSet };	// atc=t,p,m,s,i
+		Command<timer_t, pin_t, uint8_t, uint8_t, uint8_t, bool> cmd_timerattachset_{ KeyTimerAttach, *this, &Jack::cmdTimerAttachSet };	// atc=t,p,m,s,o,i
 		Command<timer_t> cmd_timerdetach_{ KeyTimerDetach, *this, &Jack::cmdTimerDetach };	// dtc=t
 		Command<pin_t, value_type> cmd_writepin_{ KeyWritePin, *this, &Jack::cmdWritePin };	// wrp=p,v
 		Command<void> cmd_connectionget_{ KeyGetConnection, *this, &Jack::cmdConnectionGet };	// net
@@ -505,7 +496,7 @@ namespace pg
 		bool			ack_;			// Command acknowledge flag.
 		List			list_;			// Command argument list buffer.
 # if defined __PG_PROGRAM_H
-		Command<uint8_t> cmd_program_{ KeyProgram, *this, &Jack::program };
+		Command<uint8_t> cmd_program_{ KeyProgram, *this, &Jack::program };	// Program command object.
 		Program			program_;		// Program manager/executor.
 # endif
 # if defined __PG_CRC_H 
@@ -520,7 +511,7 @@ namespace pg
 
 # if defined __PG_PROGRAM_H
 	Jack::Jack(cmdlist_type commands) :
-		connection_(), interp_(), eeprom_(), pins_(), timers_(), isrs_(), ack_(), program_(*this), list_(), 
+		connection_(), interp_(), eeprom_(), pins_(), timers_(), isrs_(), ack_(), program_(*this), list_(),
 		commands_({ & cmd_devinfo_ , & cmd_devreset_, & cmd_ackget_, & cmd_ackset_, & cmd_pininfoget_, & cmd_pininfogetall_,
 			& cmd_pinmodeget_, & cmd_pinmodegetall_, & cmd_pinmodeset_, & cmd_pinmodesetall_, & cmd_timerstatusget_,
 			& cmd_timerstatusgetall_, & cmd_timerstatusset_, & cmd_timerstatussetall_, & cmd_readpin_, & cmd_readpinall_, 
@@ -549,9 +540,10 @@ namespace pg
 	{
 		if (connection_ && connection_->open())
 		{
-			const char* msg = connection_->receive();
+			const char* msg;
 
-			if (*msg)
+			connection_->clock();
+			while(*(msg = connection_->receive()))
 # if defined __PG_CRC_H
 				if(check(const_cast<char*>(msg))) // Look for trailing check value and compare to checksum.
 # endif
@@ -604,6 +596,7 @@ namespace pg
 
 		// Convert arg0, arg1 and arg2 into a comma-delimited string: "arg0,arg1,arg2".
 		(void)fmtMessage(params, FmtConnectionSet, arg0, arg1, arg2);
+		sendMessage(FmtConnectionGet, KeySetConnection, type, params);
 		closeConnection(connection_);
 		setConnection(nullptr);
 		storeConnection(eeprom_, net_type, params);
@@ -667,9 +660,9 @@ namespace pg
 
 	void Jack::cmdPinModeGetList(char* list)
 	{
-		makeList(list);
+		makeList(list, GpioCount);
 		for (auto p : list_)
-			if (p < TimersCount)
+			if (p < GpioCount)
 				sendPinMode(p);
 	}
 
@@ -700,7 +693,7 @@ namespace pg
 
 	void Jack::cmdReadPinList(char* list)
 	{
-		makeList(list);
+		makeList(list, GpioCount);
 		for (auto p : list_)
 			if (p < GpioCount)
 				sendPinValue(p, readPin(p));
@@ -720,13 +713,13 @@ namespace pg
 
 	void Jack::cmdTimerAttachGetList(char* list)
 	{
-		makeList(list);
+		makeList(list, TimersCount);
 		for (auto t : list_)
 			if (t < TimersCount)
 				sendTimerInfo(t);
 	}
 
-	void Jack::cmdTimerAttachSet(timer_t t, pin_t p, uint8_t mode, uint8_t trigger, uint8_t timing = timing_mode::Immediate)
+	void Jack::cmdTimerAttachSet(timer_t t, pin_t p, uint8_t mode, uint8_t trigger, uint8_t timing, bool instant)
 	{
 		// Hardware interrupts have frequency limits. Triggering interrupts faster than they can be 
 		// handled will cause them to become unresponsive.
@@ -737,16 +730,19 @@ namespace pg
 			// If timer attached to another pin, detach it first.
 			if (timers_[t].isAttached())
 				detachTimer(t, false);
-			// If not manual operation, attach to pin to interrupt.
+			// If not manual operation, detach any other timer attached to same pin and attach to pin to interrupt.
 			if (p != InvalidPin)
 			{
+				for(size_type i = 0; i < TimersCount; ++i)
+					if (timers_[i].pin_ == p)
+						detachTimer(i, false);
 				// Using trigger LOW and floating input may cause attachInterrupt() to not return, so set as pullup.
 				if (trigger == LOW && pins_[p].mode_ != gpio_mode::Pullup)
 					setPinMode(p, gpio_mode::Pullup);
 				attachInterrupt(digitalPinToInterrupt(p), getIsr(t), static_cast<PinStatus>(trigger));
 			}
 			// Attach timer to pin, p == InvalidPin allows user to operate timer manually with commands.
-			attachTimer(t, p, mode, trigger, timing);
+			attachTimer(t, p, mode, trigger, timing, instant);
 		}
 	}
 
@@ -770,7 +766,7 @@ namespace pg
 
 	void Jack::cmdTimerStatusGetList(char* list)
 	{
-		makeList(list);
+		makeList(list, TimersCount);
 		for (auto t : list_)
 			if (t < TimersCount)
 				sendTimerStatus(t);
@@ -834,37 +830,29 @@ namespace pg
 	{
 		// This method updates the attached event counter/timer 
 		// in response to hardware interrupts.
-
 		TimerCounter& timer = timers_[t];
 
-		switch (timer.mode_)
+		if (timer.enabled_)
 		{
-		case timer_mode::Counter:
-			timer.object_++;
-			break;
-		case timer_mode::Timer:
-			switch (timer.timing_)
+			switch (timer.mode_)
 			{
-			case timing_mode::OneShot:
-				if (!timer.object_.active(timer_tag{}))
-					timer.object_.start(timer_tag{});
-				else
-					endTimer(t);
+			case timer_mode::Counter:
+				timer.object_++;
 				break;
-			case timing_mode::Immediate:
-				endTimer(t);
-				break;
-			case timing_mode::Continuous:
+			case timer_mode::Timer:
 				if (timer.object_.active(timer_tag{}))
+				{
+					if (timer.timing_ == timing_mode::OneShot)
+						timer.enabled_ = false;
 					timer.object_.stop(timer_tag{});
+					timer.value_ = timer.object_.elapsed().count();
+				}
 				else
 					timer.object_.start(timer_tag{});
 				break;
 			default:
 				break;
 			}
-		default:
-			break;
 		}
 	}
 
@@ -880,40 +868,16 @@ namespace pg
 		std::copy(first, last, end);
 	}
 
-	void Jack::attachTimer(timer_t t, pin_t p, uint8_t mode, uint8_t trigger, uint8_t timing, bool start)
+	void Jack::attachTimer(timer_t t, pin_t p, uint8_t mode, uint8_t trigger, uint8_t timing, bool instant)
 	{
 		TimerCounter& timer = timers_[t];
 
 		timer.pin_ = p;
 		timer.mode_ = static_cast<timer_mode>(mode);
 		timer.trigger_ = static_cast<PinStatus>(trigger);
-		timer.timing_ = static_cast<timing_mode>(timing);
-		if (start)
-		{
-			switch (timer.mode_)
-			{
-			case timer_mode::Counter:
-				timer.object_.start(counter_tag{});
-				break;
-			case timer_mode::Timer:
-				switch (timer.timing_)
-				{
-				case timing_mode::Immediate:
-					timer.object_.start(timer_tag{});
-					break;
-				case timing_mode::OneShot:
-				case timing_mode::Continuous:
-					timer.object_.stop(timer_tag{});
-					timer.object_.reset(timer_tag{});
-					break;
-				default:
-					break;
-				}
-				break;
-			default:
-				break;
-			}
-		}
+		timer.timing_ = timer.pin_ == InvalidPin || timer.mode_ == timer_mode::Counter ? timing_mode::Continuous : static_cast<timing_mode>(timing);
+		timer.instant_ = timer.pin_ == InvalidPin || timer.mode_ == timer_mode::Counter ? true : instant;
+		timer.enabled_ = true;
 		if (ack_)
 			sendTimerInfo(t);
 	}
@@ -991,7 +955,6 @@ namespace pg
 		// This method appends any client-defined commands to the built-in collection.
 # if !defined __PG_NO_USR_COMMANDS
 		addCommands(commands_, user_cmds.begin(), user_cmds.end());
-		//addCommands(commands_, const_cast<command_type**>(std::begin(user_cmds)), const_cast<command_type**>(std::end(user_cmds)));
 # endif
 		// Command keys must be unique, uncomment this if you need to check:
 		//assert(std::unique(std::begin(commands_), std::end(commands_)) == std::end(commands_));
@@ -1113,7 +1076,11 @@ namespace pg
 			timer.pin_ = InvalidPin;
 			timer.mode_ = timer_mode::Counter;
 			timer.trigger_ = FALLING;
-			timer.timing_ = timing_mode::Immediate;
+			timer.timing_ = timing_mode::Continuous;
+			timer.enabled_ = false;
+			timer.instant_ = false;
+			timer.value_ = 0;
+			timer.object_.reset();	// megaavr boards don't intialize timers objects correctly.
 		}
 	}
 
@@ -1147,15 +1114,14 @@ namespace pg
 			uint8_t mode = 0;
 			uint8_t trigger = 0;
 			uint8_t timing = 0;
+			bool instant = false;
 
 			eeprom >> pin;
 			eeprom >> mode;
 			eeprom >> trigger;
 			eeprom >> timing; 
-			if (pin == InvalidPin)
-				attachTimer(i, pin, mode, trigger, timing, false);
-			else
-				cmdTimerAttachSet(i, pin, mode, trigger, timing);
+			eeprom >> instant;
+			cmdTimerAttachSet(i, pin, mode, trigger, timing, instant);
 		}
 	}
 
@@ -1195,19 +1161,33 @@ namespace pg
 		}
 	}
 # endif
-	void Jack::makeList(char* list)
+	void Jack::makeList(char* list, uint8_t last)
 	{
-		// Convert dot-separated list into array of args.
+		// Convert dot-separated list into an array of indexes.
+		// Lists elements can be individual indexes or ranges 
+		// separated by hyphens '-'. Ranges without a trailing 
+		// index imply "to last"
 
-		size_type n = 0;
-		char* p = std::strtok(list, ListDelimiterChars);
+		char* tok = std::strtok(list, ListDelimiterChars);
 
-		while (p)
+		list_.resize(0);
+		while (tok && list_.size() < ListSize)
 		{
-			list_[n++] = std::atoi(p);
-			p = std::strtok(nullptr, ListDelimiterChars);
+			pin_t from = std::atoi(tok), to = from;
+			char* range = std::strchr(tok, '-');
+
+			if (range)
+			{
+				*range = '\0';
+				to = *++range ? std::atoi(range) : ListSize;
+			}
+			for (; from <= to && list_.size() < ListSize; ++from)
+			{
+				list_[list_.size()] = from;
+				list_.resize(list_.size() + 1);
+			}
+			tok = std::strtok(nullptr, ListDelimiterChars);
 		}
-		list_.resize(n);
 	}
 
 	Connection* Jack::openConnection(connection_type type, const char* params)
@@ -1258,10 +1238,13 @@ namespace pg
 		{
 			switch (pin.type_)
 			{
+			case gpio_type::Pwm:
+				if (pin.mode_ != gpio_mode::PwmOut)
+					value = digitalRead(p);
+				break;
 			case gpio_type::Analog:
 				value = analogRead(p);
 				break;
-			case gpio_type::Pwm:
 			case gpio_type::Digital:
 				value = digitalRead(p);
 				break;
@@ -1280,7 +1263,7 @@ namespace pg
 
 		(void)fmtMessage(msg, fmt, args...);
 # if defined __PG_CRC_H
-		if (checksum_)	// If we received a msg with a checksum then append one to the reply.
+		if (checksum_)	// If we received a msg with a checksum then set our reply flag.
 			(void)fmtMessage(msg + std::strlen(msg), FmtChecksum, checksum(static_cast<char*>(msg)));
 # endif
 		connection_->send(msg);
@@ -1309,7 +1292,7 @@ namespace pg
 	{
 		const TimerCounter& timer = timers_[n];
 
-		sendMessage(FmtTimerAttach, KeyTimerAttach, n, timer.pin_, timer.mode_, timer.trigger_, timer.timing_);
+		sendMessage(FmtTimerAttach, KeyTimerAttach, n, timer.pin_, timer.mode_, timer.trigger_, timer.timing_, timer.instant_);
 	}
 
 	void Jack::sendTimerStatus(timer_t n)
@@ -1326,7 +1309,7 @@ namespace pg
 			break;
 		case timer_mode::Timer:
 			active = timer.object_.active(timer_tag{});
-			value = timer.object_.elapsed().count();
+			value = timer.instant_ ? timer.object_.elapsed().count() : timer.value_;
 			break;
 		default:
 			break;
@@ -1360,25 +1343,6 @@ namespace pg
 
 		switch (timer.mode_)
 		{
-		case timer_mode::Counter:
-			switch (action)
-			{
-			case timer_action::Start:
-				timer.object_.start(counter_tag{});
-				break;
-			case timer_action::Stop:
-				timer.object_.stop(counter_tag{});
-				break;
-			case timer_action::Resume:
-				timer.object_.resume(counter_tag{});
-				break;
-			case timer_action::Reset:
-				timer.object_.reset(counter_tag{});
-				break;
-			default:
-				break;
-			}
-			break;
 		case timer_mode::Timer:
 			switch (action)
 			{
@@ -1393,6 +1357,27 @@ namespace pg
 				break;
 			case timer_action::Reset:
 				timer.object_.reset(timer_tag{});
+				timer.value_ = 0;
+				break;
+			default:
+				break;
+			}
+			break;
+		case timer_mode::Counter:
+			switch (action)
+			{
+			case timer_action::Start:
+				timer.object_.start(counter_tag{});
+				break;
+			case timer_action::Stop:
+				timer.object_.stop(counter_tag{});
+				break;
+			case timer_action::Resume:
+				timer.object_.resume(counter_tag{});
+				break;
+			case timer_action::Reset:
+				timer.object_.reset(counter_tag{});
+				timer.value_ = 0;
 				break;
 			default:
 				break;
@@ -1416,6 +1401,7 @@ namespace pg
 			eeprom << static_cast<uint8_t>(timer.mode_);
 			eeprom << static_cast<uint8_t>(timer.trigger_);
 			eeprom << static_cast<uint8_t>(timer.timing_);
+			eeprom << static_cast<bool>(timer.instant_);
 		}
 	}
 
@@ -1602,8 +1588,6 @@ namespace pg
 			setTimerStatus(n, static_cast<timer_action>(value));
 			break;
 		case '+':
-			if(n < TimersCount)
-				timers_[n].object_.count() = value;
 			break;
 		default:
 			break;
