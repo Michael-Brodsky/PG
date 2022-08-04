@@ -31,7 +31,7 @@
 /* Compilation conditionals used to exclude certain features. */
 
 //#define __PG_FORMAT_EEPROM 1			// Define this to format EEPROM memory, undefine & reupload for normal operation.
-//#define __PG_RESERVE_SPI_PINS			// Define this to set SPI pin modes to Reserved, e.g when using shields.
+#define __PG_RESERVE_SPI_PINS			// Define this to set SPI pin modes to Reserved, e.g when using shields.
 //#define __PG_NO_ETHERNET_CONNECTION 1	// Define this to exclude Ethernet connectivity.
 //#define __PG_NO_WIFI_CONNECTION 1		// Define this to exclude WiFi connectivity.
 //#define __PG_NO_ETHERNET_DHCP 1		// Define this to exclude Ethernet DHCP. 
