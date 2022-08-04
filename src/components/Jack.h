@@ -97,12 +97,13 @@
 # include <system/utils.h>
 # include <interfaces/iclockable.h>
 # include <interfaces/icomponent.h>
+# include <lib/hardware.h>
 # include <utilities/EEStream.h>
-# include <utilities/Timer.h>
-# include <utilities/Interpreter.h>
 # include <utilities/Connection.h>
 # if !defined __PG_NO_PROGRAM
 #  include <utilities/Program.h>	
+# else
+#  include <utilities/Interpreter.h>
 # endif
 # if !defined __PG_NO_CHECKSUM 
 #  include <lib/crc.h>
@@ -112,8 +113,6 @@
 
 namespace pg
 {
-	using std::chrono::milliseconds;
-
 	class Jack;
 	static Jack* __jack_isr = nullptr; // External pointer to Jack instance used by static isr methods.
 
@@ -139,9 +138,6 @@ namespace pg
 		using key_type = typename command_type::key_type;				// Command key storage type.
 		using size_type = uint8_t;										// Type that can hold the size of any Jack object.
 		using value_type = uint16_t;									// Type that can hold any pin state.
-		using ct_type = CounterTimer<milliseconds, value_type>;			// Event counter/timer type.
-		using counter_tag = ct_type::counter_tag;						// Tag type for dispatching counter methods.
-		using timer_tag = ct_type::timer_tag;							// Tag type for dispatching timer methods.
 		using timer_t = uint8_t;										// Timer index type alias.
 
 # if defined __PG_PROGRAM_H
@@ -168,97 +164,11 @@ namespace pg
 			? GpioCount
 			: TimersCount;
 
-		struct GpioPin;													// Forward decl (see below).
-		struct TimerCounter;											// Forward decl (see below).
 		using Commands = typename std::valarray<command_type*, CommandsMaxCount>;	// Remote commands collection type.
 		using Timers = typename std::array<TimerCounter, TimersCount>;	// Event counters/timers collection type.
 		using Pins = std::array<GpioPin, GpioCount>;					// GpioPins collection type.
 		using Isrs = std::array<isr_type, TimersCount>;					// ISRs collection type.
 		using List = std::valarray<uint8_t, ListSize>;					// Type that holds Command argument lists.
-
-		// Aggregates information about an event counter/timer. 
-		struct TimerCounter
-		{
-			// Enumerates valid counter/timer operating modes.
-			enum Mode : uint8_t
-			{
-				Counter = 0,	// Counter mode.
-				Timer = 1		// Timer mode.
-			};
-
-			// Enumerates valid counter/timer actions.
-			enum Action : uint8_t
-			{
-				Stop = 0,		// Starts the counter/timer.
-				Start = 1,		// Stops the counter/timer.
-				Resume = 2,		// Resumes the counter/timer with the current count/elapsed time.
-				Reset = 3		// Resets the current count/elapsed time.
-			};
-
-			// Enumerates counter/timer timing modes. 
-			enum Timing : uint8_t
-			{
-				Continuous = 0,	// Timer is toggled on each trigger event.
-				OneShot = 1,	// Timer starts then stops when triggered once.
-			};
-
-			pin_t			pin_;		// The currently attached pin, if any.
-			Mode			mode_;		// The current operating mode.
-			PinStatus		trigger_;	// The current event trigger.
-			Timing			timing_;	// The current timing mode.
-			bool			enabled_;	// Flag used to disable one-shot timer after trigger.
-			bool			instant_;	// Flag indicating whether to report the instantaneous or triggered value;
-			uint32_t		value_;		// The current timer reporting value.
-			ct_type			object_;	// The counter/timer object.
-
-			bool isAttached() const { return pin_ != InvalidPin; }
-		};
-
-		using timer_action = TimerCounter::Action;
-		using timer_mode = TimerCounter::Mode;
-		using timing_mode = TimerCounter::Timing;
-
-		// Aggregates information about a gpio pin.
-		struct GpioPin
-		{
-			// Enumerates valid gpio pin types.
-			enum Type : uint8_t
-			{
-				Digital = 0,	// Digital input/output.								
-				Analog = 1,		// Analog input.
-				Pwm = 2 		// Pwm output.
-			};
-
-			// Enumerates valid gpio pin modes.
-			enum Mode : uint8_t
-			{
-				Input = 0,		// Input pin.
-				Output = 1,		// Output pin.
-				Pullup = 2,		// Input pin w/ internal pullup resistor enabled.
-				PwmOut = 3,		// Pwm output pin.
-				Reserved = 4	// Reserved for system use.
-			};
-
-			Type			type_;		// Pin i/o type.
-			Mode			mode_;		// Pin i/o mode.
-			bool			int_;		// Pin has hardware interrupt.
-
-			// Checks whether the pin is currently configured as an input.
-			bool isInput() const { return mode_ == Mode::Input || mode_ == Mode::Pullup; }
-			// Checks whether the pin is currently configured as an output.
-			bool isOutput() const { return mode_ == Mode::Output || mode_ == Mode::PwmOut; }
-			// Checks whether the pin is an analog input.
-			bool isAnalog() const { return type_ == Type::Analog; }
-			// Checks whether the pin is a digital input/ouput.
-			bool isDigital() const { return !isAnalog(); } 
-			// Checks whether the pin has interrupt capability.
-			bool hasInterrupt() const { return int_; }
-			// Checks whether the pin is available as a gpio pin.
-			bool isAvailable() const { return mode_ < Mode::Reserved; }
-		};
-
-		using gpio_type = GpioPin::Type;
-		using gpio_mode = GpioPin::Mode;
 
 		// EEPROM Memory Map
 		// 
@@ -398,7 +308,6 @@ namespace pg
 		void cmdWritePin(pin_t, value_type);
 		Commands commands() const;
 		Connection* connection() const;
-		bool exec(const char*);
 		void initialize(pin_t = PowerOnDefaultsPin);
 		void isrHandler(timer_t);
 
@@ -424,9 +333,7 @@ namespace pg
 		void invalidateEeprom(EEStream&);
 		void loadConfig(EEStream&, Jack::Pins&, Jack::Timers&);
 		Connection* loadConnection(EEStream&, char*);
-# if !defined __PG_NO_ETHERNET_DHCP
 		void maintainConnection();
-# endif
 		void makeList(char*, uint8_t);
 		Connection* openConnection(connection_type, const char*);
 		bool powerOnDefaults(pin_t);
@@ -450,7 +357,6 @@ namespace pg
 		void program(uint8_t);
 		void sendProgramStatus(Program::Action, value_type);
 		iprogram::value_type sys_get(const char*) override;
-		void sys_set(const char*, iprogram::value_type) override;
 		bool verify();
 # endif
 	private: 
@@ -553,21 +459,14 @@ namespace pg
 				{
 					const char* instruction = program_.instruction();
 					// Programs can execute both remote commands and program instructions.
-					interp_.execute(std::begin(commands_), std::end(commands_), instruction) || 
-						interp_.execute(std::begin(program_.instructions()), std::end(program_.instructions()), instruction);
+					if (!interp_.execute(std::begin(program_.instructions()), std::end(program_.instructions()), instruction))
+						interp_.execute(std::begin(commands_), std::end(commands_), program_.tryGet(const_cast<char*>(instruction)));
 				}
 # else 
 					interp_.execute(std::begin(commands_), std::end(commands_), msg);
 # endif
-# if !defined __PG_NO_ETHERNET_DHCP
-			maintainConnection();		// Maintain ethernet dhcp lease.
-# endif
+			maintainConnection();		// Maintain dhcp lease.
 		}
-	}
-
-	bool Jack::exec(const char* command)
-	{
-		return interp_.execute(std::begin(commands_), std::end(commands_), command);
 	}
 
 	void Jack::cmdAckGet()
@@ -1080,7 +979,7 @@ namespace pg
 			timer.enabled_ = false;
 			timer.instant_ = false;
 			timer.value_ = 0;
-			timer.object_.reset();	// megaavr boards don't intialize timers objects correctly.
+			timer.object_.reset();	// megaavr boards don't intialize timer objects correctly.
 		}
 	}
 
@@ -1134,33 +1033,30 @@ namespace pg
 		eeprom >> params;
 		return openConnection(static_cast<connection_type>(type), params);
 	}
-# if !defined __PG_NO_ETHERNET_DHCP
+
 	void Jack::maintainConnection()
 	{
-		if (connection_->type() == Connection::Type::Ethernet)
-		{
-			char buf[Connection::size()] = { '\0' };
+		char buf[Connection::size()] = { '\0' };
 
-			switch (static_cast<EthernetConnection*>(connection_)->hardware().maintain())
-			{
-			case EthernetConnection::Maintain::NothingHappened:
-				break;
-			case EthernetConnection::Maintain::RenewFailed:
-			case EthernetConnection::Maintain::RebindFailed:	// Try reopening using original params.
-				connection_->close();
-				connection_->open(connection_->params(buf));
-				break;
-			case EthernetConnection::Maintain::RenewSuccess:
-				break;
-			case EthernetConnection::Maintain::RebindSuccess:	// Notify host of new ip.
-				cmdConnectionGet();
-				break;
-			default:
-				break;
-			}
+		switch (connection_->maintainConnection())
+		{
+		case Connection::Maintain::NothingHappened:
+			break;
+		case Connection::Maintain::RenewFailed:
+		case Connection::Maintain::RebindFailed:	// Try reopening using original params.
+			connection_->close();
+			connection_->open(connection_->params(buf));
+			break;
+		case Connection::Maintain::RenewSuccess:
+			break;
+		case Connection::Maintain::RebindSuccess:	// Notify host of new ip.
+			cmdConnectionGet();
+			break;
+		default:
+			break;
 		}
 	}
-# endif
+
 	void Jack::makeList(char* list, uint8_t last)
 	{
 		// Convert dot-separated list into an array of indexes.
@@ -1573,25 +1469,6 @@ namespace pg
 		}
 
 		return value;
-	}
-
-	void Jack::sys_set(const char* str, iprogram::value_type value)
-	{
-		size_type n = std::atoi(str + 1);
-
-		switch (*str)
-		{
-		case '#':
-			cmdWritePin(n, static_cast<value_type>(value));
-			break;
-		case '*':
-			setTimerStatus(n, static_cast<timer_action>(value));
-			break;
-		case '+':
-			break;
-		default:
-			break;
-		}
 	}
 
 	bool Jack::verify()
