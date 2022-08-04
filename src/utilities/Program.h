@@ -44,12 +44,13 @@ namespace pg
 		using value_type = int32_t;
 
 		virtual value_type sys_get(const char*) = 0;
-		virtual void sys_set(const char*, value_type) = 0;
 	};
 
+	class Jack;
 	// Type that manages a set of executable instructions.
 	class Program
 	{
+		friend class Jack;
 	public:
 		// Enumerates valid program actions.
 		enum Action	: uint8_t 
@@ -135,6 +136,7 @@ namespace pg
 		size_type size() const;					// Returns the current program size in characters.
 		void sleep(std::time_t);				// Puts the program execution to sleep for a given interval.
 		const char* text() const;				// Returns a pointer to the beginning of the program text.
+		const char* tryGet(char*);				// Tries to substitute program status value into a Jack command.
 
 	private:	/* Program instrucution methods. */
 		void add(const char*, const char*);
@@ -172,12 +174,12 @@ namespace pg
 		void subtract(const char*, const char*);
 		value_type* getDest(const char*);
 		bool isSysCall(const char*);
+		//value_type getRegVal(const char*);
 		void moveValue(const char*, value_type);
 		bool sleeping();			
 		void sysSet(const char*, const char*);
 
 	private:	/* Built-in instruction commands */
-		Instruction<const char*, const char*> ins_sysset_{ Program::KeySystemSet, *this, &Program::sysSet };
 		Instruction<const char*, const char*> ins_add_{ Program::KeyAdd, *this, &Program::add };
 		Instruction<const char*, const char*> ins_subtract_{ Program::KeySubtract, *this, &Program::subtract };
 		Instruction<const char*, const char*> ins_multiply_{ Program::KeyMultiply, *this, &Program::multiply };
@@ -234,7 +236,7 @@ namespace pg
 			&ins_jumpnotequal_, &ins_jumpless_, &ins_jumplessequal_, &ins_jumpgreater_, &ins_jumpgreaterequal_,
 			&ins_loop_, &ins_decrement_, &ins_increment_, &ins_add_, &ins_subtract_, &ins_multiply_,
 			&ins_divide_, &ins_modulo_, &ins_and_, &ins_or_, &ins_test_, &ins_xor_, &ins_call_, &ins_return_,
-			&ins_returnvalue_, &ins_push_, &ins_pop_, &ins_sysset_ })
+			&ins_returnvalue_, &ins_push_, &ins_pop_ })
 	{
 		std::sort(std::begin(instructions_), std::end(instructions_), cbcomp);
 	}
@@ -341,6 +343,26 @@ namespace pg
 		return text_;
 	}
 
+	const char* Program::tryGet(char* cmd)
+	{
+		char buf[Connection::size()] = { '\0' };
+		char* reg = std::strncpy(buf, cmd, sizeof(buf));
+		char* result = buf;
+
+		while ((reg = std::strchr(reg, 'x')))
+		{
+			int32_t* value = getDest(--reg);
+
+			if (value)
+			{
+				*reg = '\0';
+				std::sprintf(buf, "%s%u%s", buf, static_cast<uint16_t>(*value), (reg += 2));
+			}
+		}
+
+		return result;
+	}
+
 #pragma endregion
 #pragma region private
 
@@ -375,7 +397,7 @@ namespace pg
 			break;
 		}
 
-		return dest && *(arg + 1) == c && *(arg + 2) == '\0' ? dest : nullptr;
+		return dest && *(arg + 1) == c ? dest : nullptr;
 	}
 
 	bool Program::isSysCall(const char* arg)
@@ -586,11 +608,6 @@ namespace pg
 	void Program::subtract(const char* arg1, const char* arg2)
 	{
 		moveValue(arg1, (sr_ = get(arg1) - get(arg2)));
-	}
-
-	void Program::sysSet(const char* arg1, const char* arg2)
-	{
-		system_.sys_set(arg1, get(arg2));
 	}
 
 #pragma endregion

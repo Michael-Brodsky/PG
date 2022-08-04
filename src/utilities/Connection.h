@@ -62,6 +62,14 @@ namespace pg
 	class Connection : public iclockable
 	{
 	public:
+		enum Maintain : uint8_t
+		{
+			NothingHappened = 0, 
+			RenewFailed = 1, 
+			RenewSuccess = 2, 
+			RebindFailed = 3, 
+			RebindSuccess = 4
+		};
 		enum class Type
 		{
 			 Serial = 0,
@@ -89,6 +97,7 @@ namespace pg
 		virtual void flush() = 0;
 		virtual size_type send(const char*) = 0;
 		virtual const char* params(char*) = 0;
+		virtual Maintain maintainConnection() = 0;
 		Type type() const { return type_; }
 		const char* receive()
 		{
@@ -144,6 +153,7 @@ namespace pg
 		frame_type frame() const;
 		timeout_type timeout() const;
 		void clock() override;
+		Maintain maintainConnection() override;
 
 	private:
 		void parseParams(const char* params);
@@ -171,14 +181,6 @@ namespace pg
 	class EthernetConnection : public Connection
 	{
 	public:
-		enum Maintain : uint8_t
-		{
-			NothingHappened = 0, 
-			RenewFailed = 1, 
-			RenewSuccess = 2, 
-			RebindFailed = 3, 
-			RebindSuccess = 4
-		};
 		static constexpr uint32_t WaitConnect = 2000;
 		static constexpr uint32_t MaxWaitTime = 10000;
 		static constexpr const char* MacDelimiterChar = " ";
@@ -202,6 +204,7 @@ namespace pg
 		IPAddress remoteIP() const;
 		IPAddress localIP() const;
 		void clock() override;
+		Maintain maintainConnection() override;
 
 	private:
 		void parseParams(const char* params);
@@ -243,6 +246,7 @@ namespace pg
 		IPAddress remoteIP() const;
 		IPAddress localIP() const;
 		void clock() override;
+		Maintain maintainConnection() override;
 
 	private:
 		void parseParams(const char* params);
@@ -370,6 +374,10 @@ namespace pg
 		}
 	}
 
+	Connection::Maintain SerialConnection::maintainConnection()
+	{
+		return Connection::Maintain::NothingHappened;
+	}
 #pragma endregion
 #pragma region EthernetConnection
 # if defined __PG_ETHERNET_H
@@ -530,6 +538,16 @@ namespace pg
 		}
 	}
 
+	Connection::Maintain EthernetConnection::maintainConnection()
+	{
+# if !defined __PG_NO_ETHERNET_DHCP
+		return static_cast<Maintain>(hardware().maintain());
+# else
+		return Connection::Maintain::NothingHappened;
+# endif
+	}
+
+
 # endif
 #pragma endregion
 #pragma region WiFiConnection
@@ -663,6 +681,11 @@ namespace pg
 			remote_ip_ = udp_.remoteIP();
 		}
 	} 
+
+	Connection::Maintain WiFiConnection::maintainConnection()
+	{
+		return Connection::Maintain::NothingHappened;
+	}
 
 # endif
 #pragma endregion
