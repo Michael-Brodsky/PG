@@ -1,1 +1,3 @@
-A refactored version of the View desktop app is currently under development. 
+View is a desktop host application used to connect with and operate remote Jack devices. View provides an API (LibView) for host apps to display graphical user interfaces that can configure, operate and monitor devices over a network. The current version consists of a simple UI that connects to one or more devices and shows their current configuration and state. It also allows users to monitor the device and network traffic in real-time, upload programs, reset and reconfigure the device, and more. Later versions will include samples of custom, application-specific UIs with more features.
+
+View is currently supported only on Microsoft Windows. To install the app, download the compressed folder (.zip) and run the installer (View Setup.msi). Windows will automatically install and configure the app, and create a desktop shortcut to launch it.
