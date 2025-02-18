@@ -29,7 +29,7 @@
  *
  *	Description:
  * 
- *	    This file several algorithms for computing discrete time (digital) 
+ *	    This file has algorithms for computing discrete time (digital) 
  *      transfer function coefficients from their continuous-time (analog) 
  *      counterparts using the bilinear transform, where: 
  * 
