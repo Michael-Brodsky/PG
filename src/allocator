@@ -1,0 +1,36 @@
+#include <pg.h>
+#include <cstddef>
+
+template <class T>
+struct allocator
+{
+  using value_type = T;
+
+  allocator() = default;
+  template <class U>
+  allocator(const allocator<U>&) noexcept {}
+
+  T* allocate(std::size_t n) 
+  {
+    void* p = ::operator new(n * sizeof(T));
+
+    return static_cast<T*>(p);
+  }
+
+  void deallocate(T* p, std::size_t n) 
+  {
+    ::operator delete(p);
+  }
+};
+
+template <class T, class U>
+bool operator==(const allocator<T>&, const allocator<U>&)
+{
+  return true;
+}
+
+template <class T, class U>
+bool operator!=(const allocator<T>&, const allocator<U>&)
+{
+  return false;
+}
