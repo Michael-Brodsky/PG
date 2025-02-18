@@ -61,7 +61,7 @@ namespace pg
 
 
 		/*
-		 * Usinge these until namespace units is fully operational.
+		 * Using these until namespace units is fully operational.
 		 */
 
 		namespace details
