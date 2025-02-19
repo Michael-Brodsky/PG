@@ -1,0 +1,135 @@
+/*
+ *  This file defines a base class used by container classes to allocate 
+ *  storage and provide common functionality. 
+ *
+ *  ***************************************************************************
+ *
+ *  File: container
+ *  Date: February 19, 2025
+ *  Version: 1.0
+ *  Author: Michael Brodsky
+ *  Email: mbrodskiis@gmail.com
+ *  Copyright (c) 2012-2025 Michael Brodsky
+ *
+ *  ***************************************************************************
+ *
+ *  This file is part of "Pretty Good" (Pg). "Pg" is free software:
+ *  you can redistribute it and/or modify it under the terms of the
+ *  GNU General Public License as published by the Free Software Foundation,
+ *  either version 3 of the License, or (at your option) any later version.
+ *
+ *  This file is distributed in the hope that it will be useful, but
+ *  WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this file. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *  **************************************************************************
+ *
+ *  Description:
+ *
+ *    UNDER CONSTRUCTION
+ *
+ *  **************************************************************************/
+
+#if !defined __PG_CONTAINER_
+# define __PG_CONTAINER_ 20250219L
+
+# include <pg.h>
+# include <array>
+# include <allocator>
+# include <initializer_list>
+
+# if defined __PG_HAS_NAMESPACES
+
+namespace pg
+{
+  template <class T, typename Alloc = std::allocator<T>>
+  class container
+  {  
+    public:
+      using self_type = container<T>;
+      using allocator_type = Alloc;
+      using value_type = typename allocator_type::value_type;
+      using size_type = std::size_t;
+      using difference_type = std::ptrdiff_t;
+      using reference = value_type&;
+      using const_reference = const value_type&;
+      using pointer = value_type*;
+      using const_pointer = const value_type*;
+      using iterator = std::RandomAccessIterator<T>;
+      using const_iterator = std::ConstRandomAccessIterator<T>;
+      using reverse_iterator = std::ReverseIterator<iterator>;
+      using const_reverse_iterator = std::ConstReverseIterator<const_iterator>;
+
+    public:
+      container() = default;
+
+    public:
+      container&              operator=(const container&);
+      container&              operator=(container&&);
+      container&              operator=(std::initializer_list<value_type>);
+      void                    assign(size_type, const_reference);
+      template <class InputIt>
+      void                    assign(InputIt, InputIt);
+      void                    assign(std::initializer_list<T>);
+      allocator_type          get_allocator() const;
+      reference               operator[](size_type);
+      const_reference         operator[](size_type) const;
+      reference               front();
+      const_reference         front() const;
+      reference               back();
+      const_reference         back() const;
+      pointer                 data();
+      const_pointer           data() const;
+      void                    clear();
+      iterator                erase(iterator);
+      iterator                erase(const_iterator);
+      iterator                erase(iterator, iterator);
+      iterator                erase(const_iterator, const_iterator);
+      iterator                insert(const_iterator, const_reference);
+      iterator                insert(const_iterator, value_type&&);
+      iterator                insert(const_iterator, size_type, const_reference);
+      template <class InputIt>
+      iterator                insert(const_iterator, InputIt, InputIt);
+      iterator                insert(const_iterator, std::initializer_list<T>);
+      template <class... Args>
+      iterator                emplace(const_iterator, Args&&... args);
+      void                    push_back(const_reference);
+      void                    push_back(value_type&&);
+      void                    pop_back();
+      constexpr size_type     capacity() const;
+      constexpr size_type     size() const noexcept;
+      constexpr size_type     max_size() const noexcept;
+      constexpr bool          empty() const noexcept;
+      void                    reserve(size_type);
+      void                    resize(size_type);
+      void                    resize(size_type, const_reference);
+      iterator                begin();
+      const_iterator          begin() const;
+      const_iterator          cbegin() const;
+      iterator                end();
+      const_iterator          end() const;
+      const_iterator          cend() const;
+      reverse_iterator        rbegin();
+      const_reverse_iterator  rbegin() const;
+      const_reverse_iterator  crbegin() const;
+      reverse_iterator        rend();
+      const_reverse_iterator  rend() const;
+      const_reverse_iterator  crend() const;
+      void                    fill(const_reference);
+      void                    swap(self_type&);
+
+    private:
+      T*        data_;
+      size_type size_;
+  };
+} // namespace pg
+
+# else // !defined __PG_HAS_NAMESPACES
+#  error Requires C++11 and named namespace support.
+# endif // defined __PG_HAS_NAMESPACES
+
+#endif // !defined __PG_CONTAINER_
