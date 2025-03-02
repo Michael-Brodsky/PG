@@ -179,7 +179,6 @@ namespace std {
   vector<T, Allocator>::vector(InputIt first, InputIt last, const Allocator& alloc) : alloc_(alloc), data_(alloc_.allocate(std::distance(first, last))), 
   capacity_(std::distance(first, last)), size_(std::distance(first, last))
   {
-    // Arduino doesn't support operator placement new. Need to create a <new> header that does. 
     pointer it = data_;
     
     while(first != last)
