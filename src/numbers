@@ -37,7 +37,8 @@
  *	Notes:
  *
  *		This implementation provides the Standard mathematical constants as 
- *		well as several common constants not defined by the Standard.
+ *		well as several common constants not defined by the Standard. For
+ *      details on the values, see definitions in <lib/constants.h>.
  *
  *	**************************************************************************/
 
