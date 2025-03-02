@@ -36,7 +36,6 @@
  *
  *  **************************************************************************/
 
-# include <pg.h>
 # include <new.h>	// Arduino new header.
 
 // Non-allocating placement allocation functions.
