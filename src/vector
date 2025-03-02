@@ -5,7 +5,7 @@
  *  ***************************************************************************
  *
  *  File: vector
- *  Date: February 28, 2025
+ *  Date: March 1, 2025
  *  Version: 1.0
  *  Author: Michael Brodsky
  *  Email: mbrodskiis@gmail.com
@@ -30,7 +30,10 @@
  *
  *  Description:
  *
- *    UNDER CONSTRUCTION
+ *    This file defines objects in the <vector> header of the C++ Standard 
+ *    Library - to the extent they are supported by the Arduino
+ *    implementation. The objects behave according to the C++ ISO/IEC 14882
+ *    Standards, except as noted.
  *
  *  **************************************************************************/
 
@@ -38,11 +41,12 @@
 # define __PG_VECTOR_ 20250219L
 
 # include <pg.h>
-# include <lib/imath.h>
-# include <system/utils.h>
-# include <array>
-# include <allocator>
-# include <initializer_list>
+# include <lib/imath.h>       // ipow2ge()
+# include <system/utils.h>    // freeMemory()
+# include <new>               // Placement new operators
+# include <array>             // Sequence container iterators
+# include <allocator>         // std::allocator
+# include <initializer_list>  // std::initializer_list
 
 # if defined __PG_HAS_NAMESPACES
 
@@ -83,7 +87,7 @@ namespace std
     public:
       vector&                 operator=(const vector&);
       vector&                 operator=(vector&&);
-      vector&                 operator=(std::initializer_list<value_type>);
+      vector&                 operator=(std::initializer_list<T>);
       void                    assign(size_type, const_reference);
       template <class InputIt>
       void                    assign(InputIt, InputIt);
@@ -135,7 +139,8 @@ namespace std
       void                    swap(vector&);
 
     private:
-      pointer allocate(size_type);
+      pointer                 allocate(size_type);
+      iterator                shift_back(iterator, size_type n = 1);
       
     private:
       T*        data_;
@@ -145,7 +150,7 @@ namespace std
   };
 } // namespace std
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#pragma region vector_ctors
 
 namespace std {
 
@@ -156,13 +161,15 @@ namespace std {
   }
   
   template <class T, typename Allocator>
-  vector<T, Allocator>::vector(typename vector<T, Allocator>::size_type n, const Allocator& alloc) : alloc_(alloc), data_(alloc_.allocate(n)), capacity_(n), size_(n)  
+  vector<T, Allocator>::vector(typename vector<T, Allocator>::size_type n, const Allocator& alloc) : alloc_(alloc), data_(alloc_.allocate(n)), 
+  capacity_(n), size_(n)  
   {
     std::fill(begin(), end(), T());
   }
 
   template <class T, typename Allocator>
-  vector<T, Allocator>::vector(typename vector<T, Allocator>::size_type n, const T& value, const Allocator& alloc) : alloc_(alloc), data_(alloc_.allocate(n)), capacity_(n), size_(n)  
+  vector<T, Allocator>::vector(typename vector<T, Allocator>::size_type n, const T& value, const Allocator& alloc) : alloc_(alloc), 
+  data_(alloc_.allocate(n)), capacity_(n), size_(n)  
   {
     std::fill(begin(), end(), value);
   }
@@ -173,14 +180,15 @@ namespace std {
   capacity_(std::distance(first, last)), size_(std::distance(first, last))
   {
     // Arduino doesn't support operator placement new. Need to create a <new> header that does. 
-    iterator it = data_;
+    pointer it = data_;
     
     while(first != last)
       (void)new(it++) T(*first++);
   }
 
   template <class T, typename Allocator>
-  vector<T, Allocator>::vector(const vector<T, Allocator>& other) : alloc_(other.alloc_), data_(alloc_.allocate(other.capacity_)), capacity_(other.capacity_), size_(other.size_)
+  vector<T, Allocator>::vector(const vector<T, Allocator>& other) : alloc_(other.alloc_), data_(alloc_.allocate(other.capacity_)), 
+  capacity_(other.capacity_), size_(other.size_)
   {
     std::copy(other.begin(), other.end(), data_);
   }
@@ -201,7 +209,8 @@ namespace std {
   }
     
   template <class T, typename Allocator>
-  vector<T, Allocator>::vector(vector<T, Allocator>&& other, const Allocator& alloc) : alloc_(alloc), data_(other.data_), capacity_(other.capacity_), size_(other.size_)
+  vector<T, Allocator>::vector(vector<T, Allocator>&& other, const Allocator& alloc) : alloc_(alloc), data_(other.data_), 
+  capacity_(other.capacity_), size_(other.size_)
   {
     other.data_ = nullptr;
     other.size_ = 0;
@@ -209,7 +218,8 @@ namespace std {
   }
 
   template <class T, typename Allocator>
-  vector<T, Allocator>::vector(std::initializer_list<T> il, const Allocator& alloc) : alloc_(alloc), data_(alloc_.allocate(il.size())), capacity_(il.size()), size_(il.size())
+  vector<T, Allocator>::vector(std::initializer_list<T> il, const Allocator& alloc) : alloc_(alloc), data_(alloc_.allocate(il.size())), 
+  capacity_(il.size()), size_(il.size())
   {
     std::copy(il.begin(), il.end(), data_);
   }
@@ -220,8 +230,53 @@ namespace std {
     alloc_.deallocate(data_, capacity_);
   }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+# pragma endregion
+# pragma public_members
 
+  template <class T, typename Allocator>
+  vector<T, Allocator>& vector<T, Allocator>::operator=(const vector<T, Allocator>& other)
+  {
+    if(this != &other)
+    {
+      pointer new_data = alloc_.allocate(other.capacity_);
+      std::copy(other.data_, other.data_ + other.size_, new_data);
+      alloc_.deallocate(data_, capacity_);
+      data_ = new_data;
+      size_ = other.size_;
+      capacity_ = other.capacity_;
+    }
+
+    return *this;
+  }
+
+  template <class T, typename Allocator>
+  vector<T, Allocator>& vector<T, Allocator>::operator=(vector<T, Allocator>&& other)
+  {
+    if (this != &other)
+    {
+      alloc_.deallocate(data_, capacity_);
+      data_ = other.data_;
+      size_ = other.size_;
+      capacity_ = other.capacity_;
+      other.data_ = nullptr;
+      other.size_ = 0;
+      other.capacity_ = 0;
+    }
+
+    return *this;
+  }
+  
+  template <class T, typename Allocator>
+  vector<T, Allocator>& vector<T, Allocator>::operator=(std::initializer_list<T> il)
+  {
+    pointer new_data = alloc_.allocate(il.size());
+    std::copy(il.begin(), il.end(), new_data);
+    alloc_.deallocate(data_, capacity_);
+    data_ = new_data;
+    size_ = il.size();
+    capacity_ = il.size();
+  }
+  
   template <class T, typename Allocator>
   void vector<T, Allocator>::assign(size_type n, const_reference value)
   {
@@ -304,13 +359,110 @@ namespace std {
   template <class T, typename Allocator>
   void vector<T, Allocator>::clear()
   {
-    size_ = 0;
+    erase(begin(), end());
+  }
+
+  template <class T, typename Allocator>
+  typename vector<T, Allocator>::iterator vector<T, Allocator>::erase(iterator it)
+  {
+    iterator first = it++;
+    std::move(it, end(), first);
+    ~T(data_ + --size_);
+
+    return first;
+  }
+  
+  template <class T, typename Allocator>
+  typename vector<T, Allocator>::iterator vector<T, Allocator>::erase(const_iterator it)
+  {
+    return erase(const_cast<iterator>(it));
+  }
+  
+  template <class T, typename Allocator>
+  typename vector<T, Allocator>::iterator vector<T, Allocator>::erase(iterator first, iterator last)
+  {
+    size_type old_size = size_;
+    
+    std::move(last, end(), first);
+    size_ -= std::distance(first, last);
+    for(size_type sz = size_; sz < old_size; ++sz)
+      ~T(data_ + sz);
+    
+    return first;
+  }
+  
+  template <class T, typename Allocator>
+  typename vector<T, Allocator>::iterator vector<T, Allocator>::erase(const_iterator first, const_iterator last)
+  {
+    return erase(const_cast<iterator>(first), const_cast<iterator>(last));
+  }
+  
+  template <class T, typename Allocator>
+  typename vector<T, Allocator>::iterator vector<T, Allocator>::insert(const_iterator pos, const_reference value)
+  {
+    iterator it = shift_back(const_cast<iterator>(pos));    
+   
+    *it = value;
+    
+    return it;
+  }
+  
+  template <class T, typename Allocator>
+  typename vector<T, Allocator>::iterator vector<T, Allocator>::insert(const_iterator pos, value_type&& value)
+  {
+    iterator it = shift_back(const_cast<iterator>(pos));    
+   
+    *it = std::move(value);
+    
+    return it;
+  }
+  
+  template <class T, typename Allocator>
+  typename vector<T, Allocator>::iterator vector<T, Allocator>::insert(const_iterator pos, size_type n, const_reference value)
+  {
+    iterator it = shift_back(const_cast<iterator>(pos), n);    
+
+    while(n)
+      *(it + --n) = value;
+    
+    return it;
+  }
+  
+  template <class T, typename Allocator>
+  template <class InputIt>
+  typename vector<T, Allocator>::iterator vector<T, Allocator>::insert(const_iterator pos, InputIt first, InputIt last)
+  {
+    iterator it = shift_back(const_cast<iterator>(pos), std::distance(first, last));    
+
+    std::copy(first, last, it);
+    
+    return it;
+  }
+  
+  template <class T, typename Allocator>
+  typename vector<T, Allocator>::iterator vector<T, Allocator>::insert(const_iterator pos, std::initializer_list<T> il)
+  {
+    iterator it = shift_back(const_cast<iterator>(pos), il.size());    
+
+    std::copy(il.begin(), il.end(), it);
+    
+    return it;
+  }
+  
+  template <class T, typename Allocator>
+  template <class... Args>
+  typename vector<T, Allocator>::iterator vector<T, Allocator>::emplace(const_iterator, Args&&... args)
+  {
+    if (size_++ == capacity_) 
+      reserve(size_);
+    
+    return *new (data_ + size_) T(std::forward<Args>(args)...);
   }
   
   template <class T, typename Allocator>
   void vector<T, Allocator>::push_back(typename vector<T, Allocator>::const_reference val)
   {
-    if (capacity_ <= size_)
+    if (size_ == capacity_)
       reserve(size_ + 1U);
     data_[size_++] = val;
   }
@@ -458,8 +610,10 @@ namespace std {
     std::swap_ranges(this->data_, (this->data_ + size_), other.data_);
   }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+# pragma endregion
+# pragma private_members
 
+  // Allocates n elements of T and moves the current data to the newly allocated memory, if required.
   template <class T, typename Allocator>
   typename vector<T, Allocator>::pointer vector<T, Allocator>::allocate(typename vector<T, Allocator>::size_type n)
   {
@@ -475,6 +629,30 @@ namespace std {
 
     return new_data;
   }
+
+  // Increases the vector size by n and shifts all elements from pos to the end n elements to the right.
+  // If the new size is greater than the old capacity, a reallocation occurs.
+  template <class T, typename Allocator>
+  typename vector<T, Allocator>::iterator vector<T, Allocator>::shift_back(iterator pos, size_type n)
+  {
+    iterator it = pos;    
+    pointer old_data = data_;
+    pointer new_data = nullptr;
+
+    size_ += n;
+    if(size_ > capacity_) reserve(size_);
+    new_data = data_;
+    it += std::distance(static_cast<iterator>(old_data), static_cast<iterator>(new_data));
+    std::move_backward(it, end(), end() + n);
+
+    return it;
+  }
+
+# pragma endregion
+# pragma vector_nonmember-functions
+
+# pragma endregion
+
 } // namespace std
 
 # else // !defined __PG_HAS_NAMESPACES
