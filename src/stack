@@ -47,7 +47,7 @@
 
 namespace std
 {
-	// A statically allocated, LIFO (last-in, first-out) data structure.
+	// A statically allocated, LIFO (last-in, first-out) abstract data type.
 	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc = std::array>
 	class stack
 	{
@@ -221,7 +221,7 @@ namespace std
 	}
 
 #pragma endregion
-#pragma region private menbers
+#pragma region private members
 
 	template<class T, std::size_t N, template<class = T, std::size_t = N> typename Alloc>
 	template<class Arg>
