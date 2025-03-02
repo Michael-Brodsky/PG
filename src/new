@@ -36,6 +36,9 @@
  *
  *  **************************************************************************/
 
+#if !defined __PG_NEW_
+# define __PG_NEW_ 20250301L
+
 # include <new.h>	// Arduino new header.
 
 // Non-allocating placement allocation functions.
@@ -45,3 +48,5 @@ inline void* operator new[](std::size_t, void* p) throw() { return p; }
 // Non-allocating placement deallocation functions.
 inline void operator delete(void* , void *) throw() {}
 inline void operator delete[](void* , void *) throw() {}
+
+#endif 	// !defined __PG_NEW_
