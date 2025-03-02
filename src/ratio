@@ -161,4 +161,4 @@ namespace std
 #  error Requires C++11 and namespace support.
 # endif // defined __PG_HAS_NAMESPACES 
 
-#endif // !defined NUMERIC_H__
+#endif // !defined RATIO_H__
