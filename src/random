@@ -77,7 +77,7 @@ namespace std
         static constexpr result_type max() { return m - 1; }
 
     public:
-        // Constructs the engine using default seed.
+        // Constructs the engine using the default seed.
         linear_congruential_engine() : linear_congruential_engine(default_seed) {} 
 
         // Constructs the engine with the seed value. 
