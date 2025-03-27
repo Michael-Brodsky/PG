@@ -35,7 +35,7 @@ bool _var_limits()
   Serial.print("<unsigned long int> min: "); Serial.print(std::numeric_limits<unsigned long int>::min()); Serial.print(", max: "); Serial.println(std::numeric_limits<unsigned long int>::max());
   
   // Needs <Print.h> that supports 64-bit integer printing.
-  // Update 20250327 - we have that now.
+  // Update 20250327 - we have that now, see hardware\avr\print.h & print.cpp.
   //Serial.print("<signed long long int> min: "); Serial.print(std::numeric_limits<signed long long int>::min()); Serial.print(", max: "); Serial.println(std::numeric_limits<signed long long int>::max());
   //Serial.print("<unsigned long long int> min: "); Serial.print(std::numeric_limits<unsigned long long int>::min()); Serial.print(", max: "); Serial.println(std::numeric_limits<unsigned long long int>::max());
 
