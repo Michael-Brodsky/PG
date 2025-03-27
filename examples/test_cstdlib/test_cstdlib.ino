@@ -1,6 +1,5 @@
 #include <pg.h>
 #include <cstring>
-//#include <components/Jack.h>
 
 char s1[] = "0,1,2,3", *p = s1;
 const char* d = ",";
