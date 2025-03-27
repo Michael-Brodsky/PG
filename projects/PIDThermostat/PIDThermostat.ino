@@ -1,5 +1,5 @@
 /*
- *	This program demonstrates the implementation of a programmable PID
+ * This program demonstrates the implementation of a programmable PID
  *  controlled thermostat.
  *
  *	***************************************************************************
