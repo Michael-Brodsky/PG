@@ -75,7 +75,6 @@ bool _imath_iseven()
   const Ta a = std::numeric_limits<Ta>::max();
   const Ta b = 0;
   const Ta c = std::numeric_limits<Ta>::min();
-  //Print(pg::iseven(a)); Print(' '); Print(pg::iseven(b)); Print(' '); Print(pg::iseven(c)); Print(' ');
   return !pg::iseven(a) && pg::iseven(b) && pg::iseven(c);
 }
 
@@ -215,7 +214,6 @@ bool _imath_idiv2()
   const Ta x = std::numeric_limits<Ta>::max();
   for (unsigned i = 0; i < 64; ++i)
   {
-    //Print(pg::idiv2(x, i)); Print("\t"); PrintLn(vals[i]);
     result = result && pg::idiv2(x, i) == vals[i];
   }
 
@@ -348,7 +346,6 @@ bool _imath_imod2m()
   uint8_t j = 0;
   for (Ta i = 1; i < 64; i *= 2)
   {
-    //Print(pg::imod2m(a, i - 1)); Print("\t"); PrintLn(pg::ipow2<Ta>(j++) - 1);
     result = result && pg::imod2m(a, i - 1) == pg::ipow2<Ta>(j++) - 1;
   }
 
@@ -375,8 +372,6 @@ bool _imath_ipow2le()
   const Ta a = std::numeric_limits<Ta>::max();
   for (Ta i = 1; i < a / 2; i *= 2)
   {
-    //Print(pg::ipow2le(i)); Print("\t");
-    //PrintLn(i);
     result = result && pg::ipow2le(i) == i;
   }
 
