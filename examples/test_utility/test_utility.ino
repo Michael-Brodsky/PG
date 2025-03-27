@@ -61,7 +61,6 @@ template<class T>
 bool test_size(T t)
 {
   int a[std::tuple_size<T>::value]; // can be used at compile time
-  //Serial.println(std::tuple_size<T>::value); // or at run time
 
   return std::tuple_size<T>::value == 2;
 }
